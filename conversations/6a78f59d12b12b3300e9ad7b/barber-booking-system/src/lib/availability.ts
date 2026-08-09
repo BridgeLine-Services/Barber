@@ -182,6 +182,87 @@ function formatSlotTime(date: Date): string {
 }
 
 /**
+ * Find the earliest available slot across all active barbers offering a given service on a date.
+ */
+export async function getEarliestAvailableSlot(params: {
+  businessId: string
+  serviceId: string
+  date: Date
+}): Promise<{
+  earliest: { barberId: string; barberName: string; time: string } | null
+  slots: { time: string; available: boolean; barberId?: string; barberName?: string }[]
+}> {
+  const { businessId, serviceId, date } = params
+
+  const barbers = await prisma.barber.findMany({
+    where: { businessId, isActive: true },
+    include: {
+      services: true,
+    },
+    orderBy: { order: 'asc' },
+  })
+
+  const matchingBarbers = barbers.filter((barber) => {
+    if (!barber.services || barber.services.length === 0) return true
+    return barber.services.some((bs) => bs.serviceId === serviceId)
+  })
+
+  if (matchingBarbers.length === 0) {
+    return { earliest: null, slots: [] }
+  }
+
+  const barberSlotsMap = await Promise.all(
+    matchingBarbers.map(async (barber) => {
+      const slots = await getAvailableSlots({
+        businessId,
+        barberId: barber.id,
+        serviceId,
+        date,
+      })
+      return { barber, slots }
+    })
+  )
+
+  const slotMap = new Map<
+    string,
+    { time: string; available: boolean; barberId?: string; barberName?: string }
+  >()
+
+  for (const { barber, slots } of barberSlotsMap) {
+    for (const slot of slots) {
+      if (!slotMap.has(slot.time)) {
+        slotMap.set(slot.time, {
+          time: slot.time,
+          available: slot.available,
+          ...(slot.available && { barberId: barber.id, barberName: barber.name }),
+        })
+      } else {
+        const existing = slotMap.get(slot.time)!
+        if (!existing.available && slot.available) {
+          existing.available = true
+          existing.barberId = barber.id
+          existing.barberName = barber.name
+        }
+      }
+    }
+  }
+
+  const mergedSlots = Array.from(slotMap.values())
+
+  const earliestSlot = mergedSlots.find((s) => s.available)
+  const earliest =
+    earliestSlot && earliestSlot.barberId && earliestSlot.barberName
+      ? {
+          barberId: earliestSlot.barberId,
+          barberName: earliestSlot.barberName,
+          time: earliestSlot.time,
+        }
+      : null
+
+  return { earliest, slots: mergedSlots }
+}
+
+/**
  * Create an appointment with double-booking protection.
  *
  * Uses a Prisma transaction with a re-check of slot availability inside the
