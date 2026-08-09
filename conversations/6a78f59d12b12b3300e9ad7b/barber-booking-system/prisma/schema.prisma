@@ -1,0 +1,242 @@
+// ============================================================================
+// Barber Booking System — Prisma Schema
+// Multi-tenant: every business-coped table has a businessId column.
+// Every query MUST filter by businessId to prevent cross-shop data leakage.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Business (Tenant) ──────────────────────────────────────────────────────
+
+model Business {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique // URL slug for the shop, e.g. "fade-factory"
+  logo         String?
+  primaryColor String   @default("#1a1a1a") // dark / black theme default
+  accentColor  String   @default("#d4af37") // gold accent default
+  phone        String?
+  email        String?
+  address      String?
+  city         String?
+  state        String?
+  zipCode      String?
+  latitude     Float?
+  longitude    Float?
+  instagram     String?
+  facebook      String?
+  tiktok       String?
+  hours        Json? // { monday: { open: "09:00", close: "18:00", isOff: false }, ... }
+  aboutText    String? @db.Text
+  bookingPolicy String? @db.Text
+  cancellationPolicy String? @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users        User[]
+  barbers      Barber[]
+  services     Service[]
+  customers    Customer[]
+  appointments Appointment[]
+  blockedTimes BlockedTime[]
+  reviews      Review[]
+
+  @@index([slug])
+}
+
+// ─── Users (Auth) ───────────────────────────────────────────────────────────
+
+enum UserRole {
+  OWNER
+  BARBER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(BARBER)
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  barberId     String? // links to Barber profile when role = BARBER
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([businessId])
+}
+
+// ─── Barbers ───────────────────────────────────────────────────────────────
+
+model Barber {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  photo      String?
+  specialty  String? // e.g. "Fades • Tapers • Beard Work"
+  bio        String? @db.Text
+  isActive   Boolean  @default(true)
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  schedules    Schedule[]
+  appointments Appointment[]
+  blockedTimes BlockedTime[]
+  services     BarberService[]
+
+  @@index([businessId])
+}
+
+// ─── Schedules (recurring weekly hours per barber) ─────────────────────────
+
+model Schedule {
+  id         String  @id @default(cuid())
+  barberId   String
+  barber     Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int    // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+  startTime  String // "09:00" (24h)
+  endTime    String // "18:00" (24h)
+  isOff      Boolean @default(false)
+  breaks     Json?  // [{ start: "12:00", end: "13:00" }]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([barberId, dayOfWeek])
+  @@index([barberId])
+}
+
+// ─── Services ──────────────────────────────────────────────────────────────
+
+model Service {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String
+  description String?  @db.Text
+  duration    Int     // minutes
+  price       Float   // informational only — payment is in person
+  isActive    Boolean @default(true)
+  order       Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  barbers      BarberService[]
+  appointments Appointment[]
+
+  @@index([businessId])
+}
+
+// Junction: which barbers offer which services
+model BarberService {
+  barberId  String
+  barber    Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([barberId, serviceId])
+  @@index([serviceId])
+}
+
+// ─── Customers ────────────────────────────────────────────────────────────
+
+model Customer {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  firstName  String
+  lastName   String
+  phone      String
+  email      String
+  notes      String?  @db.Text
+  smsConsent Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  appointments Appointment[]
+
+  @@unique([businessId, email])
+  @@index([businessId])
+  @@index([businessId, phone])
+}
+
+// ─── Appointments ──────────────────────────────────────────────────────────
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+model Appointment {
+  id                 String           @id @default(cuid())
+  confirmationNumber String           @unique // e.g. BRB-8F42K
+  businessId         String
+  business           Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId         String
+  customer           Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  barberId          String
+  barber            Barber            @relation(fields: [barberId], references: [id])
+  serviceId         String
+  service           Service           @relation(fields: [serviceId], references: [id])
+  startTime         DateTime
+  endTime           DateTime
+  status            AppointmentStatus @default(PENDING)
+  customerNotes     String?           @db.Text
+  cancellationReason String?
+  createdBy         String? // "ONLINE" | "MANUAL" | userId
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([businessId, startTime])
+  @@index([businessId, barberId, startTime])
+  @@index([businessId, status])
+  @@index([barberId, startTime])
+  @@index([customerId])
+  @@index([confirmationNumber])
+}
+
+// ─── Blocked Time (vacation, time off, custom blocks) ─────────────────────
+
+model BlockedTime {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  barberId   String?  // null = shop-wide block
+  barber     Barber?  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  startTime  DateTime
+  endTime    DateTime
+  reason     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId, barberId])
+  @@index([businessId, startTime])
+}
+
+// ─── Reviews ──────────────────────────────────────────────────────────────
+
+model Review {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  authorName  String
+  rating      Int // 1-5
+  comment     String? @db.Text
+  isFeatured  Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId])
+}
