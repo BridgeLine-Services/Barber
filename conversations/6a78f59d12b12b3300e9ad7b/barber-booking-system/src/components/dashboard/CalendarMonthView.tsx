@@ -1,0 +1,142 @@
+'use client'
+
+import { formatTime } from '@/lib/utils'
+
+interface CalendarMonthViewProps {
+  currentDate: Date
+  appointments: any[]
+  onSelectDay: (date: Date) => void
+  onSelectAppointment: (appt: any) => void
+}
+
+export function CalendarMonthView({
+  currentDate,
+  appointments,
+  onSelectDay,
+  onSelectAppointment,
+}: CalendarMonthViewProps) {
+  const year = currentDate.getFullYear()
+  const month = currentDate.getMonth()
+
+  // Month details
+  const firstDayOfMonth = new Date(year, month, 1)
+  const lastDayOfMonth = new Date(year, month + 1, 0)
+  const startingDayOfWeek = firstDayOfMonth.getDay() // 0 = Sun
+  const totalDays = lastDayOfMonth.getDate()
+
+  // Grid cells calculation
+  const gridCells = []
+  
+  // Previous month padding
+  const prevMonthLastDay = new Date(year, month, 0).getDate()
+  for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+    gridCells.push({
+      date: new Date(year, month - 1, prevMonthLastDay - i),
+      isCurrentMonth: false,
+    })
+  }
+
+  // Current month days
+  for (let d = 1; d <= totalDays; d++) {
+    gridCells.push({
+      date: new Date(year, month, d),
+      isCurrentMonth: true,
+    })
+  }
+
+  // Next month padding to fill grid (35 or 42 cells)
+  const remaining = (7 - (gridCells.length % 7)) % 7
+  for (let i = 1; i <= remaining; i++) {
+    gridCells.push({
+      date: new Date(year, month + 1, i),
+      isCurrentMonth: false,
+    })
+  }
+
+  const getAppointmentsForDate = (cellDate: Date) => {
+    return appointments.filter((appt) => {
+      const st = new Date(appt.startTime)
+      return (
+        st.getFullYear() === cellDate.getFullYear() &&
+        st.getMonth() === cellDate.getMonth() &&
+        st.getDate() === cellDate.getDate()
+      )
+    })
+  }
+
+  const weekDayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  return (
+    <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 sm:p-6">
+      {/* Month Days Header */}
+      <div className="grid grid-cols-7 gap-1 text-center mb-2 font-semibold text-xs text-zinc-400">
+        {weekDayLabels.map((lbl) => (
+          <div key={lbl} className="py-1">
+            {lbl}
+          </div>
+        ))}
+      </div>
+
+      {/* Grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {gridCells.map((cell, idx) => {
+          const dayAppts = getAppointmentsForDate(cell.date)
+          const isToday = new Date().toDateString() === cell.date.toDateString()
+
+          return (
+            <div
+              key={idx}
+              onClick={() => onSelectDay(cell.date)}
+              className={`min-h-[100px] border p-2 rounded-xl flex flex-col justify-between cursor-pointer transition-all hover:border-amber-500/50 ${
+                cell.isCurrentMonth
+                  ? isToday
+                    ? 'bg-amber-500/10 border-amber-500/50'
+                    : 'bg-zinc-900/60 border-zinc-800/80 hover:bg-zinc-900'
+                  : 'bg-zinc-950/40 border-zinc-900 opacity-40'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className={`text-xs font-bold ${
+                    isToday ? 'text-amber-400 font-mono' : 'text-zinc-300'
+                  }`}
+                >
+                  {cell.date.getDate()}
+                </span>
+                {dayAppts.length > 0 && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400">
+                    {dayAppts.length}
+                  </span>
+                )}
+              </div>
+
+              {/* Appointment previews */}
+              <div className="space-y-1 my-1 overflow-hidden">
+                {dayAppts.slice(0, 2).map((appt) => (
+                  <div
+                    key={appt.id}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSelectAppointment(appt)
+                    }}
+                    className="p-1 rounded bg-zinc-900 border border-zinc-800 text-[10px] truncate text-zinc-300 hover:text-amber-400"
+                  >
+                    <span className="font-mono text-amber-500 mr-1">
+                      {formatTime(new Date(appt.startTime))}
+                    </span>
+                    {appt.customer?.firstName}
+                  </div>
+                ))}
+                {dayAppts.length > 2 && (
+                  <div className="text-[9px] text-zinc-500 font-medium text-right pr-1">
+                    +{dayAppts.length - 2} more
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
