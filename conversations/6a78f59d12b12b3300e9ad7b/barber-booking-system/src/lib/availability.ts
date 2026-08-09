@@ -80,13 +80,15 @@ export async function getAvailableSlots(params: {
   // Parse breaks
   const breaks: Array<{ start: Date; end: Date }> = []
   if (schedule.breaks && Array.isArray(schedule.breaks)) {
-    for (const brk of schedule.breaks) {
-      const [bh, bm] = (brk.start as string).split(':').map(Number)
-      const [eh, em] = (brk.end as string).split(':').map(Number)
-      breaks.push({
-        start: new Date(new Date(date).setHours(bh, bm, 0, 0)),
-        end: new Date(new Date(date).setHours(eh, em, 0, 0)),
-      })
+    for (const brk of schedule.breaks as any[]) {
+      if (brk && typeof brk === 'object' && 'start' in brk && 'end' in brk) {
+        const [bh, bm] = String(brk.start).split(':').map(Number)
+        const [eh, em] = String(brk.end).split(':').map(Number)
+        breaks.push({
+          start: new Date(new Date(date).setHours(bh, bm, 0, 0)),
+          end: new Date(new Date(date).setHours(eh, em, 0, 0)),
+        })
+      }
     }
   }
 
@@ -310,39 +312,6 @@ export async function createAppointmentSafely(params: {
       return { success: false, error: 'This time slot is blocked.' }
     }
     console.error('Booking error:', error)
-    return { success: false, error: 'An error occurred while booking. Please try again.' }
+    return { success: false, error: 'An error occurred while creating your appointment.' }
   }
-}
-
-/**
- * Get the earliest available slot across all barbers for "Any Available Barber".
- */
-export async function getEarliestAvailableSlot(params: {
-  businessId: string
-  serviceId: string
-  date: Date
-}): Promise<{ barberId: string; barberName: string; time: string } | null> {
-  const { businessId, serviceId, date } = params
-
-  const barbers = await prisma.barber.findMany({
-    where: { businessId, isActive: true },
-    include: {
-      services: true,
-      schedules: true,
-    },
-    orderBy: { order: 'asc' },
-  })
-
-  for (const barber of barbers) {
-    // Check if barber offers this service
-    if (!barber.services.some((bs) => bs.serviceId === serviceId)) continue
-
-    const slots = await getAvailableSlots({ businessId, barberId: barber.id, serviceId, date })
-    const firstAvailable = slots.find((s) => s.available)
-    if (firstAvailable) {
-      return { barberId: barber.id, barberName: barber.name, time: firstAvailable.time }
-    }
-  }
-
-  return null
 }
