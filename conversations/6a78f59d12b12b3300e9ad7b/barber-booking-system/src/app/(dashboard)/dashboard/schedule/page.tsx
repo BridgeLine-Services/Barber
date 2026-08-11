@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { resolveBusinessId } from '@/lib/business'
 import { ScheduleEditor } from '@/components/dashboard/ScheduleEditor'
 import { TimeOffManager } from '@/components/dashboard/TimeOffManager'
 import { Clock, UserCircle } from 'lucide-react'
@@ -21,14 +20,18 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
   }
 
   const user = session.user as any
-  const businessId = await resolveBusinessId()
+  const businessId = user.businessId
   const isOwner = user.role === 'OWNER'
 
-  // Fetch all barbers in case OWNER is selecting
-  const allBarbers = await prisma.barber.findMany({
-    where: { businessId, isActive: true },
-    orderBy: { name: 'asc' },
-  })
+  let allBarbers: any[] = []
+  try {
+    allBarbers = await prisma.barber.findMany({
+      where: { businessId, isActive: true },
+      orderBy: { name: 'asc' },
+    })
+  } catch (error) {
+    console.error('Failed to load barbers for schedule:', error)
+  }
 
   let targetBarberId: string | null = null
 
@@ -47,21 +50,28 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
     )
   }
 
-  const selectedBarber = allBarbers.find((b) => b.id === targetBarberId) || await prisma.barber.findUnique({ where: { id: targetBarberId } })
+  const selectedBarber = allBarbers.find((b) => b.id === targetBarberId) || null
 
-  const [schedules, blockedTimes] = await Promise.all([
-    prisma.schedule.findMany({
-      where: { barberId: targetBarberId },
-    }),
-    prisma.blockedTime.findMany({
-      where: {
-        businessId,
-        OR: [{ barberId: targetBarberId }, { barberId: null }],
-        endTime: { gte: new Date() },
-      },
-      orderBy: { startTime: 'asc' },
-    }),
-  ])
+  let schedules: any[] = []
+  let blockedTimes: any[] = []
+
+  try {
+    [schedules, blockedTimes] = await Promise.all([
+      prisma.schedule.findMany({
+        where: { barberId: targetBarberId },
+      }),
+      prisma.blockedTime.findMany({
+        where: {
+          businessId,
+          OR: [{ barberId: targetBarberId }, { barberId: null }],
+          endTime: { gte: new Date() },
+        },
+        orderBy: { startTime: 'asc' },
+      }),
+    ])
+  } catch (error) {
+    console.error('Failed to load schedule data:', error)
+  }
 
   const serializedSchedules = schedules.map((s) => ({
     ...s,

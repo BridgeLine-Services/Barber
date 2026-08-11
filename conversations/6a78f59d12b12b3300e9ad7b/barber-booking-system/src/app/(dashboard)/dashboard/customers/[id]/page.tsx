@@ -3,7 +3,6 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { resolveBusinessId } from '@/lib/business'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/constants'
 import { formatFullDate, formatTime, formatPrice } from '@/lib/utils'
 import {
@@ -34,25 +33,31 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
     redirect('/login')
   }
 
-  const businessId = await resolveBusinessId()
+  const user = session.user as any
+  const businessId = user.businessId
 
-  const customer = await prisma.customer.findFirst({
-    where: {
-      id: params.id,
-      businessId,
-    },
-    include: {
-      appointments: {
-        include: {
-          service: true,
-          barber: true,
-        },
-        orderBy: {
-          startTime: 'desc',
+  let customer: any = null
+  try {
+    customer = await prisma.customer.findFirst({
+      where: {
+        id: params.id,
+        businessId,
+      },
+      include: {
+        appointments: {
+          include: {
+            service: true,
+            barber: true,
+          },
+          orderBy: {
+            startTime: 'desc',
+          },
         },
       },
-    },
-  })
+    })
+  } catch (error) {
+    console.error('Failed to load customer:', error)
+  }
 
   if (!customer) {
     notFound()
@@ -61,8 +66,8 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
   const appointments = customer.appointments
   const totalAppointments = appointments.length
 
-  const completedAppointments = appointments.filter((a) => a.status === 'COMPLETED')
-  const totalSpent = completedAppointments.reduce((acc, a) => acc + (a.service?.price || 0), 0)
+  const completedAppointments = appointments.filter((a: any) => a.status === 'COMPLETED')
+  const totalSpent = completedAppointments.reduce((acc: number, a: any) => acc + (a.service?.price || 0), 0)
 
   const lastVisit = appointments.length > 0 ? appointments[0].startTime : null
   const firstVisit = appointments.length > 0 ? appointments[appointments.length - 1].startTime : null
@@ -221,7 +226,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
                   </td>
                 </tr>
               ) : (
-                appointments.map((appt) => {
+                appointments.map((appt: any) => {
                   const dateStr = formatFullDate(new Date(appt.startTime))
                   const timeStr = `${formatTime(new Date(appt.startTime))} - ${formatTime(new Date(appt.endTime))}`
                   const statusColor = STATUS_COLORS[appt.status] || 'bg-zinc-800 text-zinc-300 border-zinc-700'
@@ -229,25 +234,18 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
 
                   return (
                     <tr key={appt.id} className="hover:bg-zinc-900/70 transition-colors">
-                      <td className="p-3.5 pl-4 font-mono font-semibold text-amber-400">
+                      <td className="p-3.5 pl-4 font-mono text-amber-400 text-[11px]">
                         {appt.confirmationNumber}
                       </td>
                       <td className="p-3.5">
                         <div className="font-medium text-zinc-200">{dateStr}</div>
-                        <div className="text-[11px] text-zinc-400 font-mono">{timeStr}</div>
+                        <div className="text-[10px] text-zinc-500">{timeStr}</div>
                       </td>
-                      <td className="p-3.5">
-                        <div className="font-semibold text-zinc-100">{appt.service?.name}</div>
-                        <div className="text-[11px] text-zinc-400">{appt.service?.duration} mins</div>
-                      </td>
-                      <td className="p-3.5 font-medium text-zinc-300">
-                        {appt.barber?.name}
-                      </td>
-                      <td className="p-3.5 font-mono text-zinc-200">
-                        {appt.service?.price ? formatPrice(appt.service.price) : '-'}
-                      </td>
+                      <td className="p-3.5">{appt.service?.name || 'N/A'}</td>
+                      <td className="p-3.5">{appt.barber?.name || 'N/A'}</td>
+                      <td className="p-3.5 font-mono text-zinc-200">{formatPrice(appt.service?.price || 0)}</td>
                       <td className="p-3.5 pr-4 text-right">
-                        <span className={`inline-block px-2.5 py-0.5 text-[11px] font-semibold border rounded-full ${statusColor}`}>
+                        <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusColor}`}>
                           {statusLabel}
                         </span>
                       </td>
