@@ -1,19 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { Scissors, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Scissors, Lock, Mail, AlertCircle, ArrowRight, ServerCrash } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // Check for NextAuth error params (Configuration, Verification, etc.)
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    if (errorParam === 'Configuration') {
+      setError('Server configuration error. The database may not be connected. Please contact the site administrator to set up DATABASE_URL and NEXTAUTH_SECRET environment variables.')
+    } else if (errorParam === 'Verification') {
+      setError('The sign in link is no longer valid. It may have already been used or it has expired.')
+    } else if (errorParam === 'AccessDenied') {
+      setError('Access denied. You do not have permission to access the dashboard.')
+    } else if (errorParam === 'Default') {
+      setError('Authentication error. Please try again.')
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,17 +43,22 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError('Invalid email or password. Please try again.')
+        // Check if it's a configuration error
+        if (result.error === 'Configuration') {
+          setError('Server configuration error. The database may not be connected. Please contact the site administrator.')
+        } else {
+          setError('Invalid email or password. Please try again.')
+        }
         setLoading(false)
       } else if (result?.ok) {
         router.push('/dashboard')
         router.refresh()
       } else {
-        setError('An unexpected error occurred.')
+        setError('An unexpected error occurred. Please try again.')
         setLoading(false)
       }
     } catch (err) {
-      setError('Failed to sign in. Please check your network connection.')
+      setError('Failed to connect to the server. Please check your network connection and try again.')
       setLoading(false)
     }
   }
@@ -65,8 +85,12 @@ export default function LoginPage() {
         {/* Card Form */}
         <div className="bg-zinc-900/90 border border-zinc-800 backdrop-blur-md rounded-2xl p-6 sm:p-8 shadow-2xl">
           {error && (
-            <div className="mb-6 p-3.5 rounded-lg bg-red-950/50 border border-red-800/50 text-red-300 text-sm flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 shrink-0 text-red-400" />
+            <div className="mb-6 p-3.5 rounded-lg bg-red-950/50 border border-red-800/50 text-red-300 text-sm flex items-start gap-3">
+              {error.includes('configuration') || error.includes('database') ? (
+                <ServerCrash className="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
+              ) : (
+                <AlertCircle className="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
+              )}
               <span>{error}</span>
             </div>
           )}
@@ -135,6 +159,13 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          {/* Demo credentials hint */}
+          <div className="mt-6 pt-5 border-t border-zinc-800/60">
+            <p className="text-xs text-zinc-500 text-center">
+              Demo: <span className="text-zinc-400">owner@fadefactory.com</span> / <span className="text-zinc-400">password123</span>
+            </p>
+          </div>
         </div>
 
         {/* Footer info */}

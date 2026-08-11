@@ -7,6 +7,7 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
+    error: '/login',
   },
   providers: [
     CredentialsProvider({
@@ -18,24 +19,29 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          include: { business: true },
-        })
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+            include: { business: true },
+          })
 
-        if (!user) return null
+          if (!user) return null
 
-        const passwordValid = await bcrypt.compare(credentials.password, user.passwordHash)
-        if (!passwordValid) return null
+          const passwordValid = await bcrypt.compare(credentials.password, user.passwordHash)
+          if (!passwordValid) return null
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          businessId: user.businessId,
-          businessName: user.business.name,
-          barberId: user.barberId,
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            businessId: user.businessId,
+            businessName: user.business?.name || 'Barber Shop',
+            barberId: user.barberId,
+          }
+        } catch (error) {
+          console.error('Auth error - database may not be configured:', error)
+          return null
         }
       },
     }),
