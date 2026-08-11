@@ -2,7 +2,6 @@ import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { resolveBusinessId } from '@/lib/business'
 import { BarbersClient } from '@/components/dashboard/BarbersClient'
 
 export default async function BarbersPage() {
@@ -16,17 +15,22 @@ export default async function BarbersPage() {
     redirect('/dashboard')
   }
 
-  const businessId = await resolveBusinessId()
+  const businessId = (user as any).businessId
 
-  const barbers = await prisma.barber.findMany({
-    where: { businessId },
-    include: {
-      _count: {
-        select: { appointments: true },
+  let barbers: any[] = []
+  try {
+    barbers = await prisma.barber.findMany({
+      where: { businessId },
+      include: {
+        _count: {
+          select: { appointments: true },
+        },
       },
-    },
-    orderBy: { order: 'asc' },
-  })
+      orderBy: { order: 'asc' },
+    })
+  } catch (error) {
+    console.error('Failed to load barbers:', error)
+  }
 
   const serializedBarbers = barbers.map((b) => ({
     ...b,

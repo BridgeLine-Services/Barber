@@ -11,10 +11,15 @@ import Link from 'next/link'
 import CancelButton from './CancelButton'
 
 export default async function ConfirmationPage({ params }: { params: { confirmationNumber: string } }) {
-  const appointment = await prisma.appointment.findUnique({
-    where: { confirmationNumber: params.confirmationNumber },
-    include: { customer: true, barber: true, service: true, business: true },
-  })
+  let appointment: any = null
+  try {
+    appointment = await prisma.appointment.findUnique({
+      where: { confirmationNumber: params.confirmationNumber },
+      include: { customer: true, barber: true, service: true, business: true },
+    })
+  } catch (error) {
+    console.error('Failed to load appointment:', error)
+  }
 
   if (!appointment) {
     return (

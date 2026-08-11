@@ -2,7 +2,6 @@ import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { resolveBusinessId } from '@/lib/business'
 import { ServicesClient } from '@/components/dashboard/ServicesClient'
 
 export default async function ServicesPage() {
@@ -16,31 +15,38 @@ export default async function ServicesPage() {
     redirect('/dashboard')
   }
 
-  const businessId = await resolveBusinessId()
+  const businessId = user.businessId
 
-  const [services, barbers] = await Promise.all([
-    prisma.service.findMany({
-      where: { businessId },
-      include: {
-        barbers: {
-          include: {
-            barber: true,
+  let services: any[] = []
+  let barbers: any[] = []
+
+  try {
+    [services, barbers] = await Promise.all([
+      prisma.service.findMany({
+        where: { businessId },
+        include: {
+          barbers: {
+            include: {
+              barber: true,
+            },
           },
         },
-      },
-      orderBy: { order: 'asc' },
-    }),
-    prisma.barber.findMany({
-      where: { businessId, isActive: true },
-      orderBy: { name: 'asc' },
-    }),
-  ])
+        orderBy: { order: 'asc' },
+      }),
+      prisma.barber.findMany({
+        where: { businessId, isActive: true },
+        orderBy: { name: 'asc' },
+      }),
+    ])
+  } catch (error) {
+    console.error('Failed to load services:', error)
+  }
 
   const serializedServices = services.map((s) => ({
     ...s,
     createdAt: s.createdAt.toISOString(),
     updatedAt: s.updatedAt.toISOString(),
-    barbers: s.barbers.map((b) => ({
+    barbers: s.barbers.map((b: any) => ({
       barberId: b.barberId,
       serviceId: b.serviceId,
       barberName: b.barber?.name,
