@@ -33,7 +33,7 @@ interface AppointmentWithRelations {
   customer: { firstName: string; lastName: string; email: string; phone: string }
   barber: { name: string }
   service: { name: string; duration: number; price: number }
-  business: { name: string; phone: string; email: string; address: string }
+  business: { name: string; phone: string | null; email: string | null; address: string | null }
 }
 
 export async function sendBookingConfirmation(appointment: AppointmentWithRelations) {

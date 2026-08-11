@@ -7,10 +7,11 @@ import { cn } from '@/lib/utils'
 
 interface BookingProgressProps {
   currentStep: number
+  totalSteps?: number
   onStepClick?: (step: number) => void
 }
 
-export function BookingProgress({ currentStep, onStepClick }: BookingProgressProps) {
+export function BookingProgress({ currentStep, totalSteps, onStepClick }: BookingProgressProps) {
   return (
     <div className="w-full py-4">
       {/* Mobile progress indicator */}
