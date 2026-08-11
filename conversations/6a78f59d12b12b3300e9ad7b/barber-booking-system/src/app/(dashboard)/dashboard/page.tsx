@@ -37,17 +37,22 @@ export default async function DashboardHomePage() {
     whereFilter.barberId = barberId
   }
 
-  const appointments = await prisma.appointment.findMany({
-    where: whereFilter,
-    include: {
-      customer: true,
-      barber: true,
-      service: true,
-    },
-    orderBy: {
-      startTime: 'asc',
-    },
-  })
+  let appointments: any[] = []
+  try {
+    appointments = await prisma.appointment.findMany({
+      where: whereFilter,
+      include: {
+        customer: true,
+        barber: true,
+        service: true,
+      },
+      orderBy: {
+        startTime: 'asc',
+      },
+    })
+  } catch (error) {
+    console.error('Failed to load appointments:', error)
+  }
 
   // Format dates to JSON safe strings
   const formattedAppointments = appointments.map((a) => ({

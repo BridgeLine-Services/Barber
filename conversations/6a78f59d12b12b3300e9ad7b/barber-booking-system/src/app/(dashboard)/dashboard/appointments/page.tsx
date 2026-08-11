@@ -21,8 +21,11 @@ export default async function AppointmentsPage() {
     whereFilter.barberId = barberId
   }
 
-  const appointments = await prisma.appointment.findMany({
-    where: whereFilter,
+  let appointments: any[] = []
+  let barbers: any[] = []
+  try {
+    appointments = await prisma.appointment.findMany({
+      where: whereFilter,
     include: {
       customer: true,
       barber: true,
@@ -31,14 +34,17 @@ export default async function AppointmentsPage() {
     orderBy: {
       startTime: 'desc',
     },
-    take: 300,
-  })
+      take: 300,
+    })
 
-  const barbers = await prisma.barber.findMany({
+    barbers = await prisma.barber.findMany({
     where: { businessId, isActive: true },
     select: { id: true, name: true },
-    orderBy: { order: 'asc' },
-  })
+      orderBy: { order: 'asc' },
+    })
+  } catch (error) {
+    console.error('Failed to load appointments:', error)
+  }
 
   const formattedAppointments = appointments.map((a) => ({
     ...a,

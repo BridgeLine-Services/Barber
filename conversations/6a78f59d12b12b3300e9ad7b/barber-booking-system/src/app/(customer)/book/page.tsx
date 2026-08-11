@@ -11,7 +11,7 @@ import { DateStep } from '@/components/booking/DateStep'
 import { TimeStep } from '@/components/booking/TimeStep'
 import { CustomerInfoStep } from '@/components/booking/CustomerInfoStep'
 import { ReviewStep } from '@/components/booking/ReviewStep'
-import { ArrowLeft, ArrowRight, Scissors } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Scissors, AlertCircle } from 'lucide-react'
 
 interface Service {
   id: string
@@ -57,6 +57,7 @@ function BookingFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [bookingError, setBookingError] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   // Pre-fill from URL params
   useEffect(() => {
@@ -72,10 +73,14 @@ function BookingFlow() {
       fetch('/api/services').then(r => r.json()),
       fetch('/api/barbers').then(r => r.json()),
     ]).then(([s, b]) => {
-      setServices(Array.isArray(s) ? s : [])
-      setBarbers(Array.isArray(b) ? b : [])
+      // APIs return { services: [...] } and { barbers: [...] }
+      setServices(s.services || [])
+      setBarbers(b.barbers || [])
       setLoading(false)
-    }).catch(() => setLoading(false))
+    }).catch(() => {
+      setLoadError(true)
+      setLoading(false)
+    })
   }, [])
 
   const selectedService = services.find(s => s.id === selectedServiceId) ?? null
@@ -98,8 +103,6 @@ function BookingFlow() {
 
     try {
       const dateStr = selectedDate!.toISOString().split('T')[0]
-      // Parse the time string (e.g. "2:30 PM") to 24h "HH:mm"
-      const time24h = selectedTime // The API should handle parsing
 
       const res = await fetch('/api/appointments', {
         method: 'POST',
@@ -140,6 +143,27 @@ function BookingFlow() {
         <div className="text-center">
           <Scissors className="h-12 w-12 mx-auto mb-4 animate-pulse text-amber-500" />
           <p className="text-gray-400">Loading booking system...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center px-4">
+        <div className="text-center max-w-md space-y-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 mx-auto">
+            <AlertCircle className="h-8 w-8" />
+          </div>
+          <h2 className="text-xl font-bold text-white">Booking System Unavailable</h2>
+          <p className="text-zinc-400 text-sm">
+            We&apos;re experiencing a temporary issue with our booking system. Please try again later or call us to schedule your appointment.
+          </p>
+          <a href="/contact">
+            <Button className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold">
+              Contact Us
+            </Button>
+          </a>
         </div>
       </div>
     )

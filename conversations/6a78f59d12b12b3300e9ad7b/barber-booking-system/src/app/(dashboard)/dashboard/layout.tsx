@@ -18,10 +18,15 @@ export default async function DashboardLayout({
   const user = session.user as any
   const businessId = user.businessId
 
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    select: { name: true, logo: true, primaryColor: true, accentColor: true },
-  })
+  let business = null
+  try {
+    business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { name: true, logo: true, primaryColor: true, accentColor: true },
+    })
+  } catch (error) {
+    console.error('Failed to load business data:', error)
+  }
 
   const businessName = business?.name || user.businessName || 'Barber Shop'
   const userName = user.name || user.email || 'User'
