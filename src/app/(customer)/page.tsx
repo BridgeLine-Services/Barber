@@ -170,6 +170,7 @@ export default async function HomePage() {
           </Link>
         </div>
 
+        {services.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {services.slice(0, 6).map((service) => (
             <Card key={service.id} className="bg-zinc-900/90 border-zinc-800 hover:border-zinc-700 transition flex flex-col justify-between">
@@ -200,6 +201,14 @@ export default async function HomePage() {
             </Card>
           ))}
         </div>
+        ) : (
+        <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <Scissors className="h-7 w-7" />
+          </div>
+          <p className="text-zinc-400 text-sm">Our service menu is being updated. Check back soon!</p>
+        </div>
+        )}
       </section>
 
       {/* Meet the Barbers Section */}
@@ -217,6 +226,7 @@ export default async function HomePage() {
             </p>
           </div>
 
+          {barbers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {barbers.map((barber) => (
               <Card key={barber.id} className="bg-zinc-900 border-zinc-800 flex flex-col justify-between overflow-hidden group">
@@ -250,6 +260,14 @@ export default async function HomePage() {
               </Card>
             ))}
           </div>
+          ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+            <p className="text-zinc-400 text-sm">Our team profiles are coming soon. Book with any available barber!</p>
+            <Button asChild className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold">
+              <Link href="/book">Book Now</Link>
+            </Button>
+          </div>
+          )}
         </div>
       </section>
 

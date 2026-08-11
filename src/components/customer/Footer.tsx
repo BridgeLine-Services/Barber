@@ -23,6 +23,11 @@ export function Footer({ business }: FooterProps) {
     .filter(Boolean)
     .join(', ')
 
+  // Fallback contact info when business data is not available
+  const phone = business?.phone || '(555) 123-4567'
+  const email = business?.email || 'info@barbershop.com'
+  const address = fullAddress || '123 Main Street, Suite 100'
+
   return (
     <footer className="border-t border-zinc-800/80 bg-zinc-950 text-zinc-400 text-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
@@ -80,28 +85,22 @@ export function Footer({ business }: FooterProps) {
           <div className="space-y-3">
             <h3 className="text-zinc-100 font-semibold text-base font-poppins">Contact & Location</h3>
             <ul className="space-y-2.5">
-              {fullAddress && (
-                <li className="flex items-start gap-2.5">
-                  <MapPin className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-                  <span>{fullAddress}</span>
-                </li>
-              )}
-              {business?.phone && (
-                <li className="flex items-center gap-2.5">
-                  <Phone className="h-4 w-4 text-amber-400 shrink-0" />
-                  <a href={`tel:${business.phone.replace(/\D/g, '')}`} className="hover:text-amber-400 transition">
-                    {business.phone}
-                  </a>
-                </li>
-              )}
-              {business?.email && (
-                <li className="flex items-center gap-2.5">
-                  <Mail className="h-4 w-4 text-amber-400 shrink-0" />
-                  <a href={`mailto:${business.email}`} className="hover:text-amber-400 transition">
-                    {business.email}
-                  </a>
-                </li>
-              )}
+              <li className="flex items-start gap-2.5">
+                <MapPin className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                <span>{address}</span>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <Phone className="h-4 w-4 text-amber-400 shrink-0" />
+                <a href={`tel:${phone.replace(/\D/g, '')}`} className="hover:text-amber-400 transition">
+                  {phone}
+                </a>
+              </li>
+              <li className="flex items-center gap-2.5">
+                <Mail className="h-4 w-4 text-amber-400 shrink-0" />
+                <a href={`mailto:${email}`} className="hover:text-amber-400 transition">
+                  {email}
+                </a>
+              </li>
             </ul>
           </div>
 
@@ -148,6 +147,9 @@ export function Footer({ business }: FooterProps) {
               </li>
               <li>
                 <Link href="/terms" className="hover:text-amber-400 transition">Terms of Service</Link>
+              </li>
+              <li>
+                <Link href="/accessibility" className="hover:text-amber-400 transition">Accessibility</Link>
               </li>
             </ul>
             <div className="pt-2">
