@@ -105,7 +105,7 @@ export function BarberForm({ barber, isOpen, onClose, onSave }: BarberFormProps)
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => if (!open) onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-xl font-serif text-amber-400 flex items-center gap-2">

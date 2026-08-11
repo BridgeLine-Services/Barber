@@ -35,8 +35,8 @@ interface CustomerInfo {
   lastName: string
   phone: string
   email: string
-  notes: string
-  smsConsent: boolean
+  notes?: string
+  smsConsent?: boolean
 }
 
 const STEPS = ['Service', 'Barber', 'Date', 'Time', 'Info', 'Confirm']
@@ -78,8 +78,8 @@ function BookingFlow() {
     }).catch(() => setLoading(false))
   }, [])
 
-  const selectedService = services.find(s => s.id === selectedServiceId)
-  const selectedBarber = barbers.find(b => b.id === selectedBarberId)
+  const selectedService = services.find(s => s.id === selectedServiceId) ?? null
+  const selectedBarber = barbers.find(b => b.id === selectedBarberId) ?? null
 
   const canProceed = () => {
     switch (step) {

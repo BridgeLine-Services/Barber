@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveBusinessId } from '@/lib/business'
 import { getAvailableSlots, getEarliestAvailableSlot } from '@/lib/availability'
