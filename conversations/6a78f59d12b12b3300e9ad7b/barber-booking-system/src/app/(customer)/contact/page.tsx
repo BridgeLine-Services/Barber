@@ -52,7 +52,7 @@ export default async function ContactPage() {
           Contact {shopName}
         </h1>
         <p className="text-zinc-400 text-base leading-relaxed">
-          Have questions about our services, walk-in availability, or custom group bookings? We&apos;re here to help.
+          Have questions about our services, walk-in availability, or custom group bookings? We are here to help.
         </p>
       </div>
 

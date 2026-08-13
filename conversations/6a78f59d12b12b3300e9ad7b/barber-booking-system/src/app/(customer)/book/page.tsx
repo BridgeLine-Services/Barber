@@ -157,7 +157,7 @@ function BookingFlow() {
           </div>
           <h2 className="text-xl font-bold text-white">Booking System Unavailable</h2>
           <p className="text-zinc-400 text-sm">
-            We&apos;re experiencing a temporary issue with our booking system. Please try again later or call us to schedule your appointment.
+            We are experiencing a temporary issue with our booking system. Please try again later or call us to schedule your appointment.
           </p>
           <a href="/contact">
             <Button className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold">

@@ -125,7 +125,7 @@ export default function FAQPage() {
       <Card className="bg-zinc-900 border-zinc-800 p-8 text-center space-y-4">
         <h3 className="text-xl font-bold text-white font-poppins">Still Have Questions?</h3>
         <p className="text-zinc-400 text-sm max-w-lg mx-auto">
-          If you couldn&apos;t find the answer you were looking for, feel free to give us a call or send us a message directly.
+          If you couldn't find the answer you were looking for, feel free to give us a call or send us a message directly.
         </p>
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button asChild className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold">

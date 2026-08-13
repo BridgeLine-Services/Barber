@@ -100,7 +100,7 @@ export default async function ServicesPage() {
             <h3 className="text-lg font-semibold text-white">Services Coming Soon</h3>
             <p className="text-zinc-400 text-sm max-w-md">
               {dbError
-                ? 'We&apos;re setting up our online booking system. Please call or visit us in person to schedule your appointment.'
+                ? 'We are setting up our online booking system. Please call or visit us in person to schedule your appointment.'
                 : 'Our service menu is being updated. Check back soon or contact us directly for current pricing and availability.'}
             </p>
           </div>

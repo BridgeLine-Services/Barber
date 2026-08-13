@@ -129,7 +129,7 @@ export default async function BarbersPage() {
             <h3 className="text-lg font-semibold text-white">Our Team is Being Assembled</h3>
             <p className="text-zinc-400 text-sm max-w-md">
               {dbError
-                ? 'We&apos;re setting up our online booking system. Please call or visit us in person to schedule your appointment.'
+                ? 'We are setting up our online booking system. Please call or visit us in person to schedule your appointment.'
                 : 'Our barber profiles are being updated. Check back soon or contact us to learn more about our team.'}
             </p>
           </div>
