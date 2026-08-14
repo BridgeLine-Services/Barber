@@ -41,3 +41,9 @@ logs/
 
 # TypeScript
 *.tsbuildinfo
+
+# Base44 workspace
+conversations/
+.agents/
+conversations/
+.base44-conversation-workspace
