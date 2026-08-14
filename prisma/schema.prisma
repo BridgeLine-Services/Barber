@@ -49,6 +49,7 @@ model Business {
   blockedTimes BlockedTime[]
   reviews      Review[]
   auditLogs    AuditLog[]
+  notificationLogs NotificationLog[]
 
   @@index([slug])
 }
@@ -246,6 +247,47 @@ model Review {
   updatedAt   DateTime @updatedAt
 
   @@index([businessId])
+}
+
+
+// ─── Notification Log ──────────────────────────────────────────────────────
+// Tracks every notification attempt (email/SMS) and its delivery status.
+
+enum NotificationType {
+  BOOKING_CONFIRMATION
+  BOOKING_REMINDER
+  CANCELLATION_NOTICE
+  RESCHEDULE_NOTICE
+  CONTACT_FORM
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model NotificationLog {
+  id          String            @id @default(cuid())
+  businessId  String?
+  business    Business?         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointmentId String? // optional link to appointment
+  recipient   String // email or phone
+  channel     NotificationChannel
+  type        NotificationType
+  status      NotificationStatus  @default(PENDING)
+  errorMessage String?
+  sentAt      DateTime?
+  createdAt   DateTime            @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([appointmentId])
+  @@index([status])
 }
 
 // ─── Audit Log ─────────────────────────────────────────────────────────────

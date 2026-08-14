@@ -18,6 +18,8 @@ import {
   ChevronRight,
   Shield,
   User,
+  Settings,
+  ScrollText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -42,7 +44,11 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
     { name: 'Services', href: '/dashboard/services', icon: Scissors },
     { name: 'Schedule', href: '/dashboard/schedule', icon: Clock },
     ...(isOwner
-      ? [{ name: 'Barbers', href: '/dashboard/barbers', icon: UserCircle }]
+      ? [
+          { name: 'Barbers', href: '/dashboard/barbers', icon: UserCircle },
+          { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+          { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },
+        ]
       : []),
   ]
 
