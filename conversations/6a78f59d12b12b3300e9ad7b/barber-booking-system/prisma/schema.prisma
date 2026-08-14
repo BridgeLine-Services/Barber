@@ -50,6 +50,7 @@ model Business {
   reviews      Review[]
   auditLogs    AuditLog[]
   notificationLogs NotificationLog[]
+  waitlistEntries WaitlistEntry[]
 
   @@index([slug])
 }
@@ -97,6 +98,7 @@ model Barber {
   appointments Appointment[]
   blockedTimes BlockedTime[]
   services     BarberService[]
+  waitlistEntries WaitlistEntry[]
 
   @@index([businessId])
 }
@@ -136,6 +138,7 @@ model Service {
 
   barbers      BarberService[]
   appointments Appointment[]
+  waitlistEntries WaitlistEntry[]
 
   @@index([businessId])
 }
@@ -168,6 +171,7 @@ model Customer {
   updatedAt  DateTime @updatedAt
 
   appointments Appointment[]
+  waitlistEntries WaitlistEntry[]
 
   @@unique([businessId, email])
   @@index([businessId])
@@ -189,6 +193,7 @@ model Appointment {
   id                 String           @id @default(cuid())
   confirmationNumber String           @unique // human-readable, e.g. BRB-8F42K
   customerAccessToken String          @unique // crypto.randomBytes(32).hex — authenticates customer actions
+  idempotencyKey     String?          @unique
   businessId         String
   business           Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customerId         String
@@ -249,6 +254,42 @@ model Review {
   @@index([businessId])
 }
 
+// ─── Waitlist ─────────────────────────────────────────────────────────────
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED
+  BOOKED
+  EXPIRED
+  CANCELLED
+}
+
+model WaitlistEntry {
+  id          String         @id @default(cuid())
+  businessId  String
+  business    Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId   String? // link if customer exists
+  customer     Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  firstName   String
+  lastName    String
+  phone       String
+  email       String
+  barberId    String? // null = any barber
+  barber      Barber?       @relation(fields: [barberId], references: [id], onDelete: SetNull)
+  serviceId   String
+  service     Service       @relation(fields: [serviceId], references: [id])
+  preferredDate DateTime @db.Date
+  preferredTimeRange String? // e.g. 'morning', 'afternoon', 'evening'
+  status      WaitlistStatus @default(WAITING)
+  notes       String?
+  notifiedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([businessId, status])
+  @@index([businessId, preferredDate])
+}
 
 // ─── Notification Log ──────────────────────────────────────────────────────
 // Tracks every notification attempt (email/SMS) and its delivery status.

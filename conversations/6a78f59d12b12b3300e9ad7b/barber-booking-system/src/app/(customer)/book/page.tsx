@@ -129,6 +129,8 @@ function BookingFlow() {
 
       if (data.success) {
         router.push(`/appointment/${data.confirmationNumber}?token=${data.customerAccessToken}`)
+      } else if (data.demo) {
+        setBookingError(data.error || 'Demo mode — connect a database to enable real bookings.')
       } else {
         setBookingError(data.error || 'Booking failed. Please try again.')
       }

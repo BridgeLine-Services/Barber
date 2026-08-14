@@ -378,6 +378,7 @@ export async function createAppointmentSafely(params: {
   barberId: string
   serviceId: string
   startTime: Date
+  idempotencyKey?: string
   customerData: {
     firstName: string
     lastName: string
@@ -387,7 +388,7 @@ export async function createAppointmentSafely(params: {
     smsConsent?: boolean
   }
 }): Promise<{ success: boolean; appointment?: any; error?: string }> {
-  const { businessId, barberId, serviceId, startTime, customerData } = params
+  const { businessId, barberId, serviceId, startTime, idempotencyKey, customerData } = params
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -467,6 +468,7 @@ export async function createAppointmentSafely(params: {
         data: {
           confirmationNumber,
           customerAccessToken,
+          idempotencyKey,
           businessId,
           customerId: customer.id,
           barberId,
