@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { demoServices, demoBarbers, demoReviews, demoBusiness } from '@/lib/demo-data'
 import { formatDuration, formatPrice, getInitials } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
@@ -22,7 +23,7 @@ import {
 export const revalidate = 60
 
 export default async function HomePage() {
-  let business = null
+  let business: any = null
   let barbers: any[] = []
   let services: any[] = []
   let reviews: any[] = []
@@ -51,6 +52,20 @@ export default async function HomePage() {
     }
   } catch (error) {
     console.error('Failed to load home page data:', error)
+  }
+
+  // Fallback to demo data when database is empty or not connected
+  if (!business) {
+    business = demoBusiness as any
+  }
+  if (services.length === 0) {
+    services = demoServices as any
+  }
+  if (barbers.length === 0) {
+    barbers = demoBarbers as any
+  }
+  if (reviews.length === 0) {
+    reviews = demoReviews as any
   }
 
   const shopName = business?.name || 'Executive Barber Shop'

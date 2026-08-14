@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Scissors, MapPin, Phone, Mail, Clock, Instagram, Facebook, Video } from 'lucide-react'
+import { Scissors, MapPin, Phone, Mail, Clock, Instagram, Facebook, Video, Lock } from 'lucide-react'
 
 interface FooterProps {
   business?: {
@@ -163,9 +163,19 @@ export function Footer({ business }: FooterProps) {
 
         <div className="mt-12 pt-6 border-t border-zinc-800/60 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-500 gap-4">
           <p>© {new Date().getFullYear()} {shopName}. All rights reserved.</p>
-          <p className="text-zinc-500">
-            Powered by Barber Booking System
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-zinc-500">
+              Powered by Barber Booking System
+            </p>
+            <Link
+              href="/login"
+              className="flex items-center gap-1.5 text-zinc-600 hover:text-amber-400 transition"
+              aria-label="Staff Login"
+            >
+              <Lock className="h-3 w-3" />
+              <span>Staff Login</span>
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

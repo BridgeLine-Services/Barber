@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { demoServices } from '@/lib/demo-data'
 
 export async function GET() {
   try {
@@ -10,7 +11,8 @@ export async function GET() {
     })
 
     if (!business) {
-      return NextResponse.json({ services: [] })
+      // No business in DB — return demo data for template mode
+      return NextResponse.json({ services: demoServices, demo: true })
     }
 
     const services = await prisma.service.findMany({
@@ -21,9 +23,14 @@ export async function GET() {
       orderBy: { order: 'asc' },
     })
 
+    if (services.length === 0) {
+      return NextResponse.json({ services: demoServices, demo: true })
+    }
+
     return NextResponse.json({ services })
   } catch (error: any) {
     console.error('Error fetching services:', error)
-    return NextResponse.json({ error: 'Failed to fetch services' }, { status: 500 })
+    // Database not connected — return demo data for template mode
+    return NextResponse.json({ services: demoServices, demo: true })
   }
 }
