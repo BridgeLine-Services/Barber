@@ -4,10 +4,11 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { formatFullDate } from '@/lib/utils'
+import { demoReviews } from '@/lib/demo-data'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Star, MessageSquare, Calendar } from 'lucide-react'
+import { Star, Calendar } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Client Reviews',
@@ -18,6 +19,7 @@ export const revalidate = 60
 
 export default async function ReviewsPage() {
   let reviews: any[] = []
+  let isDemo = false
 
   try {
     const business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
@@ -27,8 +29,14 @@ export default async function ReviewsPage() {
         orderBy: { createdAt: 'desc' },
       })
     }
+    if (reviews.length === 0) {
+      reviews = demoReviews
+      isDemo = true
+    }
   } catch (error) {
     console.error('Failed to load reviews:', error)
+    reviews = demoReviews
+    isDemo = true
   }
 
   const totalReviews = reviews.length
@@ -50,6 +58,9 @@ export default async function ReviewsPage() {
         <p className="text-zinc-400 text-base leading-relaxed">
           We take pride in our precision cuts and unmatched customer satisfaction.
         </p>
+        {isDemo && (
+          <p className="text-xs text-amber-400/60 italic">Demo reviews shown — connect a database to display real client feedback.</p>
+        )}
       </div>
 
       {/* Rating Summary Banner */}
@@ -74,7 +85,7 @@ export default async function ReviewsPage() {
 
           <div className="space-y-1">
             <h3 className="text-xl font-bold text-white font-poppins">
-              Based on {totalReviews} {totalReviews === 1 ? 'Review' : 'Verified Reviews'}
+              Based on {totalReviews} Verified {totalReviews === 1 ? 'Review' : 'Reviews'}
             </h3>
             <p className="text-xs text-zinc-400">
               100% genuine client testimonials from booked appointments.
@@ -91,55 +102,40 @@ export default async function ReviewsPage() {
       </div>
 
       {/* Reviews Grid */}
-      {reviews.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reviews.map((review) => (
-            <Card key={review.id} className="bg-zinc-900/90 border-zinc-800 p-6 flex flex-col justify-between space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-800'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  {review.isFeatured && (
-                    <Badge variant="secondary" className="bg-amber-500/10 text-amber-400 text-[10px] border border-amber-500/20">
-                      Featured
-                    </Badge>
-                  )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {reviews.map((review) => (
+          <Card key={review.id} className="bg-zinc-900/90 border-zinc-800 p-6 flex flex-col justify-between space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`h-4 w-4 ${
+                        i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-zinc-800'
+                      }`}
+                    />
+                  ))}
                 </div>
-
-                <p className="text-sm text-zinc-300 italic leading-relaxed">
-                  &ldquo;{review.comment}&rdquo;
-                </p>
+                {review.isFeatured && (
+                  <Badge variant="secondary" className="bg-amber-500/10 text-amber-400 text-[10px] border border-amber-500/20">
+                    Featured
+                  </Badge>
+                )}
               </div>
 
-              <div className="pt-4 border-t border-zinc-800/60 flex items-center justify-between text-xs text-zinc-500">
-                <span className="font-bold text-zinc-200">{review.authorName}</span>
-                <span>{review.createdAt ? formatFullDate(new Date(review.createdAt)) : 'Recent'}</span>
-              </div>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card className="bg-zinc-900 border-zinc-800 p-12 text-center space-y-4">
-          <MessageSquare className="h-10 w-10 text-amber-400 mx-auto opacity-80" />
-          <h3 className="text-xl font-bold text-white">No Reviews Yet</h3>
-          <p className="text-zinc-400 text-sm max-w-md mx-auto">
-            Be the first to experience our top-rated barbering services and leave a review!
-          </p>
-          <div>
-            <Button asChild className="bg-amber-500 text-zinc-950 hover:bg-amber-400 font-bold">
-              <Link href="/book">Book an Appointment</Link>
-            </Button>
-          </div>
-        </Card>
-      )}
+              <p className="text-sm text-zinc-300 italic leading-relaxed">
+                &ldquo;{review.comment}&rdquo;
+              </p>
+            </div>
+
+            <div className="pt-4 border-t border-zinc-800/60 flex items-center justify-between text-xs text-zinc-500">
+              <span className="font-bold text-zinc-200">{review.authorName || review.customerName}</span>
+              <span>{review.createdAt ? formatFullDate(new Date(review.createdAt)) : 'Recent'}</span>
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
   )
 }

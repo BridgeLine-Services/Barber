@@ -163,15 +163,19 @@ export default function LoginPage() {
           {/* Demo credentials hint */}
           <div className="mt-6 pt-5 border-t border-zinc-800/60">
             <p className="text-xs text-zinc-500 text-center">
-              Demo: <span className="text-zinc-400">owner@fadefactory.com</span> / <span className="text-zinc-400">password123</span>
+              Demo login requires a connected database. Seed with:{' '}
+              <span className="text-zinc-400">owner@fadefactory.com</span> / <span className="text-zinc-400">password123</span>
             </p>
           </div>
         </div>
 
         {/* Footer info */}
-        <p className="text-center text-xs text-zinc-600 mt-8">
-          Multi-Tenant Barber Shop Operating System
-        </p>
+        <div className="text-center text-xs text-zinc-600 mt-8 space-y-2">
+          <p>Multi-Tenant Barber Shop Operating System</p>
+          <a href="/" className="text-zinc-500 hover:text-amber-400 transition-colors">
+            ← Back to Website
+          </a>
+        </div>
       </div>
     </div>
   )

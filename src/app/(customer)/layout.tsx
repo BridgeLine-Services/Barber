@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { prisma } from '@/lib/prisma'
+import { demoBusiness } from '@/lib/demo-data'
 import { Navbar } from '@/components/customer/Navbar'
 import { Footer } from '@/components/customer/Footer'
 import { MobileBottomNav } from '@/components/customer/MobileBottomNav'
@@ -11,13 +12,18 @@ export default async function CustomerLayout({
 }: {
   children: React.ReactNode
 }) {
-  let business = null
+  let business: any = null
   try {
     business = await prisma.business.findFirst({
       orderBy: { createdAt: 'asc' },
     })
   } catch (error) {
     console.error('Failed to fetch business for customer layout:', error)
+  }
+
+  // Fallback to demo data when database is not connected
+  if (!business) {
+    business = demoBusiness
   }
 
   return (

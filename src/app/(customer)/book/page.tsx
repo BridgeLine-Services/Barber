@@ -58,6 +58,7 @@ function BookingFlow() {
   const [bookingError, setBookingError] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+  const [demoMode, setDemoMode] = useState(false)
 
   // Pre-fill from URL params
   useEffect(() => {
@@ -76,6 +77,7 @@ function BookingFlow() {
       // APIs return { services: [...] } and { barbers: [...] }
       setServices(s.services || [])
       setBarbers(b.barbers || [])
+      setDemoMode(s.demo || b.demo || false)
       setLoading(false)
     }).catch(() => {
       setLoadError(true)
@@ -157,7 +159,7 @@ function BookingFlow() {
           </div>
           <h2 className="text-xl font-bold text-white">Booking System Unavailable</h2>
           <p className="text-zinc-400 text-sm">
-            We&apos;re experiencing a temporary issue with our booking system. Please try again later or call us to schedule your appointment.
+            We are experiencing a temporary issue with our booking system. Please try again later or call us to schedule your appointment.
           </p>
           <a href="/contact">
             <Button className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold">
@@ -176,6 +178,11 @@ function BookingFlow() {
         <div className="text-center mb-8">
           <h1 className="font-display text-3xl font-bold sm:text-4xl">Book an Appointment</h1>
           <p className="mt-2 text-gray-400">Pay in person — no online payment required.</p>
+          {demoMode && (
+            <p className="mt-2 text-xs text-amber-400/60 italic">
+              Demo mode — booking is for preview only. Connect a database to enable real bookings.
+            </p>
+          )}
         </div>
 
         {/* Progress */}
