@@ -33,7 +33,7 @@ export async function getAvailableSlots(params: {
   const { businessId, barberId, serviceId, date } = params
 
   // Parallel: service info, barber schedule, appointments, blocked times
-  const [service, schedule, appointments, blockedTimes] = await Promise.all([
+  const [service, schedule, appointments, blockedTimes, closures] = await Promise.all([
     prisma.service.findFirst({ where: { id: serviceId, businessId, isActive: true } }),
     prisma.schedule.findUnique({ where: { barberId_dayOfWeek: { barberId, dayOfWeek: date.getDay() } } }),
     prisma.appointment.findMany({
@@ -60,10 +60,35 @@ export async function getAvailableSlots(params: {
         },
       },
     }),
+    // Check for business closures on this date
+    prisma.businessClosure.findMany({
+      where: {
+        businessId,
+        isActive: true,
+        startDate: { lte: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59) },
+        endDate: { gte: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0) },
+      },
+    }),
   ])
 
   if (!service || !service.isActive) return []
   if (!schedule || schedule.isOff) return []
+
+  // Check business closures (holidays, vacations, etc.)
+  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0)
+  const dateEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59)
+  for (const closure of closures) {
+    if (closure.isAllDay) return [] // Entire day is closed
+    // For partial-day closures, add to blocked ranges
+    if (closure.startTime && closure.endTime) {
+      const [sh, sm] = closure.startTime.split(':').map(Number)
+      const [eh, em] = closure.endTime.split(':').map(Number)
+      const closureStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), sh, sm)
+      const closureEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), eh, em)
+      // Add as a blocked range so slots overlapping are excluded
+      blockedTimes.push({ startTime: closureStart, endTime: closureEnd } as any)
+    }
+  }
 
   const duration = service.duration // minutes
 

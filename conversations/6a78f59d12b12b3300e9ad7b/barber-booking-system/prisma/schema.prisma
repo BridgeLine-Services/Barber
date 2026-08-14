@@ -50,7 +50,8 @@ model Business {
   reviews      Review[]
   auditLogs    AuditLog[]
   notificationLogs NotificationLog[]
-  waitlistEntries WaitlistEntry[]
+  waitlistEntries    WaitlistEntry[]
+  closures          BusinessClosure[]
 
   @@index([slug])
 }
@@ -379,4 +380,25 @@ model AuditLog {
   @@index([businessId, createdAt])
   @@index([userId])
   @@index([action])
+}
+
+// ─── Business Closures (Holidays / Special Hours) ──────────────────────────
+// Owner-managed closure periods: holidays, vacations, special hours, etc.
+model BusinessClosure {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  title       String   // e.g. "Christmas Day", "Summer Vacation"
+  description String?
+  startDate   DateTime @db.Date
+  endDate     DateTime @db.Date
+  isAllDay    Boolean  @default(true)
+  // For partial-day closures (isAllDay = false)
+  startTime   String?  // "09:00"
+  endTime     String?  // "14:00"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, startDate, endDate])
 }
