@@ -107,7 +107,7 @@ export default async function ConfirmationPage({
             </div>
           </div>
           <Link href="/">
-            <Button variant="outline" className="border-zinc-700 text-gray-300 hover:bg-zinc-800">
+            <Button variant="outline" className="border-amber-500/30 text-amber-100 hover:bg-amber-500/10 hover:border-amber-500/50">
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
             </Button>
           </Link>
