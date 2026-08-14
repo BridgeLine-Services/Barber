@@ -20,6 +20,9 @@ import {
   User,
   Settings,
   ScrollText,
+  CalendarOff,
+  UsersRound,
+  UserCog,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'

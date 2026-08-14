@@ -387,7 +387,7 @@ export default async function HomePage() {
               <Button asChild className="flex-1 bg-amber-500 text-zinc-950 hover:bg-amber-400 font-bold">
                 <Link href="/book">Book Appointment</Link>
               </Button>
-              <Button asChild variant="outline" className="border-zinc-700 text-zinc-200 hover:bg-zinc-800">
+              <Button asChild variant="outline" className="border-amber-500/30 text-amber-100 hover:bg-amber-500/10 hover:border-amber-500/50">
                 <Link href="/contact">Get Directions</Link>
               </Button>
             </div>

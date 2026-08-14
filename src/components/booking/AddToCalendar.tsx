@@ -1,0 +1,105 @@
+'use client'
+
+import { Button } from '@/components/ui/button'
+import { CalendarPlus, Globe } from 'lucide-react'
+
+interface AddToCalendarProps {
+  serviceName: string
+  barberName: string
+  startTime: string
+  endTime: string
+  businessName?: string
+  businessAddress?: string
+  businessPhone?: string
+}
+
+function formatDateForICS(date: string): string {
+  const d = new Date(date)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${year}${month}${day}T${hours}${minutes}00`
+}
+
+function generateICS(props: AddToCalendarProps): string {
+  const { serviceName, barberName, startTime, endTime, businessName, businessAddress, businessPhone } = props
+  const start = formatDateForICS(startTime)
+  const end = formatDateForICS(endTime)
+  const title = `${serviceName} with ${barberName}`
+  const location = businessAddress || ''
+  const description = [
+    `${serviceName} with ${barberName}`,
+    businessPhone ? `Call shop: ${businessPhone}` : '',
+  ].filter(Boolean).join('\n')
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//BarberShop//Booking//EN',
+    'BEGIN:VEVENT',
+    `UID:${Date.now()}@barbershop`,
+    `DTSTAMP:${start}`,
+    `DTSTART:${start}`,
+    `DTEND:${end}`,
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+    location ? `LOCATION:${location}` : '',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n')
+}
+
+function downloadICS(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/calendar' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+function generateGoogleCalendarUrl(props: AddToCalendarProps): string {
+  const { serviceName, barberName, startTime, endTime, businessName, businessAddress, businessPhone } = props
+  const start = new Date(startTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const end = new Date(endTime).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+  const title = encodeURIComponent(`${serviceName} with ${barberName}`)
+  const details = encodeURIComponent(`${businessPhone ? `Call shop: ${businessPhone}` : ''}`)
+  const location = encodeURIComponent(businessAddress || '')
+
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${details}&location=${location}`
+}
+
+export function AddToCalendar(props: AddToCalendarProps) {
+  const handleICS = () => {
+    const ics = generateICS(props)
+    downloadICS(ics, `${props.serviceName}-appointment.ics`)
+  }
+
+  const handleGoogle = () => {
+    window.open(generateGoogleCalendarUrl(props), '_blank', 'noopener,noreferrer')
+  }
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+      <Button
+        onClick={handleICS}
+        variant="outline"
+        className="border-amber-500/30 text-amber-100 hover:bg-amber-500/10 hover:border-amber-500/50"
+      >
+        <CalendarPlus className="w-4 h-4 mr-2" /> Add to Apple Calendar
+      </Button>
+      <Button
+        onClick={handleGoogle}
+        variant="outline"
+        className="border-amber-500/30 text-amber-100 hover:bg-amber-500/10 hover:border-amber-500/50"
+      >
+        <Globe className="w-4 h-4 mr-2" /> Add to Google Calendar
+      </Button>
+    </div>
+  )
+}

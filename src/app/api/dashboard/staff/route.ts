@@ -1,0 +1,135 @@
+export const dynamic = 'force-dynamic'
+
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getCurrentBusinessId } from '@/lib/business'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+import { z } from 'zod'
+
+const inviteSchema = z.object({
+  name: z.string().min(1, 'Name required').max(100),
+  email: z.string().email('Valid email required'),
+  role: z.enum(['OWNER', 'BARBER']),
+  barberId: z.string().optional(), // link to Barber profile
+})
+
+/**
+ * GET /api/dashboard/staff
+ * List all staff users (owner only)
+ */
+export async function GET() {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if ((session.user as any).role !== 'OWNER') {
+    return NextResponse.json({ error: 'Owner access required' }, { status: 403 })
+  }
+
+  try {
+    const businessId = await getCurrentBusinessId()
+
+    const staff = await prisma.user.findMany({
+      where: { businessId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        barberId: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    return NextResponse.json({ staff })
+  } catch (error: any) {
+    if (error.code === 'P1001' || error.message?.includes('No business found')) {
+      return NextResponse.json({ staff: [], demo: true })
+    }
+    return NextResponse.json({ error: 'Failed to fetch staff' }, { status: 500 })
+  }
+}
+
+/**
+ * POST /api/dashboard/staff
+ * Invite a new staff member (owner only)
+ * Generates a temporary password — in production, send via email
+ */
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if ((session.user as any).role !== 'OWNER') {
+    return NextResponse.json({ error: 'Owner access required' }, { status: 403 })
+  }
+
+  try {
+    const body = await req.json()
+    const parsed = inviteSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
+
+    const businessId = await getCurrentBusinessId()
+
+    // Check if email already exists
+    const existing = await prisma.user.findUnique({
+      where: { email: parsed.data.email.toLowerCase() },
+    })
+    if (existing) {
+      return NextResponse.json({ error: 'A user with this email already exists' }, { status: 409 })
+    }
+
+    // Generate temporary password
+    const tempPassword = crypto.randomBytes(8).toString('base64url').slice(0, 12)
+    const passwordHash = await bcrypt.hash(tempPassword, 12)
+
+    const user = await prisma.user.create({
+      data: {
+        email: parsed.data.email.toLowerCase(),
+        name: parsed.data.name,
+        role: parsed.data.role,
+        passwordHash,
+        businessId,
+        barberId: parsed.data.barberId || null,
+      },
+      select: { id: true, email: true, name: true, role: true },
+    })
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        businessId,
+        userId: (session.user as any).id,
+        action: 'USER_INVITED',
+        entityType: 'User',
+        entityId: user.id,
+        newValues: { name: parsed.data.name, email: parsed.data.email, role: parsed.data.role },
+        ipAddress: req.headers.get('x-forwarded-for'),
+        userAgent: req.headers.get('user-agent'),
+      },
+    })
+
+    return NextResponse.json({
+      user,
+      tempPassword, // Demo only — in production, send via email
+      message: 'Staff member invited. Share the temporary password securely.',
+    }, { status: 201 })
+  } catch (error: any) {
+    if (error.code === 'P1001' || error.message?.includes('No business found')) {
+      return NextResponse.json({ error: 'Demo mode — connect a database to manage staff.' }, { status: 503 })
+    }
+    console.error('Error inviting staff:', error)
+    return NextResponse.json({ error: 'Failed to invite staff member' }, { status: 500 })
+  }
+}

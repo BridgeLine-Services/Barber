@@ -129,6 +129,8 @@ function BookingFlow() {
 
       if (data.success) {
         router.push(`/appointment/${data.confirmationNumber}?token=${data.customerAccessToken}`)
+      } else if (data.demo) {
+        setBookingError(data.error || 'Demo mode — connect a database to enable real bookings.')
       } else {
         setBookingError(data.error || 'Booking failed. Please try again.')
       }
@@ -257,7 +259,7 @@ function BookingFlow() {
             <Button
               variant="outline"
               onClick={() => setStep(step - 1)}
-              className="border-zinc-700 text-gray-300 hover:bg-zinc-800"
+              className="border-amber-500/30 text-amber-100 hover:bg-amber-500/10 hover:border-amber-500/50"
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>

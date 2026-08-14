@@ -120,11 +120,7 @@ export default function LoginPage() {
                   Password
                 </Label>
                 <a
-                  href="#reset"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    alert('Please contact your shop owner or manager to reset your password.')
-                  }}
+                  href="/forgot-password"
                   className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
                 >
                   Forgot password?

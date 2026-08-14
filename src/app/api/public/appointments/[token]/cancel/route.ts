@@ -63,6 +63,27 @@ export async function POST(
       )
     }
 
+    // Cancellation time rules
+    const now = new Date()
+    const apptTime = new Date(appointment.startTime)
+
+    // Cannot cancel past appointments
+    if (apptTime < now) {
+      return NextResponse.json(
+        { error: 'Cannot cancel past appointments. Please call the shop if you need assistance.' },
+        { status: 403 }
+      )
+    }
+
+    // Cannot cancel within 2 hours of start time
+    const hoursUntilAppt = (apptTime.getTime() - now.getTime()) / (1000 * 60 * 60)
+    if (hoursUntilAppt < 2) {
+      return NextResponse.json(
+        { error: 'Appointments cannot be cancelled within 2 hours of the start time. Please call the shop directly.' },
+        { status: 403 }
+      )
+    }
+
     // Cancel the appointment
     const updated = await prisma.appointment.update({
       where: { id: appointment.id },
@@ -79,6 +100,14 @@ export async function POST(
     })
   } catch (error: any) {
     console.error('Error cancelling appointment by token:', error)
+
+    // Demo mode: database not connected
+    if (error.message?.includes('No business found') || error.code === 'P1001' || error.message?.includes('prisma') || error.message?.includes('connect')) {
+      return NextResponse.json({
+        error: 'Demo mode — connect a database to manage appointments.',
+      }, { status: 503 })
+    }
+
     return NextResponse.json({ error: 'Failed to cancel appointment' }, { status: 500 })
   }
 }

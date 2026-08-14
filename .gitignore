@@ -16,7 +16,6 @@ dist/
 .env
 .env.local
 .env.*.local
-.agents/.env
 
 # Prisma
 prisma/migrations/dev.db*
@@ -42,9 +41,3 @@ logs/
 
 # TypeScript
 *.tsbuildinfo
-
-# Misc
-.npm/
-__pycache__/
-.cache/
-blobs/

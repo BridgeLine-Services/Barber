@@ -45,6 +45,8 @@ export const RATE_LIMITS = {
   CUSTOMER_ACTION: { windowMs: 60_000, maxRequests: 10 },
   // Auth: 5 per minute per IP
   AUTH: { windowMs: 60_000, maxRequests: 5 },
+  // Password reset: 3 per minute per IP (stricter to prevent abuse)
+  PASSWORD_RESET: { windowMs: 60_000, maxRequests: 3 },
   // Dashboard API: 60 per minute per IP
   DASHBOARD: { windowMs: 60_000, maxRequests: 60 },
   // Generic API: 30 per minute

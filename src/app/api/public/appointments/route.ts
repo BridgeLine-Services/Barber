@@ -40,6 +40,40 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const idempotencyKey = req.headers.get('idempotency-key')?.trim() || req.headers.get('Idempotency-Key')?.trim() || undefined
+
+    if (idempotencyKey) {
+      const existing = await prisma.appointment.findUnique({
+        where: { idempotencyKey },
+        include: {
+          service: true,
+          barber: true,
+        },
+      })
+
+      if (existing) {
+        return NextResponse.json({
+          success: true,
+          confirmationNumber: existing.confirmationNumber,
+          customerAccessToken: existing.customerAccessToken,
+          appointment: {
+            confirmationNumber: existing.confirmationNumber,
+            startTime: existing.startTime,
+            endTime: existing.endTime,
+            status: existing.status,
+            service: {
+              name: existing.service?.name,
+              duration: existing.service?.duration,
+              price: existing.service?.price,
+            },
+            barber: {
+              name: existing.barber?.name,
+            },
+          },
+        })
+      }
+    }
+
     const body = await req.json()
 
     // Validate input with Zod schema
@@ -121,6 +155,7 @@ export async function POST(req: NextRequest) {
       barberId: targetBarberId,
       serviceId,
       startTime,
+      idempotencyKey,
       customerData: customer,
     })
 
@@ -172,6 +207,16 @@ export async function POST(req: NextRequest) {
     })
   } catch (error: any) {
     console.error('Error creating appointment:', error)
+
+    // Demo mode: database not connected — return a friendly preview response
+    if (error.message?.includes('No business found') || error.message?.includes('connect') || error.code === 'P1001' || error.message?.includes('prisma')) {
+      return NextResponse.json({
+        success: false,
+        demo: true,
+        error: 'Booking is in demo mode. Connect a database to enable real appointments.',
+      }, { status: 503 })
+    }
+
     return NextResponse.json(
       { success: false, error: 'An error occurred while creating your appointment.' },
       { status: 500 }

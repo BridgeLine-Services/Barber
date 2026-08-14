@@ -50,6 +50,8 @@ model Business {
   reviews      Review[]
   auditLogs    AuditLog[]
   notificationLogs NotificationLog[]
+  waitlistEntries    WaitlistEntry[]
+  closures          BusinessClosure[]
 
   @@index([slug])
 }
@@ -74,6 +76,8 @@ model User {
   updatedAt    DateTime @updatedAt
 
   auditLogs    AuditLog[]
+  passwordResetToken    String?
+  passwordResetExpires  DateTime?
 
   @@index([businessId])
 }
@@ -97,6 +101,7 @@ model Barber {
   appointments Appointment[]
   blockedTimes BlockedTime[]
   services     BarberService[]
+  waitlistEntries WaitlistEntry[]
 
   @@index([businessId])
 }
@@ -136,6 +141,7 @@ model Service {
 
   barbers      BarberService[]
   appointments Appointment[]
+  waitlistEntries WaitlistEntry[]
 
   @@index([businessId])
 }
@@ -168,6 +174,7 @@ model Customer {
   updatedAt  DateTime @updatedAt
 
   appointments Appointment[]
+  waitlistEntries WaitlistEntry[]
 
   @@unique([businessId, email])
   @@index([businessId])
@@ -189,6 +196,7 @@ model Appointment {
   id                 String           @id @default(cuid())
   confirmationNumber String           @unique // human-readable, e.g. BRB-8F42K
   customerAccessToken String          @unique // crypto.randomBytes(32).hex — authenticates customer actions
+  idempotencyKey     String?          @unique
   businessId         String
   business           Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customerId         String
@@ -205,6 +213,8 @@ model Appointment {
   createdBy         String? // "ONLINE" | "MANUAL" | userId
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
+
+  notificationLogs  NotificationLog[]
 
   @@index([businessId, startTime])
   @@index([businessId, barberId, startTime])
@@ -249,6 +259,42 @@ model Review {
   @@index([businessId])
 }
 
+// ─── Waitlist ─────────────────────────────────────────────────────────────
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED
+  BOOKED
+  EXPIRED
+  CANCELLED
+}
+
+model WaitlistEntry {
+  id          String         @id @default(cuid())
+  businessId  String
+  business    Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId   String? // link if customer exists
+  customer     Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  firstName   String
+  lastName    String
+  phone       String
+  email       String
+  barberId    String? // null = any barber
+  barber      Barber?       @relation(fields: [barberId], references: [id], onDelete: SetNull)
+  serviceId   String
+  service     Service       @relation(fields: [serviceId], references: [id])
+  preferredDate DateTime @db.Date
+  preferredTimeRange String? // e.g. 'morning', 'afternoon', 'evening'
+  status      WaitlistStatus @default(WAITING)
+  notes       String?
+  notifiedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([businessId, status])
+  @@index([businessId, preferredDate])
+}
 
 // ─── Notification Log ──────────────────────────────────────────────────────
 // Tracks every notification attempt (email/SMS) and its delivery status.
@@ -277,6 +323,7 @@ model NotificationLog {
   businessId  String?
   business    Business?         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   appointmentId String? // optional link to appointment
+  appointment  Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   recipient   String // email or phone
   channel     NotificationChannel
   type        NotificationType
@@ -338,4 +385,25 @@ model AuditLog {
   @@index([businessId, createdAt])
   @@index([userId])
   @@index([action])
+}
+
+// ─── Business Closures (Holidays / Special Hours) ──────────────────────────
+// Owner-managed closure periods: holidays, vacations, special hours, etc.
+model BusinessClosure {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  title       String   // e.g. "Christmas Day", "Summer Vacation"
+  description String?
+  startDate   DateTime @db.Date
+  endDate     DateTime @db.Date
+  isAllDay    Boolean  @default(true)
+  // For partial-day closures (isAllDay = false)
+  startTime   String?  // "09:00"
+  endTime     String?  // "14:00"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, startDate, endDate])
 }

@@ -8,5 +8,13 @@
       "maxDuration": 30
     }
   },
-  "regions": ["sfo1"]
+  "regions": [
+    "sfo1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }
