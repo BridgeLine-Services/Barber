@@ -76,6 +76,8 @@ model User {
   updatedAt    DateTime @updatedAt
 
   auditLogs    AuditLog[]
+  passwordResetToken    String?
+  passwordResetExpires  DateTime?
 
   @@index([businessId])
 }

@@ -9,6 +9,7 @@ import { CheckCircle, Calendar, Clock, User, Scissors, ArrowLeft } from 'lucide-
 import { STATUS_LABELS, STATUS_COLORS, PAYMENT_DISCLAIMER } from '@/lib/constants'
 import Link from 'next/link'
 import CancelButton from './CancelButton'
+import { AddToCalendar } from '@/components/booking/AddToCalendar'
 
 export default async function ConfirmationPage({
   params,
@@ -224,6 +225,22 @@ export default async function ConfirmationPage({
             <a href={`tel:${appointment.business.phone?.replace(/\D/g, '')}`} className="text-amber-500 hover:underline">
               {appointment.business.phone}
             </a>
+          </div>
+        )}
+
+        {/* Add to Calendar */}
+        {!isCancelled && (
+          <div className="mb-6">
+            <p className="text-center text-sm text-gray-500 mb-3">Add to your calendar:</p>
+            <AddToCalendar
+              serviceName={appointment.service.name}
+              barberName={appointment.barber.name}
+              startTime={appointment.startTime.toISOString()}
+              endTime={appointment.endTime.toISOString()}
+              businessName={appointment.business?.name}
+              businessAddress={appointment.business?.address || undefined}
+              businessPhone={appointment.business?.phone || undefined}
+            />
           </div>
         )}
 

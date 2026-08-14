@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { CalendarPlus, Apple, Google } from 'lucide-react'
+import { CalendarPlus, Globe } from 'lucide-react'
 
 interface AddToCalendarProps {
   serviceName: string
@@ -91,14 +91,14 @@ export function AddToCalendar(props: AddToCalendarProps) {
         variant="outline"
         className="border-amber-500/30 text-amber-100 hover:bg-amber-500/10 hover:border-amber-500/50"
       >
-        <Apple className="w-4 h-4 mr-2" /> Add to Apple Calendar
+        <CalendarPlus className="w-4 h-4 mr-2" /> Add to Apple Calendar
       </Button>
       <Button
         onClick={handleGoogle}
         variant="outline"
         className="border-amber-500/30 text-amber-100 hover:bg-amber-500/10 hover:border-amber-500/50"
       >
-        <Google className="w-4 h-4 mr-2" /> Add to Google Calendar
+        <Globe className="w-4 h-4 mr-2" /> Add to Google Calendar
       </Button>
     </div>
   )
