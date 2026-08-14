@@ -2,23 +2,37 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
-export default function CancelButton({ appointmentId }: { appointmentId: string }) {
+export default function CancelButton({
+  confirmationNumber,
+  token,
+}: {
+  confirmationNumber: string
+  token: string
+}) {
   const [isCancelling, setIsCancelling] = useState(false)
   const router = useRouter()
 
   const handleCancel = async () => {
     if (!confirm('Are you sure you want to cancel this appointment?')) return
     setIsCancelling(true)
+
     try {
-      await fetch(`/api/appointments/${appointmentId}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/public/appointments/${token}/cancel`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'CANCELLED', cancellationReason: 'Cancelled by customer' }),
+        body: JSON.stringify({ reason: 'Cancelled by customer' }),
       })
-      router.refresh()
+
+      const data = await res.json()
+
+      if (data.success) {
+        router.refresh()
+      } else {
+        alert(data.error || 'Failed to cancel. Please try again or call the shop.')
+      }
     } catch (err) {
       alert('Failed to cancel. Please try again or call the shop.')
     } finally {

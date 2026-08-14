@@ -166,7 +166,7 @@ export const updateBusinessSchema = z.object({
   facebook: z.string().max(100).optional(),
   tiktok: z.string().max(100).optional(),
   aboutText: z.string().max(5000).optional(),
-  hours: z.record(z.any()).optional(),
+  hours: z.record(z.string(), z.any()).optional(),
 })
 
 // ─── Appointment Status Transitions ────────────────────────────────────────
