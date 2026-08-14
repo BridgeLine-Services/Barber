@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto'
 import { PrismaClient, UserRole, AppointmentStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
@@ -356,6 +357,7 @@ async function main() {
     await prisma.appointment.create({
       data: {
         confirmationNumber: appt.confirmationNumber,
+        customerAccessToken: randomBytes(32).toString('hex'),
         businessId: business.id,
         customerId: customers[appt.customerIdx].id,
         barberId: barbers[appt.barberIdx].id,

@@ -2,20 +2,34 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
+import { contactFormSchema } from '@/lib/validation'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
+  // Rate limit contact form — 3 per minute per IP
+  const rateLimitResult = checkRateLimit(req, 'contact', RATE_LIMITS.CONTACT)
+  if (rateLimitResult) {
+    return NextResponse.json(
+      { success: false, error: 'Too many messages. Please try again in a minute.' },
+      { status: rateLimitResult.status }
+    )
+  }
+
   try {
     const body = await req.json()
-    const { name, email, message } = body
 
-    if (!name || !email || !message) {
+    // Validate with Zod
+    const parseResult = contactFormSchema.safeParse(body)
+    if (!parseResult.success) {
       return NextResponse.json(
-        { success: false, error: 'Name, email, and message are required' },
+        { success: false, error: 'Invalid input', details: parseResult.error.flatten().fieldErrors },
         { status: 400 }
       )
     }
 
-    console.log(`[Contact Form] From: ${name} <${email}>: ${message}`)
+    const { name, email, message } = parseResult.data
+
+    console.log(`[Contact Form] From: ${name} <${email}>: ${message.substring(0, 100)}`)
 
     // If SMTP environment variables exist, send email notification
     if (process.env.SMTP_HOST && process.env.SMTP_USER) {
@@ -46,7 +60,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Error handling contact form:', error)
     return NextResponse.json(
-      { success: false, error: error.message || 'Failed to submit contact form' },
+      { success: false, error: 'Failed to submit contact form' },
       { status: 500 }
     )
   }

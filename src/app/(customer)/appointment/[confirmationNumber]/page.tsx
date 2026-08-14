@@ -5,18 +5,48 @@ import { formatFullDate, formatTime, formatDuration, formatPrice } from '@/lib/u
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle, Calendar, Clock, User, Scissors, Phone, Mail, ArrowLeft } from 'lucide-react'
+import { CheckCircle, Calendar, Clock, User, Scissors, ArrowLeft } from 'lucide-react'
 import { STATUS_LABELS, STATUS_COLORS, PAYMENT_DISCLAIMER } from '@/lib/constants'
 import Link from 'next/link'
 import CancelButton from './CancelButton'
 
-export default async function ConfirmationPage({ params }: { params: { confirmationNumber: string } }) {
+export default async function ConfirmationPage({
+  params,
+  searchParams,
+}: {
+  params: { confirmationNumber: string }
+  searchParams: { token?: string }
+}) {
   let appointment: any = null
+  let hasToken = false
+
   try {
-    appointment = await prisma.appointment.findUnique({
-      where: { confirmationNumber: params.confirmationNumber },
-      include: { customer: true, barber: true, service: true, business: true },
-    })
+    // Require a valid customer access token to view appointment details.
+    // The confirmation number alone is NOT sufficient authentication.
+    if (searchParams.token && searchParams.token.length >= 32) {
+      appointment = await prisma.appointment.findFirst({
+        where: {
+          confirmationNumber: params.confirmationNumber,
+          customerAccessToken: searchParams.token,
+        },
+        include: {
+          barber: true,
+          service: true,
+          business: true,
+        },
+      })
+      hasToken = true
+    } else {
+      // Try to find by confirmation number only — show limited info
+      appointment = await prisma.appointment.findUnique({
+        where: { confirmationNumber: params.confirmationNumber },
+        include: {
+          barber: true,
+          service: true,
+          business: true,
+        },
+      })
+    }
   } catch (error) {
     console.error('Failed to load appointment:', error)
   }
@@ -41,6 +71,50 @@ export default async function ConfirmationPage({ params }: { params: { confirmat
   }
 
   const isCancelled = appointment.status === 'CANCELLED'
+
+  // If no token, show limited info and prompt for lookup
+  if (!hasToken) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center px-4">
+        <div className="text-center max-w-md space-y-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 mx-auto">
+            <Calendar className="h-8 w-8" />
+          </div>
+          <h1 className="text-2xl font-bold">Appointment Found</h1>
+          <p className="text-gray-400 text-sm">
+            We found your appointment. For security, please use the link from your confirmation email to view full details and manage your appointment.
+          </p>
+          <div className="rounded-lg bg-zinc-900 border border-zinc-800 p-4 text-left space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Confirmation</span>
+              <span className="font-mono text-amber-500">{appointment.confirmationNumber}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Service</span>
+              <span className="font-semibold">{appointment.service?.name}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Barber</span>
+              <span className="font-semibold">{appointment.barber?.name}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Date</span>
+              <span className="font-semibold">{formatFullDate(appointment.startTime)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Time</span>
+              <span className="font-semibold">{formatTime(appointment.startTime)}</span>
+            </div>
+          </div>
+          <Link href="/">
+            <Button variant="outline" className="border-zinc-700 text-gray-300 hover:bg-zinc-800">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Home
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -74,7 +148,7 @@ export default async function ConfirmationPage({ params }: { params: { confirmat
           </p>
         </div>
 
-        {/* Details card */}
+        {/* Details card — MINIMIZED data (no phone, email, notes shown publicly) */}
         <Card className="bg-zinc-900 border-zinc-800 mb-6">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -124,41 +198,6 @@ export default async function ConfirmationPage({ params }: { params: { confirmat
               <p className="font-semibold">{formatTime(appointment.startTime)}</p>
             </div>
 
-            {/* Customer */}
-            <div className="flex items-start justify-between border-b border-zinc-800 pb-3">
-              <div className="flex items-center gap-3">
-                <User className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-400">Customer</span>
-              </div>
-              <p className="font-semibold">{appointment.customer.firstName} {appointment.customer.lastName}</p>
-            </div>
-
-            {/* Contact */}
-            <div className="flex items-start justify-between border-b border-zinc-800 pb-3">
-              <div className="flex items-center gap-3">
-                <Phone className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-400">Phone</span>
-              </div>
-              <p className="font-semibold">{appointment.customer.phone}</p>
-            </div>
-
-            {/* Email */}
-            <div className="flex items-start justify-between border-b border-zinc-800 pb-3">
-              <div className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-400">Email</span>
-              </div>
-              <p className="font-semibold text-sm">{appointment.customer.email}</p>
-            </div>
-
-            {/* Notes */}
-            {appointment.customerNotes && (
-              <div className="flex items-start justify-between border-b border-zinc-800 pb-3">
-                <span className="text-sm text-gray-400">Notes</span>
-                <p className="font-semibold text-sm text-right max-w-xs">{appointment.customerNotes}</p>
-              </div>
-            )}
-
             {/* Status */}
             <div className="flex items-start justify-between">
               <span className="text-sm text-gray-400">Status</span>
@@ -178,15 +217,23 @@ export default async function ConfirmationPage({ params }: { params: { confirmat
           <p className="text-xs text-gray-600 mt-2">{PAYMENT_DISCLAIMER}</p>
         </div>
 
+        {/* Shop contact for convenience */}
+        {appointment.business && (
+          <div className="mb-6 text-center text-sm text-gray-500">
+            Need to make changes? Call{' '}
+            <a href={`tel:${appointment.business.phone?.replace(/\D/g, '')}`} className="text-amber-500 hover:underline">
+              {appointment.business.phone}
+            </a>
+          </div>
+        )}
+
         {/* Actions */}
         {!isCancelled && (
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/book">
-              <Button variant="outline" className="border-zinc-700 text-gray-300 hover:bg-zinc-800 w-full sm:w-auto">
-                Reschedule
-              </Button>
-            </Link>
-            <CancelButton appointmentId={appointment.id} />
+            <CancelButton
+              confirmationNumber={appointment.confirmationNumber}
+              token={searchParams.token!}
+            />
           </div>
         )}
 

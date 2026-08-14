@@ -1,65 +1,68 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { resolveBusinessId } from '@/lib/business'
+import { requireStaff } from '@/lib/auth-helpers'
+import { getBusinessIdForUser } from '@/lib/auth-helpers'
 import { createAppointmentSafely } from '@/lib/availability'
+import { createManualAppointmentSchema } from '@/lib/validation'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Require authentication
+  const auth = await requireStaff({ restrictToOwnBarber: true })
+  if (!auth.success) return auth.response
 
-  const user = session.user as any
-  const businessId = await resolveBusinessId()
+  const user = auth.user
   const isBarber = user.role === 'BARBER'
   const sessionBarberId = user.barberId
 
-  const searchParams = req.nextUrl.searchParams
-  const dateParam = searchParams.get('date')
-  const fromParam = searchParams.get('from')
-  const toParam = searchParams.get('to')
-  const barberIdParam = searchParams.get('barberId')
-  const statusParam = searchParams.get('status')
-  const searchParam = searchParams.get('search')
-
-  const where: any = { businessId }
-
-  if (isBarber && sessionBarberId) {
-    where.barberId = sessionBarberId
-  } else if (barberIdParam) {
-    where.barberId = barberIdParam
-  }
-
-  if (statusParam) {
-    where.status = statusParam
-  }
-
-  if (dateParam) {
-    const d = new Date(dateParam)
-    const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)
-    const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0)
-    where.startTime = { gte: dayStart, lt: dayEnd }
-  } else if (fromParam || toParam) {
-    where.startTime = {}
-    if (fromParam) where.startTime.gte = new Date(fromParam)
-    if (toParam) where.startTime.lte = new Date(toParam)
-  }
-
-  if (searchParam) {
-    where.OR = [
-      { confirmationNumber: { contains: searchParam, mode: 'insensitive' } },
-      { customer: { firstName: { contains: searchParam, mode: 'insensitive' } } },
-      { customer: { lastName: { contains: searchParam, mode: 'insensitive' } } },
-      { customer: { phone: { contains: searchParam, mode: 'insensitive' } } },
-      { customer: { email: { contains: searchParam, mode: 'insensitive' } } },
-    ]
-  }
-
   try {
+    const businessId = await getBusinessIdForUser(user)
+
+    const searchParams = req.nextUrl.searchParams
+    const dateParam = searchParams.get('date')
+    const fromParam = searchParams.get('from')
+    const toParam = searchParams.get('to')
+    const barberIdParam = searchParams.get('barberId')
+    const statusParam = searchParams.get('status')
+    const searchParam = searchParams.get('search')
+
+    const where: any = { businessId }
+
+    // ROLE ENFORCEMENT: Barbers can only see their own appointments
+    if (isBarber && sessionBarberId) {
+      where.barberId = sessionBarberId
+    } else if (barberIdParam) {
+      // Owner can filter by any barber
+      where.barberId = barberIdParam
+    }
+
+    if (statusParam) {
+      where.status = statusParam
+    }
+
+    if (dateParam) {
+      const d = new Date(dateParam)
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0)
+      const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0)
+      where.startTime = { gte: dayStart, lt: dayEnd }
+    } else if (fromParam || toParam) {
+      where.startTime = {}
+      if (fromParam) where.startTime.gte = new Date(fromParam)
+      if (toParam) where.startTime.lte = new Date(toParam)
+    }
+
+    if (searchParam) {
+      where.OR = [
+        { confirmationNumber: { contains: searchParam, mode: 'insensitive' } },
+        { customer: { firstName: { contains: searchParam, mode: 'insensitive' } } },
+        { customer: { lastName: { contains: searchParam, mode: 'insensitive' } } },
+        { customer: { phone: { contains: searchParam, mode: 'insensitive' } } },
+        { customer: { email: { contains: searchParam, mode: 'insensitive' } } },
+      ]
+    }
+
     const appointments = await prisma.appointment.findMany({
       where,
       include: {
@@ -77,19 +80,46 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Require authentication (OWNER or BARBER)
+  const auth = await requireStaff({ restrictToOwnBarber: true })
+  if (!auth.success) return auth.response
 
-  const businessId = await resolveBusinessId()
+  const user = auth.user
+
+  // Rate limit
+  const rl = checkRateLimit(req, 'dashboard-appt-create', RATE_LIMITS.DASHBOARD)
+  if (rl) return NextResponse.json({ error: rl.body.error }, { status: rl.status })
 
   try {
-    const body = await req.json()
-    const { customerId, customerData, barberId, serviceId, date, time, notes } = body
+    const businessId = await getBusinessIdForUser(user)
 
-    if (!barberId || !serviceId || !date || !time) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    const body = await req.json()
+
+    // Validate with Zod
+    const parseResult = createManualAppointmentSchema.safeParse(body)
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid appointment data', details: parseResult.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
+
+    const { customerId, customerData, barberId, serviceId, date, time, notes } = parseResult.data
+
+    // ROLE ENFORCEMENT: Barbers can only create appointments for themselves
+    if (user.role === 'BARBER' && user.barberId && barberId !== user.barberId) {
+      return NextResponse.json(
+        { error: 'Barbers can only create appointments for themselves' },
+        { status: 403 }
+      )
+    }
+
+    // Verify barber belongs to this business
+    const barber = await prisma.barber.findFirst({
+      where: { id: barberId, businessId, isActive: true },
+    })
+    if (!barber) {
+      return NextResponse.json({ error: 'Barber not found' }, { status: 404 })
     }
 
     let targetCustomerData = customerData
@@ -106,7 +136,7 @@ export async function POST(req: NextRequest) {
         lastName: customer.lastName,
         phone: customer.phone,
         email: customer.email,
-        notes: notes || customer.notes,
+        notes: notes || customer.notes || undefined,
         smsConsent: customer.smsConsent,
       }
     }
@@ -142,7 +172,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
-    // Update createdBy to MANUAL if created via dashboard
+    // Update createdBy to MANUAL
     if (result.appointment?.id) {
       await prisma.appointment.update({
         where: { id: result.appointment.id },

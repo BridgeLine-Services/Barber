@@ -106,7 +106,7 @@ function BookingFlow() {
     try {
       const dateStr = selectedDate!.toISOString().split('T')[0]
 
-      const res = await fetch('/api/appointments', {
+      const res = await fetch('/api/public/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -128,7 +128,7 @@ function BookingFlow() {
       const data = await res.json()
 
       if (data.success) {
-        router.push(`/appointment/${data.appointment.confirmationNumber}`)
+        router.push(`/appointment/${data.confirmationNumber}?token=${data.customerAccessToken}`)
       } else {
         setBookingError(data.error || 'Booking failed. Please try again.')
       }
