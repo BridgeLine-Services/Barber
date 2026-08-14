@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { generateConfirmationNumber } from '@/lib/utils'
+import { generateConfirmationNumber, generateCustomerAccessToken } from '@/lib/utils'
 import { addMinutes, isBefore, isAfter, setHours, setMinutes, parseISO } from 'date-fns'
 
 // ============================================================================
@@ -263,6 +263,110 @@ export async function getEarliestAvailableSlot(params: {
 }
 
 /**
+ * Canonical slot validation — the single source of truth for whether a
+ * specific start time is bookable for a barber+service+business.
+ *
+ * Used by BOTH the initial booking AND reschedule to ensure one consistent
+ * rule set. Never duplicate these checks — call this function.
+ */
+export async function validateSlot(params: {
+  businessId: string
+  barberId: string
+  serviceId: string
+  startTime: Date
+  excludeAppointmentId?: string // exclude self when rescheduling
+}): Promise<{ valid: boolean; error?: string; endTime?: Date }> {
+  const { businessId, barberId, serviceId, startTime, excludeAppointmentId } = params
+
+  // 1. Verify the barber belongs to this business and is active
+  const barber = await prisma.barber.findFirst({
+    where: { id: barberId, businessId, isActive: true },
+    include: { services: true },
+  })
+  if (!barber) return { valid: false, error: 'Barber not found or inactive' }
+
+  // 2. Verify the service belongs to this business and is active
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, businessId, isActive: true },
+  })
+  if (!service) return { valid: false, error: 'Service not found or inactive' }
+
+  // 3. Verify the barber offers this service (if barber has services defined)
+  if (barber.services.length > 0 && !barber.services.some(bs => bs.serviceId === serviceId)) {
+    return { valid: false, error: 'Barber does not offer this service' }
+  }
+
+  // 4. Cannot book in the past
+  const now = new Date()
+  if (startTime < now) return { valid: false, error: 'Cannot book an appointment in the past' }
+
+  const endTime = addMinutes(startTime, service.duration)
+
+  // 5. Check barber schedule for this day of week
+  const dayOfWeek = startTime.getDay()
+  const schedule = await prisma.schedule.findUnique({
+    where: { barberId_dayOfWeek: { barberId, dayOfWeek } },
+  })
+  if (!schedule || schedule.isOff) return { valid: false, error: 'Barber is not working on this day' }
+
+  // 6. Check the start/end time is within working hours
+  const [startH, startM] = schedule.startTime.split(':').map(Number)
+  const [endH, endM] = schedule.endTime.split(':').map(Number)
+  const dayStart = new Date(startTime)
+  dayStart.setHours(startH, startM, 0, 0)
+  const dayEnd = new Date(startTime)
+  dayEnd.setHours(endH, endM, 0, 0)
+
+  if (startTime < dayStart || endTime > dayEnd) {
+    return { valid: false, error: 'Selected time is outside working hours' }
+  }
+
+  // 7. Check breaks
+  if (schedule.breaks && Array.isArray(schedule.breaks)) {
+    for (const brk of schedule.breaks as any[]) {
+      if (brk && typeof brk === 'object' && 'start' in brk && 'end' in brk) {
+        const [bh, bm] = String(brk.start).split(':').map(Number)
+        const [eh, em] = String(brk.end).split(':').map(Number)
+        const breakStart = new Date(startTime)
+        breakStart.setHours(bh, bm, 0, 0)
+        const breakEnd = new Date(startTime)
+        breakEnd.setHours(eh, em, 0, 0)
+        if (startTime < breakEnd && endTime > breakStart) {
+          return { valid: false, error: 'Selected time overlaps a break' }
+        }
+      }
+    }
+  }
+
+  // 8. Check blocked times
+  const blocked = await prisma.blockedTime.findFirst({
+    where: {
+      businessId,
+      OR: [{ barberId }, { barberId: null }],
+      startTime: { lt: endTime },
+      endTime: { gt: startTime },
+    },
+  })
+  if (blocked) return { valid: false, error: 'This time slot is blocked' }
+
+  // 9. Check existing appointment conflicts (exclude self for reschedule)
+  const conflictWhere: any = {
+    businessId,
+    barberId,
+    status: { in: ['PENDING', 'CONFIRMED'] },
+    startTime: { lt: endTime },
+    endTime: { gt: startTime },
+  }
+  if (excludeAppointmentId) {
+    conflictWhere.id = { not: excludeAppointmentId }
+  }
+  const conflicting = await prisma.appointment.findFirst({ where: conflictWhere })
+  if (conflicting) return { valid: false, error: 'This time slot conflicts with another appointment' }
+
+  return { valid: true, endTime }
+}
+
+/**
  * Create an appointment with double-booking protection.
  *
  * Uses a Prisma transaction with a re-check of slot availability inside the
@@ -357,10 +461,12 @@ export async function createAppointmentSafely(params: {
         existing = await tx.appointment.findUnique({ where: { confirmationNumber } })
       }
 
-      // 8. Create the appointment
+      // 8. Create the appointment with secure customer access token
+      const customerAccessToken = generateCustomerAccessToken()
       const appointment = await tx.appointment.create({
         data: {
           confirmationNumber,
+          customerAccessToken,
           businessId,
           customerId: customer.id,
           barberId,

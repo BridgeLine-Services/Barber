@@ -6,14 +6,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Generate a unique confirmation number: BRB-XXXXX (5 alphanumeric) */
+import crypto from 'crypto'
+
+/** Generate a unique confirmation number: BRB-XXXXX (6 alphanumeric, crypto-based) */
 export function generateConfirmationNumber(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // no confusing chars
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' // no confusing chars (no 0, O, 1, I)
+  const bytes = crypto.randomBytes(6)
   let code = ''
-  for (let i = 0; i < 5; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)]
+  for (let i = 0; i < 6; i++) {
+    code += chars[bytes[i] % chars.length]
   }
   return `BRB-${code}`
+}
+
+/** Generate a cryptographically secure customer access token (64 hex chars = 256 bits) */
+export function generateCustomerAccessToken(): string {
+  return crypto.randomBytes(32).toString('hex')
 }
 
 /** Format a date as "Saturday, August 15, 2026" */

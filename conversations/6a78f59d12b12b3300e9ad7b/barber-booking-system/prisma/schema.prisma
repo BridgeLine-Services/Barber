@@ -1,6 +1,6 @@
 // ============================================================================
 // Barber Booking System — Prisma Schema
-// Multi-tenant: every business-coped table has a businessId column.
+// Multi-tenant: every business-scoped table has a businessId column.
 // Every query MUST filter by businessId to prevent cross-shop data leakage.
 // ============================================================================
 
@@ -30,6 +30,7 @@ model Business {
   zipCode      String?
   latitude     Float?
   longitude    Float?
+  timezone     String   @default("America/Los_Angeles") // IANA timezone for all business logic
   instagram     String?
   facebook      String?
   tiktok       String?
@@ -47,6 +48,7 @@ model Business {
   appointments Appointment[]
   blockedTimes BlockedTime[]
   reviews      Review[]
+  auditLogs    AuditLog[]
 
   @@index([slug])
 }
@@ -69,6 +71,8 @@ model User {
   barberId     String? // links to Barber profile when role = BARBER
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  auditLogs    AuditLog[]
 
   @@index([businessId])
 }
@@ -158,6 +162,7 @@ model Customer {
   email      String
   notes      String?  @db.Text
   smsConsent Boolean  @default(false)
+  archivedAt DateTime? // soft-delete support
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -181,7 +186,8 @@ enum AppointmentStatus {
 
 model Appointment {
   id                 String           @id @default(cuid())
-  confirmationNumber String           @unique // e.g. BRB-8F42K
+  confirmationNumber String           @unique // human-readable, e.g. BRB-8F42K
+  customerAccessToken String          @unique // crypto.randomBytes(32).hex — authenticates customer actions
   businessId         String
   business           Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customerId         String
@@ -193,7 +199,7 @@ model Appointment {
   startTime         DateTime
   endTime           DateTime
   status            AppointmentStatus @default(PENDING)
-  customerNotes     String?           @db.Text
+  customerNotes     String?          @db.Text
   cancellationReason String?
   createdBy         String? // "ONLINE" | "MANUAL" | userId
   createdAt         DateTime          @default(now())
@@ -205,6 +211,7 @@ model Appointment {
   @@index([barberId, startTime])
   @@index([customerId])
   @@index([confirmationNumber])
+  @@index([customerAccessToken])
 }
 
 // ─── Blocked Time (vacation, time off, custom blocks) ─────────────────────
@@ -239,4 +246,54 @@ model Review {
   updatedAt   DateTime @updatedAt
 
   @@index([businessId])
+}
+
+// ─── Audit Log ─────────────────────────────────────────────────────────────
+// Records every significant administrative action for accountability.
+
+enum AuditAction {
+  APPOINTMENT_CREATED
+  APPOINTMENT_CANCELLED
+  APPOINTMENT_RESCHEDULED
+  APPOINTMENT_COMPLETED
+  APPOINTMENT_NO_SHOW
+  CUSTOMER_CREATED
+  CUSTOMER_UPDATED
+  CUSTOMER_ARCHIVED
+  SERVICE_CREATED
+  SERVICE_UPDATED
+  SERVICE_DEACTIVATED
+  BARBER_CREATED
+  BARBER_UPDATED
+  BARBER_DEACTIVATED
+  SCHEDULE_MODIFIED
+  BLOCKED_TIME_ADDED
+  BLOCKED_TIME_REMOVED
+  USER_INVITED
+  USER_PASSWORD_CHANGED
+  USER_ROLE_CHANGED
+  USER_DEACTIVATED
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  SETTINGS_UPDATED
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  businessId  String?
+  business    Business?   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      AuditAction
+  entityType  String? // "Appointment", "Customer", "Service", etc.
+  entityId    String?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([userId])
+  @@index([action])
 }
