@@ -47,3 +47,8 @@ conversations/
 .agents/
 conversations/
 .base44-conversation-workspace
+.agents/.env
+.npm/
+__pycache__/
+.cache/
+blobs/
