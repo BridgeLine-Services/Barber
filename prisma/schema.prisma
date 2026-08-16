@@ -289,6 +289,10 @@ model WaitlistEntry {
   notes       String?
   notifiedAt  DateTime?
   expiresAt   DateTime?
+  claimToken      String?   @unique // secure token for customer to claim a notified slot
+  offeredSlotStart DateTime? // the released slot start time offered to this entry
+  offeredSlotEnd   DateTime? // the released slot end time offered to this entry
+  offeredBarberId  String? // barber id for the offered slot (may differ from barberId preference)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -305,6 +309,7 @@ enum NotificationType {
   CANCELLATION_NOTICE
   RESCHEDULE_NOTICE
   CONTACT_FORM
+  WAITLIST_NOTIFICATION
 }
 
 enum NotificationChannel {

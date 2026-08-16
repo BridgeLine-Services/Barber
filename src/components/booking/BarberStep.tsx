@@ -1,10 +1,11 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { getInitials, cn } from '@/lib/utils'
-import { Sparkles, Check, User } from 'lucide-react'
+import { Sparkles, Check, User, Zap, Clock, Loader2 } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 
 export interface BarberItem {
   id: string
@@ -16,14 +17,48 @@ export interface BarberItem {
   services?: Array<{ serviceId: string }> | Array<{ service?: { id: string } }>
 }
 
+export interface EarliestSlot {
+  date: string
+  time: string
+  barberId: string
+  barberName: string
+}
+
 interface BarberStepProps {
   barbers: BarberItem[]
   selectedId: string | null
   onSelect: (barberId: string) => void
+  onSelectFirstAvailable?: (slot: EarliestSlot) => void
   serviceId?: string | null
 }
 
-export function BarberStep({ barbers, selectedId, onSelect, serviceId }: BarberStepProps) {
+export function BarberStep({ barbers, selectedId, onSelect, onSelectFirstAvailable, serviceId }: BarberStepProps) {
+  const [earliestSlot, setEarliestSlot] = useState<EarliestSlot | null>(null)
+  const [loadingEarliest, setLoadingEarliest] = useState(false)
+
+  // Fetch earliest available slot across all barbers (searches next 30 days)
+  useEffect(() => {
+    if (!serviceId) return
+
+    setLoadingEarliest(true)
+    fetch(`/api/availability/earliest?serviceId=${encodeURIComponent(serviceId)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.date && data.time) {
+          setEarliestSlot({
+            date: data.date,
+            time: data.time,
+            barberId: data.barberId,
+            barberName: data.barberName,
+          })
+        } else {
+          setEarliestSlot(null)
+        }
+      })
+      .catch(() => setEarliestSlot(null))
+      .finally(() => setLoadingEarliest(false))
+  }, [serviceId])
+
   // Filter barbers client-side based on whether they offer the selected service
   const filteredBarbers = barbers.filter((barber) => {
     if (barber.isActive === false) return false
@@ -37,6 +72,14 @@ export function BarberStep({ barbers, selectedId, onSelect, serviceId }: BarberS
     })
   })
 
+  const handleFirstAvailable = () => {
+    if (earliestSlot && onSelectFirstAvailable) {
+      onSelectFirstAvailable(earliestSlot)
+    } else {
+      onSelect('any')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="mb-6">
@@ -47,6 +90,56 @@ export function BarberStep({ barbers, selectedId, onSelect, serviceId }: BarberS
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* First Available — earliest slot across all barbers */}
+        <Card
+          onClick={handleFirstAvailable}
+          className={cn(
+            'relative cursor-pointer transition-all duration-200 p-5 bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/15 md:col-span-2',
+            selectedId === 'first-available' &&
+              'border-amber-500 bg-amber-500/15 ring-1 ring-amber-500/50 shadow-lg shadow-amber-500/20'
+          )}
+        >
+          {selectedId === 'first-available' && (
+            <div className="absolute top-4 right-4 w-6 h-6 rounded-full bg-amber-500 text-zinc-950 flex items-center justify-center">
+              <Check className="w-4 h-4 stroke-[3]" />
+            </div>
+          )}
+
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+              <Zap className="w-6 h-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-zinc-100">First Available</h3>
+                <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  Earliest
+                </span>
+              </div>
+              {loadingEarliest ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <Loader2 className="w-3 h-3 text-amber-500/60 animate-spin" />
+                  <p className="text-xs text-zinc-500">Finding the earliest slot...</p>
+                </div>
+              ) : earliestSlot ? (
+                <p className="text-xs text-zinc-300 mt-1">
+                  <span className="text-amber-400 font-semibold">{earliestSlot.time}</span>
+                  {' on '}
+                  <span className="text-amber-400 font-semibold">
+                    {format(parseISO(earliestSlot.date), 'EEE, MMM d')}
+                  </span>
+                  {' with '}
+                  <span className="text-zinc-100 font-medium">{earliestSlot.barberName}</span>
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-500 mt-1">
+                  No availability in the next 30 days.
+                </p>
+              )}
+            </div>
+          </div>
+        </Card>
+
         {/* Any Available Barber option */}
         <Card
           onClick={() => onSelect('any')}
@@ -70,7 +163,7 @@ export function BarberStep({ barbers, selectedId, onSelect, serviceId }: BarberS
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-semibold text-zinc-100">Any Available Barber</h3>
                 <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                  Fastest
+                  Flexible
                 </span>
               </div>
               <p className="text-xs text-zinc-400 mt-1">

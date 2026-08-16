@@ -43,9 +43,11 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
     { name: 'Appointments', href: '/dashboard/appointments', icon: CalendarDays },
+    { name: 'Waitlist', href: '/dashboard/waitlist', icon: Users },
     { name: 'Customers', href: '/dashboard/customers', icon: Users },
     { name: 'Services', href: '/dashboard/services', icon: Scissors },
     { name: 'Schedule', href: '/dashboard/schedule', icon: Clock },
+    { name: 'Closures', href: '/dashboard/closures', icon: CalendarOff },
     ...(isOwner
       ? [
           { name: 'Barbers', href: '/dashboard/barbers', icon: UserCircle },

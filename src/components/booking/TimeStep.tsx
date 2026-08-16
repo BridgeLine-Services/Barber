@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { Clock, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
+import { Clock, AlertCircle, Loader2, RefreshCw, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Slot {
@@ -12,6 +12,12 @@ interface Slot {
   available: boolean
   barberId?: string
   barberName?: string
+}
+
+interface EarliestInfo {
+  barberId: string
+  barberName: string
+  time: string
 }
 
 interface TimeStepProps {
@@ -31,10 +37,14 @@ export function TimeStep({
   onSelect,
 }: TimeStepProps) {
   const [slots, setSlots] = useState<Slot[]>([])
+  const [earliest, setEarliest] = useState<EarliestInfo | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
   const formattedDateParam = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''
+
+  // Treat 'first-available' the same as 'any' for fetching
+  const isAnyMode = barberId === 'any' || barberId === 'first-available'
 
   const fetchAvailability = async () => {
     if (!selectedDate || !serviceId) return
@@ -44,7 +54,7 @@ export function TimeStep({
 
     try {
       let url = ''
-      if (barberId === 'any') {
+      if (isAnyMode) {
         url = `/api/availability?serviceId=${encodeURIComponent(
           serviceId
         )}&date=${formattedDateParam}&any=true`
@@ -64,6 +74,7 @@ export function TimeStep({
       }
 
       setSlots(data.slots || [])
+      setEarliest(data.earliest || null)
     } catch (err: any) {
       console.error('TimeStep fetch error:', err)
       setError(err.message || 'Error loading available times. Please try again.')
@@ -83,6 +94,29 @@ export function TimeStep({
         <p>Please select a date first.</p>
       </div>
     )
+  }
+
+  // Split slots into earliest (prominent) and remaining ("Other times")
+  const isFirstAvailable = barberId === 'first-available'
+  const availableSlots = slots.filter((s) => s.available)
+
+  let prominentSlot: Slot | null = null
+  let otherSlots: Slot[] = []
+
+  if (isFirstAvailable && availableSlots.length > 0) {
+    // Use the earliest from the API if available, otherwise the first available slot
+    if (earliest) {
+      prominentSlot = {
+        time: earliest.time,
+        available: true,
+        barberId: earliest.barberId,
+        barberName: earliest.barberName,
+      }
+      otherSlots = availableSlots.filter((s) => s.time !== earliest.time)
+    } else {
+      prominentSlot = availableSlots[0]
+      otherSlots = availableSlots.slice(1)
+    }
   }
 
   return (
@@ -127,12 +161,96 @@ export function TimeStep({
           <h3 className="text-base font-semibold text-zinc-200">No Times Available</h3>
           <p className="text-xs text-zinc-400 max-w-md mx-auto">
             There are no available time slots on this date for the selected barber. Please choose a
-            different date or try selecting "Any Available Barber".
+            different date or try selecting &quot;Any Available Barber&quot;.
           </p>
         </Card>
       )}
 
-      {!loading && !error && slots.length > 0 && (
+      {/* First Available mode: earliest slot prominently at top, other times below */}
+      {!loading && !error && isFirstAvailable && slots.length > 0 && prominentSlot && (
+        <div className="space-y-6">
+          {/* Prominent earliest slot */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Zap className="w-4 h-4 text-amber-500" />
+              <h3 className="text-sm font-semibold text-amber-400 uppercase tracking-wider">
+                Earliest Available
+              </h3>
+            </div>
+            <Card
+              className={cn(
+                'p-6 bg-gradient-to-r from-amber-500/15 via-zinc-900 to-zinc-900 border-amber-500/50 cursor-pointer transition-all duration-200 hover:border-amber-500 hover:bg-amber-500/20',
+                selectedTime === prominentSlot.time &&
+                  'border-amber-500 bg-amber-500/20 ring-1 ring-amber-500/50 shadow-lg shadow-amber-500/20'
+              )}
+              onClick={() =>
+                onSelect(prominentSlot!.time, prominentSlot!.barberId)
+              }
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                    <Clock className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-zinc-100">
+                      {prominentSlot.time}
+                    </div>
+                    {prominentSlot.barberName && (
+                      <div className="text-sm text-amber-400/90 font-medium mt-0.5">
+                        with {prominentSlot.barberName}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {selectedTime === prominentSlot.time && (
+                  <div className="w-8 h-8 rounded-full bg-amber-500 text-zinc-950 flex items-center justify-center shrink-0">
+                    <span className="text-lg font-bold">✓</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {/* Other times */}
+          {otherSlots.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
+                Other times
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {otherSlots.map((slot) => {
+                  const isSelected = selectedTime === slot.time
+                  return (
+                    <button
+                      key={slot.time}
+                      type="button"
+                      onClick={() => onSelect(slot.time, slot.barberId)}
+                      className={cn(
+                        'py-3 px-4 rounded-lg text-sm font-semibold transition-all flex flex-col items-center justify-center border focus:outline-none focus:ring-2 focus:ring-amber-500/50',
+                        !isSelected &&
+                          'bg-zinc-900 border-zinc-800 text-zinc-200 hover:border-amber-500/60 hover:text-amber-300 hover:bg-zinc-800/80',
+                        isSelected &&
+                          'bg-amber-500 border-amber-400 text-zinc-950 font-bold shadow-lg shadow-amber-500/20 scale-105'
+                      )}
+                    >
+                      <span>{slot.time}</span>
+                      {slot.barberName && (
+                        <span className={cn('text-[10px] mt-0.5 truncate max-w-full font-normal', isSelected ? 'text-zinc-900' : 'text-amber-400/80')}>
+                          {slot.barberName}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Standard (non-First-Available) mode */}
+      {!loading && !error && slots.length > 0 && !isFirstAvailable && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {slots.map((slot) => {
