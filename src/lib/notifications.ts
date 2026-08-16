@@ -260,33 +260,33 @@ export async function sendWaitlistSlotNotification(params: {
   const timeStr = formatTime(params.slotStart)
   const holdMinutes = 15
 
-  const html = \`
-    <div style=\"font-family: sans-serif; max-width: 600px; margin: 0 auto;\">
-      <h1 style=\"color: #1a1a1a;\">A Slot Just Opened Up!</h1>
-      <p>Hi \${params.customer.firstName},</p>
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+      <h1 style="color: #1a1a1a;">A Slot Just Opened Up!</h1>
+      <p>Hi ${params.customer.firstName},</p>
       <p>Good news — an appointment slot just became available that matches your waitlist request:</p>
-      <div style=\"background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;\">
-        <p style=\"margin: 5px 0;\"><strong>\${params.service.name}</strong></p>
-        <p style=\"margin: 5px 0;\">\${dateStr} at \${timeStr}</p>
-        <p style=\"margin: 5px 0;\">Barber: \${params.barber.name}</p>
-        <p style=\"margin: 5px 0;\">Duration: \${params.service.duration} minutes</p>
+      <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p style="margin: 5px 0;"><strong>${params.service.name}</strong></p>
+        <p style="margin: 5px 0;">${dateStr} at ${timeStr}</p>
+        <p style="margin: 5px 0;">Barber: ${params.barber.name}</p>
+        <p style="margin: 5px 0;">Duration: ${params.service.duration} minutes</p>
       </div>
-      <div style=\"background: #fff8e1; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #d4af37;\">
-        <p style=\"margin: 0; color: #8a6d00; font-weight: 600;\">⏱ This slot is held for you for \${holdMinutes} minutes.</p>
-        <p style=\"margin: 8px 0 0; color: #8a6d00; font-size: 14px;\">Claim it now before the hold expires and we offer it to the next person in line.</p>
+      <div style="background: #fff8e1; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #d4af37;">
+        <p style="margin: 0; color: #8a6d00; font-weight: 600;">⏱ This slot is held for you for ${holdMinutes} minutes.</p>
+        <p style="margin: 8px 0 0; color: #8a6d00; font-size: 14px;">Claim it now before the hold expires and we offer it to the next person in line.</p>
       </div>
-      <a href=\"\${params.claimUrl}\" style=\"display: inline-block; background: #1a1a1a; color: #d4af37; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 16px 0;\">Claim My Slot</a>
-      <p style=\"font-size: 14px; color: #666;\">If the button doesn't work, copy and paste this link into your browser:<br/><a href=\"\${params.claimUrl}\">\${params.claimUrl}</a></p>
-      <p style=\"font-size: 14px; color: #666;\">If you no longer need this appointment, no action is needed — the hold will expire automatically.</p>
+      <a href="${params.claimUrl}" style="display: inline-block; background: #1a1a1a; color: #d4af37; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 16px 0;">Claim My Slot</a>
+      <p style="font-size: 14px; color: #666;">If the button doesn't work, copy and paste this link into your browser:<br/><a href="${params.claimUrl}">${params.claimUrl}</a></p>
+      <p style="font-size: 14px; color: #666;">If you no longer need this appointment, no action is needed — the hold will expire automatically.</p>
     </div>
-  \`
+  `
 
   try {
     const transport = getTransporter()
     await transport.sendMail({
       from: process.env.SMTP_FROM || 'noreply@barbershop.com',
       to: params.customer.email,
-      subject: \`A Slot Opened Up — \${params.business.name}\`,
+      subject: `A Slot Opened Up — ${params.business.name}`,
       html,
     })
     await logNotification({
@@ -310,7 +310,7 @@ export async function sendWaitlistSlotNotification(params: {
 
   // SMS stub — log the attempt so the dashboard can show it
   try {
-    console.log(\`[SMS stub] Waitlist slot offered to \${params.customer.phone}: \${dateStr} at \${timeStr}\`)
+    console.log(`[SMS stub] Waitlist slot offered to ${params.customer.phone}: ${dateStr} at ${timeStr}`)
     await logNotification({
       businessId: params.businessId,
       recipient: params.customer.phone,
