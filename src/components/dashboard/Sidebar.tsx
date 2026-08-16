@@ -23,6 +23,11 @@ import {
   CalendarOff,
   UsersRound,
   UserCog,
+  Gift,
+  Repeat,
+  BarChart3,
+  Package,
+  Megaphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -48,8 +53,13 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
     { name: 'Services', href: '/dashboard/services', icon: Scissors },
     { name: 'Schedule', href: '/dashboard/schedule', icon: Clock },
     { name: 'Closures', href: '/dashboard/closures', icon: CalendarOff },
+    { name: 'Recurring', href: '/dashboard/recurring', icon: Repeat },
     ...(isOwner
       ? [
+          { name: 'Loyalty', href: '/dashboard/loyalty', icon: Gift },
+          { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+          { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
+          { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
           { name: 'Barbers', href: '/dashboard/barbers', icon: UserCircle },
           { name: 'Settings', href: '/dashboard/settings', icon: Settings },
           { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },

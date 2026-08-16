@@ -83,6 +83,7 @@ export function TimeStep({
     }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchAvailability()
   }, [barberId, serviceId, formattedDateParam])

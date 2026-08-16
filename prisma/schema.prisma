@@ -52,6 +52,12 @@ model Business {
   notificationLogs NotificationLog[]
   waitlistEntries    WaitlistEntry[]
   closures          BusinessClosure[]
+  rewardPrograms   BusinessRewardProgram[]
+  customerTags     CustomerTagAssignment[]
+  cancellationRecords CancellationRecord[]
+  noShowPolicies   NoShowPolicy[]
+  inventoryItems   InventoryItem[]
+  marketingCampaigns MarketingCampaign[]
 
   @@index([slug])
 }
@@ -102,6 +108,8 @@ model Barber {
   blockedTimes BlockedTime[]
   services     BarberService[]
   waitlistEntries WaitlistEntry[]
+  rewardPrograms   BarberRewardProgram[]
+  inventoryItems   InventoryItem[]
 
   @@index([businessId])
 }
@@ -175,6 +183,8 @@ model Customer {
 
   appointments Appointment[]
   waitlistEntries WaitlistEntry[]
+  tagAssignments CustomerTagAssignment[]
+  cancellationRecords CancellationRecord[]
 
   @@unique([businessId, email])
   @@index([businessId])
@@ -215,6 +225,7 @@ model Appointment {
   updatedAt         DateTime          @updatedAt
 
   notificationLogs  NotificationLog[]
+  cancellationRecord CancellationRecord?
 
   @@index([businessId, startTime])
   @@index([businessId, barberId, startTime])
@@ -411,4 +422,192 @@ model BusinessClosure {
   updatedAt   DateTime @updatedAt
 
   @@index([businessId, startDate, endDate])
+}
+
+// ─── Loyalty / Reward Programs ─────────────────────────────────────────────
+// Owner-configurable loyalty engine. Supports visit-based and points-based systems.
+// BusinessRewardProgram = shop-level; BarberRewardProgram = barber-specific (future).
+
+enum RewardProgramType {
+  VISITS
+  POINTS
+}
+
+enum RewardType {
+  DISCOUNT
+  FREE_SERVICE
+  CUSTOM
+}
+
+model BusinessRewardProgram {
+  id              String           @id @default(cuid())
+  businessId      String
+  business        Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name            String           @default("Loyalty Program")
+  type            RewardProgramType @default(VISITS)
+  isActive        Boolean          @default(true)
+  pointsPerDollar Float?           // for POINTS type: $1 spent = X points
+  config          Json             // [{ threshold: 5, reward: "$5 off", rewardType: "DISCOUNT", discountValue: 5 }, ...]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([businessId, isActive])
+}
+
+// Barber-specific reward programs (future expansion)
+model BarberRewardProgram {
+  id              String           @id @default(cuid())
+  barberId        String
+  barber          Barber           @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  name            String           @default("Barber Loyalty")
+  type            RewardProgramType @default(VISITS)
+  isActive        Boolean          @default(false)
+  pointsPerDollar Float?
+  config          Json
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([barberId, isActive])
+}
+
+// ─── Customer Tags ──────────────────────────────────────────────────────────
+// Flexible tagging system for customer segmentation and marketing targeting.
+
+enum CustomerTag {
+  VIP
+  NEW_CUSTOMER
+  REGULAR
+  AT_RISK
+  INACTIVE
+  NO_SHOW_RISK
+  BIRTHDAY_MONTH
+}
+
+model CustomerTagAssignment {
+  id          String       @id @default(cuid())
+  customerId  String
+  customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  businessId  String
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  tag         CustomerTag
+  assignedAt  DateTime     @default(now())
+  assignedBy  String?      // userId or "AUTO"
+  note        String?
+
+  @@unique([customerId, tag])
+  @@index([businessId, tag])
+  @@index([customerId])
+}
+
+// ─── Cancellation Reasons ───────────────────────────────────────────────────
+// Track why customers cancel for operational intelligence.
+
+enum CancellationReason {
+  TOO_EXPENSIVE
+  SCHEDULE_CONFLICT
+  FEELING_SICK
+  FOUND_ANOTHER_TIME
+  OTHER
+}
+
+model CancellationRecord {
+  id          String           @id @default(cuid())
+  appointmentId  String
+  appointment    Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  businessId   String
+  business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  reason       CancellationReason
+  note         String?
+  createdAt    DateTime       @default(now())
+
+  @@index([businessId, reason])
+  @@index([businessId, createdAt])
+}
+
+// ─── No-Show Policy ──────────────────────────────────────────────────────────
+// Owner-configurable no-show management rules.
+
+model NoShowPolicy {
+  id              String   @id @default(cuid())
+  businessId      String
+  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  firstNoShow     String   @default("warning") // warning | flag | require_confirmation
+  secondNoShow    String   @default("flag")
+  thirdNoShow     String   @default("require_confirmation")
+  requireDeposit  Boolean  @default(false)
+  depositAmount   Float?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([businessId])
+}
+
+// ─── Inventory ───────────────────────────────────────────────────────────────
+// Track products with stock levels and low-stock alerts.
+
+model InventoryItem {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  barberId    String?  // null = shop-wide, specific barber = barber-owned
+  barber      Barber?  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  name        String
+  sku         String?
+  stock       Float    @default(0)
+  unit        String   @default("each") // each, box, bottle, etc.
+  threshold   Float    @default(5) // low-stock threshold
+  cost        Float?
+  vendor      String?
+  notes       String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([businessId, barberId])
+}
+
+// ─── Marketing Campaigns ─────────────────────────────────────────────────────
+// Owner creates targeted campaigns based on customer segments.
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  ARCHIVED
+}
+
+enum CampaignAudience {
+  INACTIVE_30
+  INACTIVE_45
+  INACTIVE_60
+  INACTIVE_90
+  NOT_REBOOKED
+  CANCELLED
+  NO_SHOWED
+  BIRTHDAY_MONTH
+  NOT_VISITED_BARBER
+  USED_SERVICE
+  ALL_CUSTOMERS
+}
+
+model MarketingCampaign {
+  id          String           @id @default(cuid())
+  businessId  String
+  business    Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name        String
+  subject     String
+  body        String           @db.Text
+  audience    CampaignAudience
+  audienceConfig Json?         // additional filters, e.g. { barberId, serviceId }
+  status      CampaignStatus   @default(DRAFT)
+  sentAt      DateTime?
+  recipientCount Int?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([businessId, status])
+  @@index([businessId, audience])
 }
