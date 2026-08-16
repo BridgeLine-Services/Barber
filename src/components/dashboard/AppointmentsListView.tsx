@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { AppointmentDetailsDialog } from '@/components/dashboard/AppointmentDetailsDialog'
 import { AddAppointmentDialog } from '@/components/dashboard/AddAppointmentDialog'
+import { RecurringDialog } from '@/components/dashboard/RecurringDialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -21,6 +22,7 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
+  Repeat,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -48,6 +50,7 @@ export function AppointmentsListView({
   const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [recurringOpen, setRecurringOpen] = useState(false)
 
   const isOwner = userRole === 'OWNER'
 
@@ -189,6 +192,15 @@ export function AppointmentsListView({
           >
             <Plus className="w-4 h-4" />
             New Appointment
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setRecurringOpen(true)}
+            variant="outline"
+            className="bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800 font-semibold text-xs h-9 gap-1.5"
+          >
+            <Repeat className="w-4 h-4 text-amber-400" />
+            Recurring
           </Button>
         </div>
       </div>
@@ -348,6 +360,13 @@ export function AppointmentsListView({
         open={addDialogOpen}
         onClose={() => setAddDialogOpen(false)}
         onSuccess={refreshData}
+      />
+
+      <RecurringDialog
+        open={recurringOpen}
+        onOpenChange={setRecurringOpen}
+        barbers={barbers}
+        services={[]}
       />
     </div>
   )
