@@ -1,0 +1,250 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import {
+  RefreshCw,
+  Calendar,
+  Clock,
+  User,
+  Scissors,
+  DollarSign,
+  Send,
+  Loader2,
+  AlertTriangle,
+  TrendingUp,
+} from 'lucide-react'
+
+interface RebookingTask {
+  customerId: string
+  customerName: string
+  customerPhone: string
+  customerEmail: string
+  lastVisit: string
+  averageIntervalDays: number
+  predictedNextDate: string
+  daysOverdue: number
+  intelligence: {
+    favoriteBarberName: string | null
+    favoriteServiceName: string | null
+    visitCount: number
+    lifetimeValue: number
+  }
+}
+
+export function RebookingDashboardClient({ initialTasks }: { initialTasks: RebookingTask[] }) {
+  const [tasks, setTasks] = useState(initialTasks)
+  const [sending, setSending] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [sentIds, setSentIds] = useState<Set<string>>(new Set())
+
+  const handleSend = async (customerId: string) => {
+    setSending(customerId)
+    try {
+      const res = await fetch('/api/dashboard/rebooking/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId, channel: 'SMS' }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSentIds(prev => new Set(prev).add(customerId))
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSending(null)
+    }
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      const res = await fetch('/api/dashboard/rebooking/tasks')
+      const data = await res.json()
+      setTasks(data.tasks || [])
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold font-serif text-zinc-100 flex items-center gap-2">
+            <TrendingUp className="w-6 h-6 text-amber-500" />
+            Rebooking Engine
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            {tasks.length} customer{tasks.length !== 1 ? 's' : ''} due for rebooking
+          </p>
+        </div>
+        <Button
+          onClick={handleRefresh}
+          variant="outline"
+          size="sm"
+          className="bg-zinc-900 border-zinc-800 text-zinc-300 hover:bg-zinc-800"
+        >
+          {refreshing ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4 mr-2" />
+          )}
+          Refresh
+        </Button>
+      </div>
+
+      {/* Summary Stats */}
+      {tasks.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+            <p className="text-xs text-zinc-400 font-medium">Total Due</p>
+            <p className="text-2xl font-bold font-mono text-amber-400 mt-1">{tasks.length}</p>
+          </div>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+            <p className="text-xs text-zinc-400 font-medium">Overdue 30+ Days</p>
+            <p className="text-2xl font-bold font-mono text-red-400 mt-1">
+              {tasks.filter(t => t.daysOverdue >= 30).length}
+            </p>
+          </div>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+            <p className="text-xs text-zinc-400 font-medium">Overdue 14+ Days</p>
+            <p className="text-2xl font-bold font-mono text-orange-400 mt-1">
+              {tasks.filter(t => t.daysOverdue >= 14).length}
+            </p>
+          </div>
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+            <p className="text-xs text-zinc-400 font-medium">Avg Interval</p>
+            <p className="text-2xl font-bold font-mono text-zinc-100 mt-1">
+              {Math.round(tasks.reduce((acc, t) => acc + t.averageIntervalDays, 0) / tasks.length)}d
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tasks List */}
+      {tasks.length === 0 ? (
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-12 text-center">
+          <Calendar className="w-10 h-10 mx-auto text-zinc-700 mb-3" />
+          <p className="text-sm text-zinc-400 font-medium">No customers due for rebooking</p>
+          <p className="text-xs text-zinc-500 mt-1">All caught up! Customers will appear here when they're due.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {tasks.map((task) => {
+            const isSent = sentIds.has(task.customerId)
+            const overdueColor =
+              task.daysOverdue >= 30 ? 'text-red-400 bg-red-500/10 border-red-500/20' :
+              task.daysOverdue >= 14 ? 'text-orange-400 bg-orange-500/10 border-orange-500/20' :
+              'text-amber-400 bg-amber-500/10 border-amber-500/20'
+
+            return (
+              <div
+                key={task.customerId}
+                className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 space-y-4"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-sm font-serif shrink-0">
+                      {task.customerName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div>
+                      <Link
+                        href={`/dashboard/customers/${task.customerId}`}
+                        className="text-sm font-semibold text-zinc-100 hover:text-amber-400 transition-colors"
+                      >
+                        {task.customerName}
+                      </Link>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${overdueColor}`}>
+                          {task.daysOverdue > 0 ? `${task.daysOverdue}d overdue` : 'Due today'}
+                        </span>
+                        <span className="text-[10px] text-zinc-500">
+                          {task.intelligence.visitCount} visits · ${task.intelligence.lifetimeValue} LTV
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {isSent ? (
+                      <span className="text-xs text-emerald-400 font-medium px-3 py-2">
+                        ✓ Reminder sent
+                      </span>
+                    ) : (
+                      <Button
+                        onClick={() => handleSend(task.customerId)}
+                        disabled={sending === task.customerId}
+                        size="sm"
+                        className="bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+                      >
+                        {sending === task.customerId ? (
+                          <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Sending...</>
+                        ) : (
+                          <><Send className="w-3.5 h-3.5 mr-1.5" />Send Reminder</>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Intelligence Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="flex items-center gap-2 bg-zinc-900/60 border border-zinc-800/60 rounded-lg p-2.5">
+                    <User className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-zinc-500">Fav. Barber</p>
+                      <p className="text-xs font-medium text-zinc-200">{task.intelligence.favoriteBarberName || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-zinc-900/60 border border-zinc-800/60 rounded-lg p-2.5">
+                    <Scissors className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-zinc-500">Fav. Service</p>
+                      <p className="text-xs font-medium text-zinc-200">{task.intelligence.favoriteServiceName || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-zinc-900/60 border border-zinc-800/60 rounded-lg p-2.5">
+                    <Clock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-zinc-500">Interval</p>
+                      <p className="text-xs font-medium text-zinc-200">{task.averageIntervalDays} days</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-zinc-900/60 border border-zinc-800/60 rounded-lg p-2.5">
+                    <Calendar className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-zinc-500">Last Visit</p>
+                      <p className="text-xs font-medium text-zinc-200">{formatDate(task.lastVisit)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Predicted date */}
+                <div className="flex items-center gap-2 text-xs text-zinc-400 pt-1 border-t border-zinc-800/60">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                  <span>
+                    Expected: <span className="text-amber-400 font-medium">{formatDate(task.predictedNextDate)}</span>
+                    {' · '}
+                    {task.daysOverdue > 0
+                      ? `${task.daysOverdue} days overdue`
+                      : 'Due now'}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
