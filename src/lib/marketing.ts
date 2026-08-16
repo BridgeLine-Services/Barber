@@ -208,7 +208,8 @@ export async function sendCampaign(businessId: string, campaignId: string) {
       await prisma.notificationLog.create({
         data: {
           appointmentId: null,
-          type: 'SMS',
+          channel: 'SMS',
+          type: 'MARKETING_CAMPAIGN',
           recipient: target.phone,
           content: `${campaign.subject}\n\n${campaign.body}`,
           status: 'PENDING',

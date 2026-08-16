@@ -321,6 +321,8 @@ enum NotificationType {
   RESCHEDULE_NOTICE
   CONTACT_FORM
   WAITLIST_NOTIFICATION
+  REBOOKING_REMINDER
+  MARKETING_CAMPAIGN
 }
 
 enum NotificationChannel {
@@ -343,6 +345,7 @@ model NotificationLog {
   recipient   String // email or phone
   channel     NotificationChannel
   type        NotificationType
+  content     String?           @db.Text // message body, for marketing/rebooking notifications
   status      NotificationStatus  @default(PENDING)
   errorMessage String?
   sentAt      DateTime?
@@ -381,6 +384,16 @@ enum AuditAction {
   LOGIN_SUCCESS
   LOGIN_FAILED
   SETTINGS_UPDATED
+  REBOOKING_REMINDER_SENT
+  CAMPAIGN_CREATED
+  CAMPAIGN_SENT
+  LOYALTY_PROGRAM_UPDATED
+  RECURRING_SERIES_CREATED
+  INVENTORY_UPDATED
+  CUSTOMER_TAG_ADDED
+  CUSTOMER_TAG_REMOVED
+  CANCELLATION_RECORDED
+  NO_SHOW_POLICY_UPDATED
 }
 
 model AuditLog {

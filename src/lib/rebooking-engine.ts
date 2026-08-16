@@ -132,8 +132,9 @@ export async function sendRebookingReminder(
     await prisma.notificationLog.create({
       data: {
         appointmentId: null, // not tied to a specific appointment
-        type: 'SMS',
-        recipient: customer.phone,
+        channel: channel === 'EMAIL' ? 'EMAIL' : 'SMS',
+        type: 'REBOOKING_REMINDER',
+        recipient: channel === 'EMAIL' ? customer.email : customer.phone,
         content: `Hi ${customer.firstName}! You're due for ${serviceName} with ${barberName}. Book your next appointment:`,
         status: 'PENDING',
         businessId,

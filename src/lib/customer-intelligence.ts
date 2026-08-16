@@ -184,8 +184,9 @@ export async function getRebookingSuggestion(
   const intelligence = await getCustomerIntelligence(customerId, businessId)
 
   // Use favorite barber and service, or fall back to most recent
+  // Note: only id/name are needed here — full duration/price are re-fetched below into serviceDetails
   let barber: { id: string; name: string } | null = intelligence.favoriteBarber
-  let service: { id: string; name: string; duration: number; price: number } | null = intelligence.favoriteService
+  let service: { id: string; name: string } | null = intelligence.favoriteService
 
   if (!barber || !service) {
     // Fall back to most recent completed appointment
@@ -205,8 +206,6 @@ export async function getRebookingSuggestion(
       service = {
         id: recent.service.id,
         name: recent.service.name,
-        duration: recent.service.duration,
-        price: recent.service.price,
       }
     }
   }
