@@ -3,11 +3,11 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getCustomerIntelligence } from '@/lib/customer-intelligence'
 import { STATUS_LABELS, STATUS_COLORS } from '@/lib/constants'
 import { formatFullDate, formatTime, formatPrice } from '@/lib/utils'
 import {
   ArrowLeft,
-  User,
   Phone,
   Mail,
   FileText,
@@ -17,9 +17,12 @@ import {
   Clock,
   Scissors,
   DollarSign,
-  MessageSquare,
+  User,
+  AlertTriangle,
+  TrendingDown,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { CustomerProfileClient } from './CustomerProfileClient'
 
 interface CustomerDetailPageProps {
   params: {
@@ -63,14 +66,22 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
     notFound()
   }
 
+  // Compute customer intelligence
+  const intelligence = await getCustomerIntelligence(params.id, businessId)
+
   const appointments = customer.appointments
   const totalAppointments = appointments.length
 
   const completedAppointments = appointments.filter((a: any) => a.status === 'COMPLETED')
   const totalSpent = completedAppointments.reduce((acc: number, a: any) => acc + (a.service?.price || 0), 0)
 
-  const lastVisit = appointments.length > 0 ? appointments[0].startTime : null
-  const firstVisit = appointments.length > 0 ? appointments[appointments.length - 1].startTime : null
+  const lastVisit = intelligence.lastVisit
+  const firstVisit = intelligence.firstVisit
+
+  // Format predicted date
+  const predictedDateStr = intelligence.nextPredictedDate
+    ? intelligence.nextPredictedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -100,6 +111,11 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
               <p className="text-xs text-zinc-400 mt-0.5">
                 Customer since {new Date(customer.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
               </p>
+              {intelligence.isDueForRebook && (
+                <span className="inline-flex items-center gap-1.5 mt-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Due for rebooking
+                </span>
+              )}
             </div>
           </div>
 
@@ -141,13 +157,134 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
             </p>
           </div>
 
-          <div className="space-y-3 bg-zinc-900/60 border border-zinc-800/60 p-4 rounded-xl md:col-span-1">
+          <div className="space-y-3 bg-zinc-900/60 border border-zinc-800/60 p-4 rounded-xl">
             <span className="text-xs font-semibold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
               <FileText className="w-3.5 h-3.5" /> Customer Notes
             </span>
             <p className="text-xs text-zinc-300 italic">
               {customer.notes ? customer.notes : 'No custom notes provided for this customer.'}
             </p>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-2">
+          <CustomerProfileClient customerId={customer.id} />
+        </div>
+      </div>
+
+      {/* Customer Intelligence Section */}
+      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 shadow-xl space-y-4">
+        <h2 className="text-lg font-bold font-serif text-zinc-100 flex items-center gap-2">
+          <TrendingDown className="w-5 h-5 text-amber-500" />
+          <span>Customer Intelligence</span>
+        </h2>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          {/* Visits */}
+          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="w-4 h-4 text-amber-500" />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Visits</span>
+            </div>
+            <p className="text-2xl font-bold font-mono text-zinc-100">{intelligence.visitCount}</p>
+          </div>
+
+          {/* Last Visit */}
+          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-4 h-4 text-blue-400" />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Last Visit</span>
+            </div>
+            <p className="text-sm font-semibold text-zinc-200 mt-1">
+              {lastVisit ? new Date(lastVisit).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'N/A'}
+            </p>
+          </div>
+
+          {/* Favorite Barber */}
+          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <User className="w-4 h-4 text-purple-400" />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Fav. Barber</span>
+            </div>
+            <p className="text-sm font-semibold text-zinc-200">{intelligence.favoriteBarber?.name || 'N/A'}</p>
+          </div>
+
+          {/* Favorite Service */}
+          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Scissors className="w-4 h-4 text-emerald-400" />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Fav. Service</span>
+            </div>
+            <p className="text-sm font-semibold text-zinc-200">{intelligence.favoriteService?.name || 'N/A'}</p>
+          </div>
+
+          {/* Average Ticket */}
+          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign className="w-4 h-4 text-amber-400" />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Avg Ticket</span>
+            </div>
+            <p className="text-2xl font-bold font-mono text-emerald-400">
+              {intelligence.averageTicket !== null ? formatPrice(intelligence.averageTicket) : 'N/A'}
+            </p>
+          </div>
+
+          {/* Average Interval */}
+          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-4 h-4 text-indigo-400" />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Avg Interval</span>
+            </div>
+            <p className="text-2xl font-bold font-mono text-zinc-100">
+              {intelligence.averageIntervalDays ? `${intelligence.averageIntervalDays}d` : 'N/A'}
+            </p>
+          </div>
+
+          {/* Lifetime Value */}
+          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <DollarSign className="w-4 h-4 text-emerald-400" />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Lifetime Value</span>
+            </div>
+            <p className="text-2xl font-bold font-mono text-emerald-400">{formatPrice(intelligence.lifetimeValue)}</p>
+          </div>
+
+          {/* Cancellations */}
+          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <XCircle className="w-4 h-4 text-red-400" />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Cancellations</span>
+            </div>
+            <p className="text-2xl font-bold font-mono text-zinc-100">{intelligence.cancellationCount}</p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">
+              {intelligence.lastCancellationDate
+                ? `Last: ${new Date(intelligence.lastCancellationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                : 'Never'}
+            </p>
+          </div>
+
+          {/* No-shows */}
+          <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-4 h-4 text-orange-400" />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">No-shows</span>
+            </div>
+            <p className="text-2xl font-bold font-mono text-zinc-100">{intelligence.noShowCount}</p>
+          </div>
+
+          {/* Next Predicted */}
+          <div className={`rounded-xl p-4 border ${intelligence.isDueForRebook ? 'bg-amber-500/10 border-amber-500/30' : 'bg-zinc-900/60 border-zinc-800/60'}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className={`w-4 h-4 ${intelligence.isDueForRebook ? 'text-amber-400' : 'text-zinc-400'}`} />
+              <span className="text-[10px] uppercase tracking-wider text-zinc-500">Next Expected</span>
+            </div>
+            <p className={`text-sm font-semibold mt-1 ${intelligence.isDueForRebook ? 'text-amber-400' : 'text-zinc-200'}`}>
+              {predictedDateStr || 'N/A'}
+            </p>
+            {intelligence.isDueForRebook && (
+              <p className="text-[10px] text-amber-400/80 mt-1">Due for rebooking</p>
+            )}
           </div>
         </div>
       </div>
