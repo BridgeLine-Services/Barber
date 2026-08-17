@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { isGBPConfigured, prepareBusinessSyncPayload, getGBPOAuthUrl } from '@/lib/google-business'
+import {
+  isGBPConfigured,
+  isGBPConnected,
+  prepareBusinessSyncPayload,
+  getGBPOAuthUrl,
+  syncBusinessToGoogle,
+  importGoogleReviewsFromAPI,
+} from '@/lib/google-business'
 
 // GET /api/dashboard/google-business — check connection status and get OAuth URL
 export async function GET(request: Request) {
@@ -16,6 +23,7 @@ export async function GET(request: Request) {
   }
 
   const configured = isGBPConfigured()
+  const connected = isGBPConnected()
   const redirectUri = `${new URL(request.url).origin}/api/dashboard/google-business/callback`
 
   let oauthUrl: string | null = null
@@ -37,13 +45,15 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     configured,
-    connected: !!process.env.GBP_REFRESH_TOKEN,
+    connected,
     oauthUrl,
     syncPreview,
+    accountId: process.env.GBP_ACCOUNT_ID || null,
+    locationId: process.env.GBP_LOCATION_ID || null,
   })
 }
 
-// POST /api/dashboard/google-business — trigger a sync (preview payload)
+// POST /api/dashboard/google-business — trigger a real sync to GBP
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
@@ -55,15 +65,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  try {
-    const payload = await prepareBusinessSyncPayload(user.businessId)
+  if (!isGBPConnected()) {
     return NextResponse.json({
-      success: true,
-      message: 'Sync payload prepared. In production, this would push to Google Business Profile API.',
-      payload,
+      error: 'Google Business Profile not connected. Complete OAuth first.',
+    }, { status: 400 })
+  }
+
+  try {
+    // Determine action from query param: sync or import-reviews
+    const { searchParams } = new URL(request.url)
+    const action = searchParams.get('action') || 'sync'
+
+    if (action === 'import-reviews') {
+      const result = await importGoogleReviewsFromAPI(user.businessId)
+      return NextResponse.json({
+        success: true,
+        action: 'import-reviews',
+        imported: result.imported,
+        skipped: result.skipped,
+        errors: result.errors,
+      })
+    }
+
+    // Default: sync business info to GBP
+    const result = await syncBusinessToGoogle(user.businessId)
+    return NextResponse.json({
+      success: result.success,
+      action: 'sync',
+      syncedFields: result.syncedFields,
+      errors: result.errors,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('GBP sync error:', error)
-    return NextResponse.json({ error: 'Failed to prepare sync' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to sync with Google Business Profile' }, { status: 500 })
   }
 }

@@ -264,6 +264,7 @@ model Review {
   rating      Int // 1-5
   comment     String? @db.Text
   isFeatured  Boolean @default(false)
+  isGoogleReview Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
