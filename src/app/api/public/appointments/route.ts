@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
     let targetBarberId = reqBarberId
 
     // If barberId is 'any', find a barber who is available at startTime
-    if (!targetBarberId || targetBarberId === 'any') {
+    if (!targetBarberId || targetBarberId === 'any' || targetBarberId === 'first-available') {
       const activeBarbers = await prisma.barber.findMany({
         where: { businessId, isActive: true },
         include: { services: true },
@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (!targetBarberId || targetBarberId === 'any') {
+      if (!targetBarberId || targetBarberId === 'any' || targetBarberId === 'first-available') {
         // Fallback to first active barber offering service
         const firstMatching = activeBarbers.find(
           (b) => b.services.length === 0 || b.services.some((s) => s.serviceId === serviceId)

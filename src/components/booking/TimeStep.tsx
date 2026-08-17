@@ -21,7 +21,6 @@ interface EarliestInfo {
 }
 
 interface TimeStepProps {
-  businessId?: string
   barberId: string
   serviceId: string
   selectedDate: Date | null

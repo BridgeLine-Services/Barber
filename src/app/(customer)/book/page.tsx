@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { BookingProgress } from '@/components/booking/BookingProgress'
 import { ServiceStep } from '@/components/booking/ServiceStep'
-import { BarberStep } from '@/components/booking/BarberStep'
+import { BarberStep, type EarliestSlot } from '@/components/booking/BarberStep'
 import { DateStep } from '@/components/booking/DateStep'
 import { TimeStep } from '@/components/booking/TimeStep'
 import { CustomerInfoStep } from '@/components/booking/CustomerInfoStep'
@@ -59,6 +59,8 @@ function BookingFlow() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
+  // Track the resolved barber name for the review step when 'any' or 'first-available' resolves to a specific barber
+  const [resolvedBarberName, setResolvedBarberName] = useState<string>('')
 
   // Pre-fill from URL params
   useEffect(() => {
@@ -87,6 +89,10 @@ function BookingFlow() {
 
   const selectedService = services.find(s => s.id === selectedServiceId) ?? null
   const selectedBarber = barbers.find(b => b.id === selectedBarberId) ?? null
+  // For the review step, use the resolved barber name if we have one and the selected barber is 'any'/'first-available'
+  const displayBarber = (selectedBarberId === 'any' || selectedBarberId === 'first-available')
+    ? (resolvedBarberName ? { name: resolvedBarberName } : null)
+    : selectedBarber
 
   const canProceed = () => {
     switch (step) {
@@ -99,6 +105,35 @@ function BookingFlow() {
     }
   }
 
+  // ─── Bug Fix #1: Handle "First Available" selection ──────────────────────────
+  // When the user clicks "First Available", the BarberStep returns an EarliestSlot
+  // containing the specific barber, date, and time of the earliest available slot.
+  // We store the specific barber ID (so the customer books with the right person),
+  // pre-select the date, and jump directly to the Time step so they can confirm
+  // or pick a different time on that date.
+  const handleFirstAvailable = (slot: EarliestSlot) => {
+    setSelectedBarberId(slot.barberId)
+    setResolvedBarberName(slot.barberName)
+    setSelectedDate(new Date(slot.date + 'T00:00:00'))
+    setSelectedTime('') // Reset time — user picks from the available slots
+    setStep(4) // Jump to Time step
+  }
+
+  // ─── Bug Fix #2: Capture specificBarberId from TimeStep ──────────────────────
+  // When the user selects a time under "Any Available Barber" or "First Available",
+  // the TimeStep returns (time, specificBarberId). We must capture the barber ID
+  // so the booking goes to the correct barber, not "any".
+  const handleTimeSelect = (time: string, specificBarberId?: string) => {
+    if (specificBarberId && specificBarberId !== selectedBarberId) {
+      // Resolve the barber name for the review step
+      const barber = barbers.find(b => b.id === specificBarberId)
+      if (barber) setResolvedBarberName(barber.name)
+      setSelectedBarberId(specificBarberId)
+    }
+    setSelectedTime(time)
+    setStep(5)
+  }
+
   const handleConfirm = async () => {
     setIsSubmitting(true)
     setBookingError('')
@@ -106,11 +141,20 @@ function BookingFlow() {
     try {
       const dateStr = selectedDate!.toISOString().split('T')[0]
 
+      // Sanitize barberId before sending to API
+      // 'first-available' is a UI-only concept — the specific barber was already
+      // resolved when the user selected their time slot. If somehow still
+      // 'first-available' or 'any', the backend will resolve it.
+      let apiBarberId = selectedBarberId
+      if (apiBarberId === 'first-available') {
+        apiBarberId = 'any'
+      }
+
       const res = await fetch('/api/public/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          barberId: selectedBarberId,
+          barberId: apiBarberId,
           serviceId: selectedServiceId,
           date: dateStr,
           time: selectedTime,
@@ -207,6 +251,7 @@ function BookingFlow() {
                   barbers={barbers}
                   selectedId={selectedBarberId}
                   onSelect={(id) => { setSelectedBarberId(id); setStep(3) }}
+                  onSelectFirstAvailable={handleFirstAvailable}
                   serviceId={selectedServiceId}
                 />
               )}
@@ -220,12 +265,11 @@ function BookingFlow() {
 
               {step === 4 && (
                 <TimeStep
-                  businessId=""
                   barberId={selectedBarberId}
                   serviceId={selectedServiceId}
                   selectedDate={selectedDate}
                   selectedTime={selectedTime}
-                  onSelect={(t) => { setSelectedTime(t); setStep(5) }}
+                  onSelect={handleTimeSelect}
                 />
               )}
 
@@ -240,7 +284,7 @@ function BookingFlow() {
               {step === 6 && (
                 <ReviewStep
                   service={selectedService}
-                  barber={selectedBarber}
+                  barber={displayBarber}
                   date={selectedDate}
                   time={selectedTime}
                   customerInfo={customerInfo}
@@ -295,7 +339,16 @@ function BookingFlow() {
 
 export default function BookPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">
+          <div className="text-center">
+            <Scissors className="h-12 w-12 mx-auto mb-4 animate-pulse text-amber-500" />
+            <p className="text-gray-400">Loading booking system...</p>
+          </div>
+        </div>
+      }
+    >
       <BookingFlow />
     </Suspense>
   )
