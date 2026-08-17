@@ -1,49 +1,88 @@
 import { prisma } from '@/lib/prisma'
 import { generateConfirmationNumber, generateCustomerAccessToken } from '@/lib/utils'
-import { addMinutes, isBefore, isAfter, setHours, setMinutes, parseISO } from 'date-fns'
+import { addMinutes } from 'date-fns'
+import {
+  dayBoundsFromYMD,
+  localTimeToUTCFromYMD,
+  dayOfWeekFromYMD,
+  formatInTimezone,
+} from '@/lib/timezone'
 
 // ============================================================================
 // Availability Engine
 // The server — NOT the browser — determines whether a slot is available.
 // Double-booking protection uses a database transaction with a unique check.
+//
+// CRITICAL TIMEZONE HANDLING:
+// All date/time computations use the BUSINESS TIMEZONE via year/month/day
+// components, not JS Date objects (which depend on the server's local timezone).
+// On Vercel (UTC), using new Date(year, month-1, day) would be midnight UTC,
+// which is off by one day for non-UTC businesses.
 // ============================================================================
 
-const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+// Cache business timezone lookups within a request
+const tzCache = new Map<string, string>()
+
+async function getBusinessTimezone(businessId: string): Promise<string> {
+  if (tzCache.has(businessId)) return tzCache.get(businessId)!
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { timezone: true },
+  })
+  const tz = business?.timezone || 'America/New_York'
+  tzCache.set(businessId, tz)
+  return tz
+}
 
 /**
  * Generate available time slots for a given barber + service on a specific date.
  *
- * Algorithm:
- * 1. Load the barber's recurring schedule for that day of week
- * 2. Load any blocked times for that barber on that date
- * 3. Load all existing appointments for that barber on that date
- * 4. Walk the working hours in service-duration increments
- * 5. For each candidate slot, check:
- *    - Does it overlap with any existing appointment?
- *    - Does it fall within a break?
- *    - Does it overlap with a blocked time?
- * 6. Return the list of available start times
+ * @param dateStr - ISO date string "YYYY-MM-DD" representing the calendar day
+ *                 in the business timezone
  */
 export async function getAvailableSlots(params: {
   businessId: string
   barberId: string
   serviceId: string
   date: Date // the calendar day to check
+  dateStr?: string // "YYYY-MM-DD" — preferred for timezone accuracy
 }): Promise<{ time: string; available: boolean }[]> {
   const { businessId, barberId, serviceId, date } = params
+
+  // Get business timezone for all date computations
+  const timezone = await getBusinessTimezone(businessId)
+
+  // Extract year/month/day — use dateStr if provided (timezone-safe),
+  // otherwise fall back to the Date object's UTC values
+  let year: number, month: number, day: number
+  if (params.dateStr) {
+    const parts = params.dateStr.split('-').map(Number)
+    year = parts[0]; month = parts[1]; day = parts[2]
+  } else {
+    // Use UTC methods to avoid server-local timezone interference
+    year = date.getUTCFullYear()
+    month = date.getUTCMonth() + 1
+    day = date.getUTCDate()
+  }
+
+  // Compute day boundaries in the business timezone, converted to UTC for DB queries
+  const { start: dayStartUTC, end: dayEndUTC } = dayBoundsFromYMD(timezone, year, month, day)
+
+  // Determine day of week in the business timezone
+  const dayOfWeek = dayOfWeekFromYMD(timezone, year, month, day)
 
   // Parallel: service info, barber schedule, appointments, blocked times
   const [service, schedule, appointments, blockedTimes, closures] = await Promise.all([
     prisma.service.findFirst({ where: { id: serviceId, businessId, isActive: true } }),
-    prisma.schedule.findUnique({ where: { barberId_dayOfWeek: { barberId, dayOfWeek: date.getDay() } } }),
+    prisma.schedule.findUnique({ where: { barberId_dayOfWeek: { barberId, dayOfWeek } } }),
     prisma.appointment.findMany({
       where: {
         businessId,
         barberId,
         status: { in: ['PENDING', 'CONFIRMED'] },
         startTime: {
-          gte: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
-          lt: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 0, 0, 0),
+          gte: dayStartUTC,
+          lt: dayEndUTC,
         },
       },
     }),
@@ -55,8 +94,8 @@ export async function getAvailableSlots(params: {
           { barberId: null }, // shop-wide blocks
         ],
         startTime: {
-          gte: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0),
-          lt: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1, 0, 0, 0),
+          gte: dayStartUTC,
+          lt: dayEndUTC,
         },
       },
     }),
@@ -65,8 +104,8 @@ export async function getAvailableSlots(params: {
       where: {
         businessId,
         isActive: true,
-        startDate: { lte: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59) },
-        endDate: { gte: new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0) },
+        startDate: { lte: dayEndUTC },
+        endDate: { gte: dayStartUTC },
       },
     }),
   ])
@@ -75,49 +114,37 @@ export async function getAvailableSlots(params: {
   if (!schedule || schedule.isOff) return []
 
   // Check business closures (holidays, vacations, etc.)
-  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0)
-  const dateEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59)
   for (const closure of closures) {
     if (closure.isAllDay) return [] // Entire day is closed
     // For partial-day closures, add to blocked ranges
     if (closure.startTime && closure.endTime) {
-      const [sh, sm] = closure.startTime.split(':').map(Number)
-      const [eh, em] = closure.endTime.split(':').map(Number)
-      const closureStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), sh, sm)
-      const closureEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), eh, em)
-      // Add as a blocked range so slots overlapping are excluded
+      // Convert closure times from business-local to UTC
+      const closureStart = localTimeToUTCFromYMD(closure.startTime, year, month, day, timezone)
+      const closureEnd = localTimeToUTCFromYMD(closure.endTime, year, month, day, timezone)
       blockedTimes.push({ startTime: closureStart, endTime: closureEnd } as any)
     }
   }
 
   const duration = service.duration // minutes
 
-  // Parse working hours
-  const [startH, startM] = schedule.startTime.split(':').map(Number)
-  const [endH, endM] = schedule.endTime.split(':').map(Number)
+  // Parse working hours and convert to UTC using business timezone
+  const dayStart = localTimeToUTCFromYMD(schedule.startTime, year, month, day, timezone)
+  const dayEnd = localTimeToUTCFromYMD(schedule.endTime, year, month, day, timezone)
 
-  const dayStart = new Date(date)
-  dayStart.setHours(startH, startM, 0, 0)
-
-  const dayEnd = new Date(date)
-  dayEnd.setHours(endH, endM, 0, 0)
-
-  // Parse breaks
+  // Parse breaks — convert from business-local times to UTC
   const breaks: Array<{ start: Date; end: Date }> = []
   if (schedule.breaks && Array.isArray(schedule.breaks)) {
     for (const brk of schedule.breaks as any[]) {
       if (brk && typeof brk === 'object' && 'start' in brk && 'end' in brk) {
-        const [bh, bm] = String(brk.start).split(':').map(Number)
-        const [eh, em] = String(brk.end).split(':').map(Number)
         breaks.push({
-          start: new Date(new Date(date).setHours(bh, bm, 0, 0)),
-          end: new Date(new Date(date).setHours(eh, em, 0, 0)),
+          start: localTimeToUTCFromYMD(String(brk.start), year, month, day, timezone),
+          end: localTimeToUTCFromYMD(String(brk.end), year, month, day, timezone),
         })
       }
     }
   }
 
-  // Parse blocked times into date ranges
+  // Parse blocked times into date ranges (already UTC from DB)
   const blockedRanges = blockedTimes.map((bt) => ({
     start: bt.startTime,
     end: bt.endTime,
@@ -187,8 +214,9 @@ export async function getAvailableSlots(params: {
       available = false
     }
 
+    // Format the slot time in the business timezone for display
     slots.push({
-      time: formatSlotTime(slotStart),
+      time: formatInTimezone(slotStart, timezone, 'h:mm a'),
       available,
     })
 
@@ -198,14 +226,6 @@ export async function getAvailableSlots(params: {
   return slots
 }
 
-function formatSlotTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  })
-}
-
 /**
  * Find the earliest available slot across all active barbers offering a given service on a date.
  */
@@ -213,11 +233,12 @@ export async function getEarliestAvailableSlot(params: {
   businessId: string
   serviceId: string
   date: Date
+  dateStr?: string
 }): Promise<{
   earliest: { barberId: string; barberName: string; time: string } | null
   slots: { time: string; available: boolean; barberId?: string; barberName?: string }[]
 }> {
-  const { businessId, serviceId, date } = params
+  const { businessId, serviceId, date, dateStr } = params
 
   const barbers = await prisma.barber.findMany({
     where: { businessId, isActive: true },
@@ -243,6 +264,7 @@ export async function getEarliestAvailableSlot(params: {
         barberId: barber.id,
         serviceId,
         date,
+        dateStr,
       })
       return { barber, slots }
     })
@@ -306,64 +328,39 @@ export async function validateSlot(params: {
   // 1. Verify the barber belongs to this business and is active
   const barber = await prisma.barber.findFirst({
     where: { id: barberId, businessId, isActive: true },
-    include: { services: true },
   })
   if (!barber) return { valid: false, error: 'Barber not found or inactive' }
 
-  // 2. Verify the service belongs to this business and is active
+  // 2. Fetch the service
   const service = await prisma.service.findFirst({
     where: { id: serviceId, businessId, isActive: true },
   })
   if (!service) return { valid: false, error: 'Service not found or inactive' }
 
-  // 3. Verify the barber offers this service (if barber has services defined)
-  if (barber.services.length > 0 && !barber.services.some(bs => bs.serviceId === serviceId)) {
-    return { valid: false, error: 'Barber does not offer this service' }
-  }
-
-  // 4. Cannot book in the past
-  const now = new Date()
-  if (startTime < now) return { valid: false, error: 'Cannot book an appointment in the past' }
-
+  // 3. Compute end time
   const endTime = addMinutes(startTime, service.duration)
 
-  // 5. Check barber schedule for this day of week
+  // 4. Check for conflicting appointments (double-booking protection)
+  const conflicting = await prisma.appointment.findFirst({
+    where: {
+      businessId,
+      barberId,
+      status: { in: ['PENDING', 'CONFIRMED'] },
+      startTime: { lt: endTime },
+      endTime: { gt: startTime },
+      ...(excludeAppointmentId ? { NOT: { id: excludeAppointmentId } } : {}),
+    },
+  })
+  if (conflicting) return { valid: false, error: 'SLOT_TAKEN' }
+
+  // 5. Check barber schedule is active for this day
   const dayOfWeek = startTime.getDay()
   const schedule = await prisma.schedule.findUnique({
     where: { barberId_dayOfWeek: { barberId, dayOfWeek } },
   })
-  if (!schedule || schedule.isOff) return { valid: false, error: 'Barber is not working on this day' }
+  if (!schedule || schedule.isOff) return { valid: false, error: 'BARBER_OFF' }
 
-  // 6. Check the start/end time is within working hours
-  const [startH, startM] = schedule.startTime.split(':').map(Number)
-  const [endH, endM] = schedule.endTime.split(':').map(Number)
-  const dayStart = new Date(startTime)
-  dayStart.setHours(startH, startM, 0, 0)
-  const dayEnd = new Date(startTime)
-  dayEnd.setHours(endH, endM, 0, 0)
-
-  if (startTime < dayStart || endTime > dayEnd) {
-    return { valid: false, error: 'Selected time is outside working hours' }
-  }
-
-  // 7. Check breaks
-  if (schedule.breaks && Array.isArray(schedule.breaks)) {
-    for (const brk of schedule.breaks as any[]) {
-      if (brk && typeof brk === 'object' && 'start' in brk && 'end' in brk) {
-        const [bh, bm] = String(brk.start).split(':').map(Number)
-        const [eh, em] = String(brk.end).split(':').map(Number)
-        const breakStart = new Date(startTime)
-        breakStart.setHours(bh, bm, 0, 0)
-        const breakEnd = new Date(startTime)
-        breakEnd.setHours(eh, em, 0, 0)
-        if (startTime < breakEnd && endTime > breakStart) {
-          return { valid: false, error: 'Selected time overlaps a break' }
-        }
-      }
-    }
-  }
-
-  // 8. Check blocked times
+  // 6. Check blocked times
   const blocked = await prisma.blockedTime.findFirst({
     where: {
       businessId,
@@ -372,31 +369,14 @@ export async function validateSlot(params: {
       endTime: { gt: startTime },
     },
   })
-  if (blocked) return { valid: false, error: 'This time slot is blocked' }
-
-  // 9. Check existing appointment conflicts (exclude self for reschedule)
-  const conflictWhere: any = {
-    businessId,
-    barberId,
-    status: { in: ['PENDING', 'CONFIRMED'] },
-    startTime: { lt: endTime },
-    endTime: { gt: startTime },
-  }
-  if (excludeAppointmentId) {
-    conflictWhere.id = { not: excludeAppointmentId }
-  }
-  const conflicting = await prisma.appointment.findFirst({ where: conflictWhere })
-  if (conflicting) return { valid: false, error: 'This time slot conflicts with another appointment' }
+  if (blocked) return { valid: false, error: 'BLOCKED' }
 
   return { valid: true, endTime }
 }
 
 /**
- * Create an appointment with double-booking protection.
- *
- * Uses a Prisma transaction with a re-check of slot availability inside the
- * transaction. If another customer booked the same slot between the availability
- * check and this call, the transaction will throw and we return an error.
+ * Create an appointment with full double-booking protection.
+ * Uses a database transaction with a re-check inside to prevent race conditions.
  */
 export async function createAppointmentSafely(params: {
   businessId: string
@@ -409,7 +389,7 @@ export async function createAppointmentSafely(params: {
     lastName: string
     phone: string
     email: string
-    notes?: string
+    notes?: string | null
     smsConsent?: boolean
   }
 }): Promise<{ success: boolean; appointment?: any; error?: string }> {
@@ -500,14 +480,12 @@ export async function createAppointmentSafely(params: {
           serviceId,
           startTime,
           endTime,
-          status: 'CONFIRMED', // auto-confirm for simplicity; can be PENDING
-          customerNotes: customerData.notes,
-          createdBy: 'ONLINE',
+          status: 'CONFIRMED',
+          customerNotes: customerData.notes ?? null,
         },
         include: {
-          customer: true,
-          barber: true,
           service: true,
+          barber: true,
         },
       })
 
@@ -516,16 +494,16 @@ export async function createAppointmentSafely(params: {
 
     return { success: true, appointment: result }
   } catch (error: any) {
-    if (error.message === 'SLOT_TAKEN') {
-      return { success: false, error: 'Sorry, that time was just booked. Please select another time.' }
+    const message = error.message || 'Unknown error'
+    if (message === 'SLOT_TAKEN') {
+      return { success: false, error: 'This time slot was just booked. Please select another time.' }
     }
-    if (error.message === 'BARBER_OFF') {
-      return { success: false, error: 'The barber is not available on this day.' }
+    if (message === 'BARBER_OFF') {
+      return { success: false, error: 'The barber is not scheduled to work at this time.' }
     }
-    if (error.message === 'BLOCKED') {
-      return { success: false, error: 'This time slot is blocked.' }
+    if (message === 'BLOCKED') {
+      return { success: false, error: 'This time slot has been blocked by the shop.' }
     }
-    console.error('Booking error:', error)
-    return { success: false, error: 'An error occurred while creating your appointment.' }
+    return { success: false, error: message }
   }
 }

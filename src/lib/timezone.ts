@@ -2,13 +2,13 @@
 // Timezone Utilities
 // Centralized timezone handling for all business logic
 // Every time computation goes through these functions to ensure consistency
+//
+// CRITICAL: A "calendar day" (e.g. "August 18, 2026") must be constructed
+// from year/month/day components in the BUSINESS TIMEZONE, not from a
+// JS Date instant which depends on the server's local timezone.
+// On Vercel (UTC), new Date(2026, 7, 18, 0, 0, 0) is midnight UTC, which
+// is 5pm PDT Aug 17 — off by one day for Pacific businesses.
 // ============================================================================
-
-/**
- * The business timezone is stored on the Business model (business.timezone).
- * All appointment times in the DB are stored as UTC.
- * These helpers convert between UTC and the business's local timezone for display and logic.
- */
 
 import { DateTime } from 'luxon'
 
@@ -46,8 +46,48 @@ export function formatDateInTimezone(utcDate: Date | string, timezone: string): 
 }
 
 /**
+ * Get the start of day in the business timezone from year/month/day, as a UTC Date.
+ * This is the correct way to compute day boundaries — it constructs the instant
+ * directly in the business timezone, avoiding server-local timezone ambiguity.
+ */
+export function dayBoundsFromYMD(
+  timezone: string,
+  year: number,
+  month: number, // 1-indexed (1 = January)
+  day: number
+): { start: Date; end: Date } {
+  const startLocal = DateTime.fromObject(
+    { year, month, day, hour: 0, minute: 0, second: 0 },
+    { zone: timezone }
+  )
+  const endLocal = startLocal.endOf('day')
+  return {
+    start: startLocal.toUTC().toJSDate(),
+    end: endLocal.toUTC().toJSDate(),
+  }
+}
+
+/**
+ * Convert a local time string (HH:mm) on a specific calendar day to UTC.
+ * Uses year/month/day to construct the instant in the business timezone.
+ */
+export function localTimeToUTCFromYMD(
+  localTimeStr: string, // "HH:mm"
+  year: number,
+  month: number, // 1-indexed
+  day: number,
+  timezone: string
+): Date {
+  const [hours, minutes] = localTimeStr.split(':').map(Number)
+  return DateTime.fromObject(
+    { year, month, day, hour: hours, minute: minutes },
+    { zone: timezone }
+  ).toUTC().toJSDate()
+}
+
+/**
  * Get the start of day in the business timezone, as a UTC Date
- * Used for querying appointments that fall on a specific business-local day
+ * @deprecated Use dayBoundsFromYMD when you have year/month/day available
  */
 export function startOfDayUTC(timezone: string, date?: Date): Date {
   const dt = date ? DateTime.fromJSDate(date) : DateTime.now()
@@ -56,6 +96,7 @@ export function startOfDayUTC(timezone: string, date?: Date): Date {
 
 /**
  * Get the end of day in the business timezone, as a UTC Date
+ * @deprecated Use dayBoundsFromYMD when you have year/month/day available
  */
 export function endOfDayUTC(timezone: string, date?: Date): Date {
   const dt = date ? DateTime.fromJSDate(date) : DateTime.now()
@@ -93,6 +134,13 @@ export function isSameBusinessDay(utcDate: Date, timezone: string, referenceDate
 }
 
 /**
+ * Get the day of week (0=Sunday..6=Saturday) for a calendar date in the business timezone
+ */
+export function dayOfWeekFromYMD(timezone: string, year: number, month: number, day: number): number {
+  return DateTime.fromObject({ year, month, day }, { zone: timezone }).weekday % 7
+}
+
+/**
  * Get a human-readable timezone offset label
  * e.g. "PST (UTC-8)" or "PDT (UTC-7)"
  */
@@ -123,11 +171,11 @@ export const COMMON_TIMEZONES = [
 ]
 
 /**
- * Generate available time slots in the business timezone,
- * converting to UTC for DB queries and storage
+ * Convert a local time string (HH:mm) on a specific date to UTC.
+ * @deprecated Use localTimeToUTCFromYMD when you have year/month/day available
  */
 export function localTimeToUTC(
-  localTimeStr: string, // "HH:mm"
+  localTimeStr: string,
   date: Date,
   timezone: string
 ): Date {
