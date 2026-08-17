@@ -32,6 +32,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "lucide-react": "^0.439.0",
+    "luxon": "^3.7.2",
     "next": "^14.2.5",
     "next-auth": "^4.24.7",
     "nodemailer": "^6.9.14",
@@ -43,6 +44,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/luxon": "^3.7.4",
     "@types/node": "^22.5.0",
     "@types/nodemailer": "^6.4.15",
     "@types/react": "^18.3.5",
