@@ -19,10 +19,10 @@ export default async function AccessibilityStatementPage() {
   const business = await prisma.business.findFirst().catch(() => null)
   const businessName = business?.name || 'Fade Factory'
   const businessEmail = business?.email || 'accessibility@fadefactory.com'
-  const businessPhone = business?.phone || '(555) 123-4567'
+  const businessPhone = business?.phone || '(555) 555-0199'
   const businessAddress = business?.address
     ? `${business.address}, ${business.city || ''}, ${business.state || ''} ${business.zipCode || ''}`.trim()
-    : '123 Main Street, Suite 100, Los Angeles, CA 90012'
+    : '456 Style Avenue, Your City, ST 00000'
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">

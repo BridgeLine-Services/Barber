@@ -24,9 +24,9 @@ export function Footer({ business }: FooterProps) {
     .join(', ')
 
   // Fallback contact info when business data is not available
-  const phone = business?.phone || '(555) 123-4567'
-  const email = business?.email || 'info@barbershop.com'
-  const address = fullAddress || '123 Main Street, Suite 100'
+  const phone = business?.phone || '(555) 555-0199'
+  const email = business?.email || 'hello@thebarberco.com'
+  const address = fullAddress || '456 Style Avenue, Your City'
 
   return (
     <footer className="border-t border-zinc-800/80 bg-zinc-950 text-zinc-400 text-sm">

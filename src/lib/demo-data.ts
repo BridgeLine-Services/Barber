@@ -1,20 +1,21 @@
 // ============================================================================
-// Demo Data — Used as fallback when the database is not configured.
-// This makes the template look populated for demonstration purposes.
-// When the database is connected and seeded, real data takes precedence.
+// Template Data — Used as fallback when the database is not yet configured.
+// These are placeholder values for the template. When the database is
+// connected and seeded, real business data takes precedence.
+// A business owner should configure their real info in Dashboard > Settings.
 // ============================================================================
 
 export const demoBusiness = {
   id: 'demo-business',
-  name: 'Executive Barber Shop',
-  slug: 'executive-barber-shop',
-  phone: '(555) 123-4567',
-  email: 'info@barbershop.com',
-  address: '123 Main Street, Suite 100',
-  city: 'Downtown',
-  state: '',
-  zipCode: '',
-  aboutText: 'Executive Barber Shop was founded with a single mission: to combine classic barbering traditions with modern styling precision. We create a welcoming environment where every haircut is an experience in refinement and confidence.',
+  name: 'The Barber Co.',
+  slug: 'the-barber-co',
+  phone: '(555) 555-0199',
+  email: 'hello@thebarberco.com',
+  address: '456 Style Avenue',
+  city: 'Your City',
+  state: 'ST',
+  zipCode: '00000',
+  aboutText: 'Welcome to your barbershop! This is a template description. Update your shop\'s story, hours, and contact info in the Dashboard > Settings page once your database is connected. Replace this text with your own to tell customers what makes your shop special.',
   hours: {
     monday: { open: '09:00', close: '19:00', isOff: false },
     tuesday: { open: '09:00', close: '19:00', isOff: false },
@@ -24,9 +25,9 @@ export const demoBusiness = {
     saturday: { open: '09:00', close: '18:00', isOff: false },
     sunday: { open: '10:00', close: '16:00', isOff: false },
   },
-  instagram: '@executivebarber',
-  facebook: 'executivebarber',
-  tiktok: '@executivebarber',
+  instagram: '@thebarberco',
+  facebook: 'thebarberco',
+  tiktok: '@thebarberco',
 }
 
 export const demoServices = [

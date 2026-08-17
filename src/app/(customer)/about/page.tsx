@@ -33,7 +33,7 @@ export default async function AboutPage() {
     console.error('Failed to load about page data:', error)
   }
 
-  const shopName = business?.name || 'Executive Barber Shop'
+  const shopName = business?.name || 'The Barber Co.'
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 space-y-16 lg:space-y-24">

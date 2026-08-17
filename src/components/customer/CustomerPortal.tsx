@@ -113,7 +113,7 @@ export function CustomerPortal({ businessId, businessName }: { businessId: strin
               type="tel"
               value={phone}
               onChange={e => setPhone(e.target.value)}
-              placeholder="(555) 123-4567"
+              placeholder="(555) 555-0199"
               className="w-full px-3 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-amber-500/50"
             />
           </div>

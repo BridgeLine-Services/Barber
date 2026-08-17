@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Executive Barber Shop',
+    name: 'The Barber Co.',
     short_name: 'Barber Shop',
     description: 'Book your next haircut or beard trim online. Pay in person — no app download required.',
     start_url: '/',

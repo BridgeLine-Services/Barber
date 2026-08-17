@@ -68,12 +68,12 @@ export default async function HomePage() {
     reviews = demoReviews as any
   }
 
-  const shopName = business?.name || 'Executive Barber Shop'
-  const shopPhone = business?.phone || '(555) 123-4567'
+  const shopName = business?.name || 'The Barber Co.'
+  const shopPhone = business?.phone || '(555) 555-0199'
   const shopPhoneDigits = shopPhone.replace(/\D/g, '')
   const fullAddress = [business?.address, business?.city, business?.state, business?.zipCode]
     .filter(Boolean)
-    .join(', ') || '123 Main Street, Suite 100, Downtown'
+    .join(', ') || '456 Style Avenue, Your City, ST 00000'
 
   const hoursList = business?.hours && typeof business.hours === 'object'
     ? Object.entries(business.hours).map(([day, val]: [string, any]) => ({

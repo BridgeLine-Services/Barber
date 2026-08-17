@@ -149,7 +149,7 @@ export default function SettingsPage() {
                 value={business.phone || ''}
                 onChange={e => setBusiness({ ...business, phone: e.target.value })}
                 className="bg-zinc-800 border-zinc-700 mt-1"
-                placeholder="(555) 123-4567"
+                placeholder="(555) 555-0199"
               />
             </div>
             <div>
