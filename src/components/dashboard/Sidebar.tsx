@@ -28,6 +28,9 @@ import {
   BarChart3,
   Package,
   Megaphone,
+  CalendarX,
+  UserX,
+  Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -60,6 +63,9 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
           { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
           { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
           { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
+          { name: 'Cancellations', href: '/dashboard/cancellations', icon: CalendarX },
+          { name: 'No-Shows', href: '/dashboard/no-shows', icon: UserX },
+          { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
           { name: 'Barbers', href: '/dashboard/barbers', icon: UserCircle },
           { name: 'Settings', href: '/dashboard/settings', icon: Settings },
           { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },
