@@ -1,13 +1,14 @@
 import { prisma } from '@/lib/prisma'
 import { formatFullDate, formatTime } from '@/lib/utils'
 import nodemailer from 'nodemailer'
+import { sendSms, isTwilioConfigured, buildReminderMessage, buildConfirmationMessage } from '@/lib/twilio'
 
 // ============================================================================
 // Notification System
-// Email notifications for booking confirmation, reminders, and barber alerts.
-// SMS is optional and stubbed — wire up Twilio when ready.
+// Email + SMS notifications for booking confirmation, reminders, and alerts.
+// Email uses Nodemailer (SMTP). SMS uses Twilio REST API (no npm package).
 // All notification attempts are logged to the NotificationLog table for
-// delivery tracking. The owner dashboard can show which emails failed.
+// delivery tracking. The owner dashboard can show which messages failed.
 // ============================================================================
 
 let transporter: nodemailer.Transporter | null = null
@@ -173,6 +174,28 @@ export async function sendBookingConfirmation(appointment: AppointmentWithRelati
       })
     }
   }
+
+  // Send SMS confirmation if Twilio is configured
+  if (isTwilioConfigured() && appointment.customer.phone) {
+    const smsBody = buildConfirmationMessage({
+      businessName: appointment.business.name,
+      customerName: appointment.customer.firstName,
+      service: appointment.service.name,
+      date: dateStr,
+      time: timeStr,
+      confirmationNumber: appointment.confirmationNumber,
+    })
+    const smsResult = await sendSms(appointment.customer.phone, smsBody)
+    await logNotification({
+      businessId: appointment.business.id,
+      appointmentId: appointment.id,
+      recipient: appointment.customer.phone,
+      channel: 'SMS',
+      type: 'BOOKING_CONFIRMATION',
+      status: smsResult.success ? 'SENT' : 'FAILED',
+      errorMessage: smsResult.success ? undefined : smsResult.error,
+    })
+  }
 }
 
 export async function sendAppointmentReminder(appointment: AppointmentWithRelations, hoursBefore: number) {
@@ -196,6 +219,7 @@ export async function sendAppointmentReminder(appointment: AppointmentWithRelati
     </div>
   `
 
+  // Email reminder
   try {
     const transport = getTransporter()
     await transport.sendMail({
@@ -224,17 +248,54 @@ export async function sendAppointmentReminder(appointment: AppointmentWithRelati
       errorMessage: String(error),
     })
   }
+
+  // SMS reminder if Twilio is configured
+  if (isTwilioConfigured() && appointment.customer.phone) {
+    const smsBody = buildReminderMessage({
+      businessName: appointment.business.name,
+      customerName: appointment.customer.firstName,
+      service: appointment.service.name,
+      date: dateStr,
+      time: timeStr,
+      confirmationNumber: appointment.confirmationNumber,
+    })
+    const smsResult = await sendSms(appointment.customer.phone, smsBody)
+    await logNotification({
+      businessId: appointment.business.id,
+      appointmentId: appointment.id,
+      recipient: appointment.customer.phone,
+      channel: 'SMS',
+      type: 'BOOKING_REMINDER',
+      status: smsResult.success ? 'SENT' : 'FAILED',
+      errorMessage: smsResult.success ? undefined : smsResult.error,
+    })
+  }
 }
 
-// SMS stub — wire up Twilio when ready
+/**
+ * Send an SMS reminder to a customer.
+ * Now uses real Twilio instead of a stub.
+ */
 export async function sendSmsReminder(phone: string, message: string) {
-  // TODO: Implement with Twilio when SMS is enabled
-  console.log(`[SMS stub] To: ${phone}, Message: ${message}`)
+  if (!isTwilioConfigured()) {
+    console.log(`[SMS not configured] To: ${phone}, Message: ${message}`)
+    await logNotification({
+      recipient: phone,
+      channel: 'SMS',
+      type: 'BOOKING_REMINDER',
+      status: 'FAILED',
+      errorMessage: 'Twilio not configured',
+    })
+    return
+  }
+
+  const result = await sendSms(phone, message)
   await logNotification({
     recipient: phone,
     channel: 'SMS',
     type: 'BOOKING_REMINDER',
-    status: 'SENT',
+    status: result.success ? 'SENT' : 'FAILED',
+    errorMessage: result.success ? undefined : result.error,
   })
 }
 
@@ -269,24 +330,20 @@ export async function sendWaitlistSlotNotification(params: {
         <p style="margin: 5px 0;"><strong>${params.service.name}</strong></p>
         <p style="margin: 5px 0;">${dateStr} at ${timeStr}</p>
         <p style="margin: 5px 0;">Barber: ${params.barber.name}</p>
-        <p style="margin: 5px 0;">Duration: ${params.service.duration} minutes</p>
       </div>
-      <div style="background: #fff8e1; padding: 16px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #d4af37;">
-        <p style="margin: 0; color: #8a6d00; font-weight: 600;">⏱ This slot is held for you for ${holdMinutes} minutes.</p>
-        <p style="margin: 8px 0 0; color: #8a6d00; font-size: 14px;">Claim it now before the hold expires and we offer it to the next person in line.</p>
-      </div>
-      <a href="${params.claimUrl}" style="display: inline-block; background: #1a1a1a; color: #d4af37; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 16px 0;">Claim My Slot</a>
-      <p style="font-size: 14px; color: #666;">If the button doesn't work, copy and paste this link into your browser:<br/><a href="${params.claimUrl}">${params.claimUrl}</a></p>
-      <p style="font-size: 14px; color: #666;">If you no longer need this appointment, no action is needed — the hold will expire automatically.</p>
+      <p>This slot is held for you for <strong>${holdMinutes} minutes</strong>. Click below to claim it:</p>
+      <a href="${params.claimUrl}" style="display: inline-block; background: #1a1a1a; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin: 10px 0;">Claim This Slot</a>
+      <p style="font-size: 14px; color: #666;">If you no longer need an appointment, you can ignore this email.</p>
     </div>
   `
 
+  // Email
   try {
     const transport = getTransporter()
     await transport.sendMail({
       from: process.env.SMTP_FROM || 'noreply@barbershop.com',
       to: params.customer.email,
-      subject: `A Slot Opened Up — ${params.business.name}`,
+      subject: `Slot Available — ${params.business.name}`,
       html,
     })
     await logNotification({
@@ -297,7 +354,7 @@ export async function sendWaitlistSlotNotification(params: {
       status: 'SENT',
     })
   } catch (error) {
-    console.error('Waitlist notification email error:', error)
+    console.error('Waitlist email error:', error)
     await logNotification({
       businessId: params.businessId,
       recipient: params.customer.email,
@@ -308,17 +365,17 @@ export async function sendWaitlistSlotNotification(params: {
     })
   }
 
-  // SMS stub — log the attempt so the dashboard can show it
-  try {
-    console.log(`[SMS stub] Waitlist slot offered to ${params.customer.phone}: ${dateStr} at ${timeStr}`)
+  // SMS for waitlist notification
+  if (isTwilioConfigured() && params.customer.phone) {
+    const smsBody = `${params.business.name}: A slot opened for ${params.service.name} on ${dateStr} at ${timeStr}. You have ${holdMinutes} min to claim: ${params.claimUrl}`
+    const smsResult = await sendSms(params.customer.phone, smsBody)
     await logNotification({
       businessId: params.businessId,
       recipient: params.customer.phone,
       channel: 'SMS',
       type: 'WAITLIST_NOTIFICATION',
-      status: 'SENT',
+      status: smsResult.success ? 'SENT' : 'FAILED',
+      errorMessage: smsResult.success ? undefined : smsResult.error,
     })
-  } catch (error) {
-    console.error('Waitlist SMS log error:', error)
   }
 }
