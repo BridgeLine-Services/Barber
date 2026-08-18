@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,14 +24,18 @@ import { cn } from '@/lib/utils'
 interface DateStepProps {
   selectedDate: Date | null
   onSelect: (date: Date) => void
+  serviceId?: string
+  barberId?: string
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-export function DateStep({ selectedDate, onSelect }: DateStepProps) {
+export function DateStep({ selectedDate, onSelect, serviceId, barberId }: DateStepProps) {
   const today = startOfDay(new Date())
-  const maxBookingDate = addDays(today, 30) // Up to 30 days in advance
+  const maxBookingDate = addDays(today, 30)
   const [currentMonth, setCurrentMonth] = useState<Date>(selectedDate || today)
+  const [availabilityMap, setAvailabilityMap] = useState<Record<string, boolean>>({})
+  const [checking, setChecking] = useState(false)
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(monthStart)
@@ -39,6 +43,34 @@ export function DateStep({ selectedDate, onSelect }: DateStepProps) {
   const calendarEnd = endOfWeek(monthEnd)
 
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+
+  // Fetch availability indicators for the current month
+  const fetchAvailability = useCallback(async () => {
+    if (!serviceId) return
+    setChecking(true)
+    try {
+      const monthStr = format(currentMonth, 'yyyy-MM')
+      const params = new URLSearchParams({
+        serviceId,
+        month: monthStr,
+      })
+      if (barberId) params.set('barberId', barberId)
+
+      const res = await fetch(`/api/availability/check?${params.toString()}`)
+      if (res.ok) {
+        const data = await res.json()
+        setAvailabilityMap(data.dates || {})
+      }
+    } catch {
+      // Silently fail — calendar still works, just no indicators
+    } finally {
+      setChecking(false)
+    }
+  }, [serviceId, barberId, currentMonth])
+
+  useEffect(() => {
+    fetchAvailability()
+  }, [fetchAvailability])
 
   const handlePrevMonth = () => {
     const prev = subMonths(currentMonth, 1)
@@ -62,7 +94,7 @@ export function DateStep({ selectedDate, onSelect }: DateStepProps) {
       <div className="mb-6 text-center md:text-left">
         <h2 className="text-2xl font-bold text-zinc-100 tracking-tight">Select a Date</h2>
         <p className="text-sm text-zinc-400 mt-1">
-          Choose an available calendar day for your appointment.
+          Dates with available slots are highlighted. Choose a day to see times.
         </p>
       </div>
 
@@ -74,6 +106,9 @@ export function DateStep({ selectedDate, onSelect }: DateStepProps) {
             <h3 className="text-lg font-semibold text-zinc-100">
               {format(currentMonth, 'MMMM yyyy')}
             </h3>
+            {checking && (
+              <span className="w-3 h-3 rounded-full border-2 border-amber-500/30 border-t-amber-500 animate-spin ml-1" />
+            )}
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -117,6 +152,9 @@ export function DateStep({ selectedDate, onSelect }: DateStepProps) {
             const isPast = isBefore(day, today)
             const isBeyondMax = isAfter(day, maxBookingDate)
             const isDisabled = isPast || isBeyondMax || !isCurrentMonthDay
+            const dateKey = format(day, 'yyyy-MM-dd')
+            const hasAvailability = availabilityMap[dateKey] === true
+            const isFullyBooked = availabilityMap[dateKey] === false && !isDisabled
 
             return (
               <button
@@ -130,13 +168,29 @@ export function DateStep({ selectedDate, onSelect }: DateStepProps) {
                   isDisabled && isCurrentMonthDay && 'text-zinc-600 bg-zinc-950/40 cursor-not-allowed',
                   !isDisabled &&
                     !isSelected &&
+                    hasAvailability &&
+                    'text-zinc-100 bg-zinc-950/80 hover:bg-amber-500/20 hover:text-amber-300 border border-amber-500/30',
+                  !isDisabled &&
+                    !isSelected &&
+                    !hasAvailability &&
+                    isFullyBooked &&
+                    'text-zinc-500 bg-zinc-950/40 border border-zinc-800/40 line-through opacity-50',
+                  !isDisabled &&
+                    !isSelected &&
+                    !hasAvailability &&
+                    !isFullyBooked &&
                     'text-zinc-200 bg-zinc-950/80 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/40 border border-zinc-800/80',
                   isSelected &&
                     'bg-amber-500 text-zinc-950 font-bold border-amber-400 shadow-md shadow-amber-500/20 scale-105'
                 )}
               >
                 <span>{format(day, 'd')}</span>
-                {isToday && !isSelected && (
+                {/* Availability indicator dot */}
+                {hasAvailability && !isSelected && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 absolute bottom-1" />
+                )}
+                {/* Today indicator */}
+                {isToday && !isSelected && !hasAvailability && (
                   <span className="w-1 h-1 rounded-full bg-amber-400 absolute bottom-1" />
                 )}
               </button>
@@ -144,8 +198,24 @@ export function DateStep({ selectedDate, onSelect }: DateStepProps) {
           })}
         </div>
 
+        {/* Legend */}
+        <div className="mt-5 pt-4 border-t border-zinc-800 flex items-center justify-center gap-4 text-xs text-zinc-500">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span>Available</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-zinc-600" />
+            <span>Limited or full</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            <span>Today</span>
+          </div>
+        </div>
+
         {selectedDate && (
-          <div className="mt-5 pt-4 border-t border-zinc-800 text-center">
+          <div className="mt-3 pt-3 border-t border-zinc-800 text-center">
             <p className="text-xs text-zinc-400">
               Selected date:{' '}
               <strong className="text-amber-400">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</strong>

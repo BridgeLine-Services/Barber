@@ -260,6 +260,8 @@ function BookingFlow() {
                 <DateStep
                   selectedDate={selectedDate}
                   onSelect={(d) => { setSelectedDate(d); setStep(4) }}
+                  serviceId={selectedServiceId}
+                  barberId={selectedBarberId}
                 />
               )}
 
