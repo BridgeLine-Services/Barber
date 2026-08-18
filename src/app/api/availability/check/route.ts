@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveBusinessId } from '@/lib/business'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 import { dayBoundsFromYMD, dayOfWeekFromYMD } from '@/lib/timezone'
 
@@ -15,6 +16,11 @@ import { dayBoundsFromYMD, dayOfWeekFromYMD } from '@/lib/timezone'
  * Response: { dates: { "2026-08-15": true, "2026-08-16": false, ... } }
  */
 export async function GET(req: NextRequest) {
+  const rateLimitResult = checkRateLimit(req, 'availability-check', RATE_LIMITS.AVAILABILITY)
+  if (rateLimitResult) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: rateLimitResult.status })
+  }
+
   try {
     const { searchParams } = req.nextUrl
     const serviceId = searchParams.get('serviceId')

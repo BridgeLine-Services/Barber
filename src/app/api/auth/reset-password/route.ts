@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 const resetSchema = z.object({
   token: z.string().min(32, 'Invalid token'),
@@ -15,6 +16,11 @@ const resetSchema = z.object({
  * Reset password using a valid reset token
  */
 export async function POST(req: NextRequest) {
+  const rateLimitResult = checkRateLimit(req, 'auth-reset', RATE_LIMITS.PASSWORD_RESET)
+  if (rateLimitResult) {
+    return NextResponse.json({ error: 'Too many attempts. Please try again later.' }, { status: rateLimitResult.status })
+  }
+
   try {
     const body = await req.json()
     const parsed = resetSchema.safeParse(body)
