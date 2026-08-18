@@ -64,6 +64,7 @@ export function AddAppointmentDialog({
       if (initialDate) setDate(initialDate)
       if (initialBarberId) setSelectedBarberId(initialBarberId)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialDate, initialBarberId])
 
   const fetchBarbers = async () => {

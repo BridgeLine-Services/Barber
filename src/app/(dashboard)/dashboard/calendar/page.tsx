@@ -47,9 +47,9 @@ export default function CalendarPage() {
     }
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchAppointments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate, view])
 
   const handlePrev = () => {
