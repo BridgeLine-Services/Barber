@@ -86,3 +86,12 @@ export function normalizePhone(phone: string): string {
   if (digits.length === 11 && digits[0] === '1') return `+${digits}`
   return phone
 }
+
+/** Format phone for display as user types: (555) 123-4567 */
+export function formatPhoneInput(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 10)
+  if (digits.length === 0) return ''
+  if (digits.length <= 3) return `(${digits}`
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+}

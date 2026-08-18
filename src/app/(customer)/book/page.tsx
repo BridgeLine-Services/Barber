@@ -62,6 +62,42 @@ function BookingFlow() {
   // Track the resolved barber name for the review step when 'any' or 'first-available' resolves to a specific barber
   const [resolvedBarberName, setResolvedBarberName] = useState<string>('')
 
+  // ─── State persistence (localStorage) ─────────────────────────────
+  // Saves booking progress so a page refresh doesn't lose selections.
+  const STORAGE_KEY = 'barber-booking-progress'
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const data = JSON.parse(saved)
+        if (data.step) setStep(data.step)
+        if (data.selectedServiceId) setSelectedServiceId(data.selectedServiceId)
+        if (data.selectedBarberId) setSelectedBarberId(data.selectedBarberId)
+        if (data.selectedDate) setSelectedDate(new Date(data.selectedDate))
+        if (data.selectedTime) setSelectedTime(data.selectedTime)
+        if (data.customerInfo) setCustomerInfo(data.customerInfo)
+      }
+    } catch {
+      // Ignore corrupted storage
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        step,
+        selectedServiceId,
+        selectedBarberId,
+        selectedDate: selectedDate?.toISOString() || null,
+        selectedTime,
+        customerInfo,
+      }))
+    } catch {
+      // Storage full or unavailable — non-critical
+    }
+  }, [step, selectedServiceId, selectedBarberId, selectedDate, selectedTime, customerInfo])
+
   // Pre-fill from URL params
   useEffect(() => {
     const serviceParam = searchParams.get('serviceId')

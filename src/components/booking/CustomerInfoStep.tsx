@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { isValidEmail, isValidPhone } from '@/lib/utils'
+import { isValidEmail, isValidPhone, formatPhoneInput } from '@/lib/utils'
 import { User, Mail, Phone, FileText, CheckCircle2, ArrowRight } from 'lucide-react'
 
 export interface CustomerInfo {
@@ -136,7 +136,7 @@ export function CustomerInfoStep({
                 type="tel"
                 placeholder="(555) 000-0000"
                 value={customerInfo.phone}
-                onChange={(e) => handleChange('phone', e.target.value)}
+                onChange={(e) => handleChange('phone', formatPhoneInput(e.target.value))}
                 className="bg-zinc-950 border-zinc-800 text-zinc-100 focus:border-amber-500 pr-8"
                 required
               />
