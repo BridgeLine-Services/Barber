@@ -162,7 +162,7 @@ export function Footer({ business }: FooterProps) {
         </div>
 
         <div className="mt-12 pt-6 border-t border-zinc-800/60 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-500 gap-4">
-          <p>© {new Date().getFullYear()} {shopName}. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {shopName?.replace(/\.$/, '')}. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <p className="text-zinc-500">
               Powered by Barber Booking System

@@ -35,6 +35,7 @@ export default withAuth(
         if (req.nextUrl.pathname.startsWith('/api/dashboard')) {
           return !!token
         }
+        // All other routes are public — security headers still apply
         return true
       },
     },
@@ -42,5 +43,8 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/api/dashboard/:path*'],
+  // Match all routes except static assets, Next.js internals, and auth callbacks
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|api/auth).*)',
+  ],
 }

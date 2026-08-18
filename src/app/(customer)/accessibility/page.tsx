@@ -4,11 +4,12 @@ import React from 'react'
 import Link from 'next/link'
 import { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
+import { demoBusiness } from '@/lib/demo-data'
 import { Accessibility, ArrowLeft, Mail, Phone, MapPin, CheckCircle, ShieldCheck } from 'lucide-react'
 
 export async function generateMetadata(): Promise<Metadata> {
   const business = await prisma.business.findFirst().catch(() => null)
-  const businessName = business?.name || 'Fade Factory'
+  const businessName = business?.name || demoBusiness.name
   return {
     title: `Accessibility Statement | ${businessName}`,
     description: `Accessibility commitment and digital standards for ${businessName}. Learn how we ensure our website is accessible to everyone.`,
@@ -17,12 +18,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AccessibilityStatementPage() {
   const business = await prisma.business.findFirst().catch(() => null)
-  const businessName = business?.name || 'Fade Factory'
-  const businessEmail = business?.email || 'accessibility@fadefactory.com'
-  const businessPhone = business?.phone || '(555) 555-0199'
+  const businessName = business?.name || demoBusiness.name
+  const businessEmail = business?.email || demoBusiness.email
+  const businessPhone = business?.phone || demoBusiness.phone
   const businessAddress = business?.address
     ? `${business.address}, ${business.city || ''}, ${business.state || ''} ${business.zipCode || ''}`.trim()
-    : '456 Style Avenue, Your City, ST 00000'
+    : `${demoBusiness.address}, ${demoBusiness.city || ''}, ${demoBusiness.state || ''} ${demoBusiness.zipCode || ''}`.trim()
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 py-12 px-4 sm:px-6 lg:px-8">

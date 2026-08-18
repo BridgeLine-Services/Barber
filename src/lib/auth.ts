@@ -41,7 +41,10 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           console.error('Auth error - database may not be configured:', error)
-          return null
+          // Throw the error so NextAuth surfaces it as a Configuration error
+          // instead of silently treating it as wrong credentials.
+          // The login page already handles Configuration errors gracefully.
+          throw new Error('Database connection failed. The database may not be configured.')
         }
       },
     }),

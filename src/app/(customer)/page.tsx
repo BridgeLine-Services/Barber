@@ -102,8 +102,8 @@ export default async function HomePage() {
               Precision Cuts & <span className="text-amber-400">Master Grooming</span>
             </h1>
 
-            <p className="text-base sm:text-lg text-zinc-300 leading-relaxed font-normal">
-              {business?.aboutText?.slice(0, 160) ||
+            <p className="text-base sm:text-lg text-zinc-300 leading-relaxed font-normal line-clamp-3">
+              {business?.aboutText ||
                 `Experience top-tier craftsmanship at ${shopName}. From classic razor fades to precision beard styling, walk out looking and feeling sharp.`}
             </p>
 
