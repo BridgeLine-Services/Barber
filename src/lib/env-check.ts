@@ -28,6 +28,11 @@ export const OPTIONAL_ENV_VARS = [
   { variable: 'TWILIO_PHONE_NUMBER', description: 'Twilio sender phone number' },
   { variable: 'GOOGLE_CLIENT_ID', description: 'Google OAuth client ID' },
   { variable: 'GOOGLE_CLIENT_SECRET', description: 'Google OAuth client secret' },
+  { variable: 'GBP_ACCESS_TOKEN', description: 'Google Business Profile access token (from OAuth)' },
+  { variable: 'GBP_REFRESH_TOKEN', description: 'Google Business Profile refresh token (long-lived)' },
+  { variable: 'GBP_ACCOUNT_ID', description: 'Google Business Profile account ID' },
+  { variable: 'GBP_LOCATION_ID', description: 'Google Business Profile location ID' },
+  { variable: 'CRON_SECRET', description: 'Secret for protecting cron job endpoints' },
 ]
 
 export function checkEnvironment(): {

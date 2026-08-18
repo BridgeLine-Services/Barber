@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { verifyProductionReadiness } from '@/lib/production-readiness'
 
 export async function GET() {
   const checks: Record<string, { status: string; message?: string }> = {}
@@ -66,10 +67,19 @@ export async function GET() {
   const allOk = Object.values(checks).every((c) => c.status === 'ok')
   const httpStatus = allOk ? 200 : 503
 
+  // Production readiness report (read-only, doesn't affect health status)
+  let readiness = null
+  try {
+    readiness = await verifyProductionReadiness()
+  } catch {
+    // Non-critical — health check still works
+  }
+
   return NextResponse.json(
     {
       status: allOk ? 'healthy' : 'degraded',
       checks,
+      readiness,
       timestamp: new Date().toISOString(),
     },
     { status: httpStatus }
