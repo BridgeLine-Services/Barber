@@ -150,11 +150,14 @@ function BookingFlow() {
   // pre-select the date, and jump directly to the Time step so they can confirm
   // or pick a different time on that date.
   const handleFirstAvailable = (slot: EarliestSlot) => {
+    // "First Available" resolves the earliest real slot across all barbers.
+    // Set barber + date + time from the computed slot and jump straight to
+    // Customer Info — all three selections are handled automatically.
     setSelectedBarberId(slot.barberId)
     setResolvedBarberName(slot.barberName)
     setSelectedDate(new Date(slot.date + 'T00:00:00'))
-    setSelectedTime('') // Reset time — user picks from the available slots
-    setStep(4) // Jump to Time step
+    setSelectedTime(slot.time) // Auto-select the earliest available time
+    setStep(5) // Jump to Customer Info step
   }
 
   // ─── Bug Fix #2: Capture specificBarberId from TimeStep ──────────────────────

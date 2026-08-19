@@ -7,6 +7,7 @@ import { Scissors, Lock, Mail, AlertCircle, ArrowRight, ServerCrash } from 'luci
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -119,12 +120,12 @@ export default function LoginPage() {
                 <Label htmlFor="password" className="text-zinc-300 text-xs font-medium uppercase tracking-wider">
                   Password
                 </Label>
-                <a
+                <Link
                   href="/forgot-password"
                   className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
                 >
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />

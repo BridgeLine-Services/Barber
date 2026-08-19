@@ -31,7 +31,7 @@ export interface BreadcrumbItem {
   url: string
 }
 
-const getBaseUrl = () => process.env.NEXTAUTH_URL || 'https://fadefactory.com'
+const getBaseUrl = () => process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com'
 
 /**
  * Generate Schema.org LocalBusiness / BarberShop JSON-LD structure
