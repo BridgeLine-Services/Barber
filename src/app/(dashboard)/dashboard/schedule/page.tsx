@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ScheduleEditor } from '@/components/dashboard/ScheduleEditor'
+import { AvailabilityOverrides } from '@/components/dashboard/AvailabilityOverrides'
 import { TimeOffManager } from '@/components/dashboard/TimeOffManager'
 import { Clock, UserCircle } from 'lucide-react'
 
@@ -127,6 +128,8 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
 
       {/* Schedule Editor */}
       <ScheduleEditor barberId={targetBarberId} initialSchedules={serializedSchedules} />
+
+      <AvailabilityOverrides barberId={targetBarberId} />
 
       {/* Time Off Manager */}
       <TimeOffManager barberId={targetBarberId} initialBlockedTimes={serializedBlockedTimes} />
