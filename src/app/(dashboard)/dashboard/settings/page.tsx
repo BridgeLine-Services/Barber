@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -58,7 +59,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [business, setBusiness] = useState<any>(null)
   const [seo, setSeo] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<Tab>('business')
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'business')
 
   useEffect(() => {
     fetch('/api/dashboard/settings')

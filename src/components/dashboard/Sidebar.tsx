@@ -11,18 +11,17 @@ import {
   Users,
   Scissors,
   Clock,
-  UserCircle,
+  UserCog,
   LogOut,
   Menu,
   X,
   ChevronRight,
+  ChevronDown,
   Shield,
   User,
   Settings,
   ScrollText,
   CalendarOff,
-  UsersRound,
-  UserCog,
   Gift,
   Repeat,
   BarChart3,
@@ -32,6 +31,14 @@ import {
   UserX,
   Star,
   Image as ImageIcon,
+  UserCircle,
+  Globe,
+  Palette,
+  FileText,
+  Bell,
+  Lock,
+  Store,
+  Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -42,41 +49,111 @@ interface SidebarProps {
   businessName: string
 }
 
+interface NavItem {
+  name: string
+  href: string
+  icon: any
+}
+
+interface NavSection {
+  label: string
+  items: NavItem[]
+}
+
 export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['overview']))
 
   const isOwner = userRole === 'OWNER'
 
-  const navItems = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
-    { name: 'Appointments', href: '/dashboard/appointments', icon: CalendarDays },
-    { name: 'Waitlist', href: '/dashboard/waitlist', icon: Users },
-    { name: 'Customers', href: '/dashboard/customers', icon: Users },
-    { name: 'Services', href: '/dashboard/services', icon: Scissors },
-    { name: 'Schedule', href: '/dashboard/schedule', icon: Clock },
-    { name: 'My Profile', href: '/dashboard/profile', icon: UserCog },
-    { name: 'Closures', href: '/dashboard/closures', icon: CalendarOff },
-    { name: 'Recurring', href: '/dashboard/recurring', icon: Repeat },
-    ...(isOwner
-      ? [
-          { name: 'Loyalty', href: '/dashboard/loyalty', icon: Gift },
-          { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-          { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
-          { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
-          { name: 'Cancellations', href: '/dashboard/cancellations', icon: CalendarX },
-          { name: 'No-Shows', href: '/dashboard/no-shows', icon: UserX },
-          { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
-          { name: 'Media Gallery', href: '/dashboard/media', icon: ImageIcon },
-          { name: 'Barbers', href: '/dashboard/barbers', icon: UserCircle },
-          { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-          { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },
-        ]
-      : []),
+  const toggleSection = (key: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // ─── Owner nav: grouped into Overview, Website, System ────────────────
+  const ownerSections: NavSection[] = [
+    {
+      label: 'overview',
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
+        { name: 'Appointments', href: '/dashboard/appointments', icon: CalendarDays },
+        { name: 'Customers', href: '/dashboard/customers', icon: Users },
+        { name: 'Barbers', href: '/dashboard/barbers', icon: UserCircle },
+        { name: 'Services', href: '/dashboard/services', icon: Scissors },
+        { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
+        { name: 'Waitlist', href: '/dashboard/waitlist', icon: Users },
+      ],
+    },
+    {
+      label: 'website',
+      items: [
+        { name: 'Branding', href: '/dashboard/settings?tab=branding', icon: Palette },
+        { name: 'Business Info', href: '/dashboard/settings?tab=business', icon: Store },
+        { name: 'Hours', href: '/dashboard/settings?tab=hours', icon: Clock },
+        { name: 'Photos', href: '/dashboard/media', icon: ImageIcon },
+        { name: 'Policies', href: '/dashboard/settings?tab=policies', icon: FileText },
+        { name: 'Social Media', href: '/dashboard/settings?tab=social', icon: Globe },
+        { name: 'SEO', href: '/dashboard/settings?tab=seo', icon: Search },
+      ],
+    },
+    {
+      label: 'system',
+      items: [
+        { name: 'Staff', href: '/dashboard/staff', icon: UserCog },
+        { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+        { name: 'Marketing', href: '/dashboard/marketing', icon: Megaphone },
+        { name: 'Loyalty', href: '/dashboard/loyalty', icon: Gift },
+        { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
+        { name: 'Closures', href: '/dashboard/closures', icon: CalendarOff },
+        { name: 'Cancellations', href: '/dashboard/cancellations', icon: CalendarX },
+        { name: 'No-Shows', href: '/dashboard/no-shows', icon: UserX },
+        { name: 'Recurring', href: '/dashboard/recurring', icon: Repeat },
+        { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },
+      ],
+    },
   ]
 
+  // ─── Barber nav: focused on self-management ───────────────────────────
+  const barberSections: NavSection[] = [
+    {
+      label: 'my dashboard',
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
+        { name: 'My Appointments', href: '/dashboard/appointments', icon: CalendarDays },
+      ],
+    },
+    {
+      label: 'my profile',
+      items: [
+        { name: 'Profile', href: '/dashboard/profile', icon: UserCog },
+        { name: 'Schedule', href: '/dashboard/schedule', icon: Clock },
+        { name: 'Closures', href: '/dashboard/closures', icon: CalendarOff },
+        { name: 'Services', href: '/dashboard/services', icon: Scissors },
+      ],
+    },
+  ]
+
+  const sections = isOwner ? ownerSections : barberSections
+
   const closeMobile = () => setMobileOpen(false)
+
+  const isItemActive = (href: string) => {
+    // For settings?tab= links, check if pathname matches /dashboard/settings
+    if (href.includes('?tab=')) {
+      const [path, query] = href.split('?')
+      return pathname === path
+    }
+    if (href === '/dashboard') return pathname === '/dashboard'
+    return pathname.startsWith(href)
+  }
 
   return (
     <>
@@ -124,7 +201,9 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
             </div>
             <div className="overflow-hidden">
               <h1 className="text-sm font-bold text-zinc-100 truncate font-serif">{businessName}</h1>
-              <p className="text-xs text-amber-500/90 font-medium">Barber Dashboard</p>
+              <p className="text-xs text-amber-500/90 font-medium">
+                {isOwner ? 'Owner Dashboard' : 'Barber Portal'}
+              </p>
             </div>
           </div>
           <button
@@ -135,33 +214,59 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
           </button>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive =
-              item.href === '/dashboard'
-                ? pathname === '/dashboard'
-                : pathname.startsWith(item.href)
+        {/* Navigation — Grouped Sections */}
+        <nav className="flex-1 px-3 py-4 overflow-y-auto">
+          {sections.map((section) => {
+            const isExpanded = expandedSections.has(section.label)
+            // Auto-expand section containing active item
+            const hasActive = section.items.some((item) => isItemActive(item.href))
+            const show = isExpanded || hasActive
 
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={closeMobile}
-                className={cn(
-                  'flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors group relative',
-                  isActive
-                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900'
+              <div key={section.label} className="mb-1">
+                {/* Section Header */}
+                <button
+                  onClick={() => toggleSection(section.label)}
+                  className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 hover:text-zinc-300 transition-colors"
+                >
+                  <ChevronDown
+                    className={cn('w-3 h-3 transition-transform', show ? '' : '-rotate-90')}
+                  />
+                  {section.label}
+                </button>
+
+                {/* Section Items */}
+                {show && (
+                  <div className="space-y-0.5 mt-0.5">
+                    {section.items.map((item) => {
+                      const Icon = item.icon
+                      const isActive = isItemActive(item.href)
+                      return (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          onClick={closeMobile}
+                          className={cn(
+                            'flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors group relative',
+                            isActive
+                              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                              : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900'
+                          )}
+                        >
+                          <Icon
+                            className={cn(
+                              'w-4 h-4 shrink-0',
+                              isActive ? 'text-amber-400' : 'text-zinc-500 group-hover:text-zinc-300'
+                            )}
+                          />
+                          <span className="flex-1">{item.name}</span>
+                          {isActive && <ChevronRight className="w-3.5 h-3.5 text-amber-400" />}
+                        </Link>
+                      )
+                    })}
+                  </div>
                 )}
-              >
-                <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-amber-400' : 'text-zinc-500 group-hover:text-zinc-300')} />
-                <span className="flex-1">{item.name}</span>
-                {isActive && (
-                  <ChevronRight className="w-3.5 h-3.5 text-amber-400" />
-                )}
-              </Link>
+              </div>
             )
           })}
         </nav>
