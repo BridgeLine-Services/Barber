@@ -220,6 +220,7 @@ export const updateBarberProfileSchema = z.object({
   facebook: z.string().max(100).optional(),
   tiktok: z.string().max(100).optional(),
   website: z.string().url().max(2000).optional().or(z.literal('').optional()),
+  slug: z.string().min(2).max(100).regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens only').optional(),
 })
 
 // ─── Barber Schedule (weekly recurring) ─────────────────────────────────────

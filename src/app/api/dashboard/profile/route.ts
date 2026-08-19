@@ -109,24 +109,26 @@ export async function PATCH(req: NextRequest) {
     // updateData is the Zod-validated fields (no barberId in schema)
     const updateData = { ...parseResult.data }
 
-    // Auto-generate slug if name changed and slug is empty
-    if (updateData.name && !oldBarber?.slug) {
-      updateData.name = updateData.name // keep for slug generation below
-    }
-
     const updatePayload: any = { ...updateData }
 
-    // Auto-generate slug from name if name is being updated
-    if (updateData.name) {
+    // Handle slug: manual slug from barber takes priority, otherwise auto-generate from name
+    if (updateData.slug) {
+      // Barber manually set a slug — validate uniqueness (excluding self)
+      const slugConflict = await prisma.barber.findFirst({
+        where: { slug: updateData.slug, NOT: { id: barberId } },
+      })
+      if (slugConflict) {
+        return NextResponse.json({ error: 'This URL slug is already taken. Please choose another.' }, { status: 409 })
+      }
+    } else if (updateData.name && !oldBarber?.slug) {
+      // Auto-generate slug from name if no slug exists yet
       const slugBase = updateData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-      // Check for slug conflicts within the same business
       const existing = await prisma.barber.findFirst({
         where: { slug: slugBase, NOT: { id: barberId } },
       })
       if (!existing) {
         updatePayload.slug = slugBase
       } else {
-        // Append a number to make it unique
         let counter = 1
         let uniqueSlug = `${slugBase}-${counter}`
         while (await prisma.barber.findFirst({ where: { slug: uniqueSlug, NOT: { id: barberId } } })) {

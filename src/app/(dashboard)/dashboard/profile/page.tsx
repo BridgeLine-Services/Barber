@@ -219,6 +219,21 @@ export default function ProfilePage() {
               placeholder="Tell clients about your experience and style..."
             />
           </div>
+          <div>
+            <Label className="text-zinc-400">URL Slug</Label>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-zinc-500 whitespace-nowrap">/barbers/</span>
+              <Input
+                value={profile.slug || ''}
+                onChange={e => setProfile({ ...profile, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+                className="bg-zinc-800 border-zinc-700 flex-1"
+                placeholder="your-name"
+              />
+            </div>
+            <p className="text-xs text-zinc-500 mt-1">
+              Your public profile URL. Use lowercase letters, numbers, and hyphens only.
+            </p>
+          </div>
         </CardContent>
       </Card>
 
