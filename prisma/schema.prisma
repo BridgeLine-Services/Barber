@@ -22,6 +22,9 @@ model Business {
   logo         String?
   primaryColor String   @default("#1a1a1a") // dark / black theme default
   accentColor  String   @default("#d4af37") // gold accent default
+  secondaryColor String? @default("#2a2a2a") // secondary surface color
+  fontFamily  String?  // "poppins", "inter", "montserrat", etc.
+  themeMode   String   @default("dark") // "dark" or "light"
   phone        String?
   email        String?
   address      String?

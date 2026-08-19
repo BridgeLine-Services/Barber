@@ -107,14 +107,14 @@ export async function POST(req: NextRequest) {
       isAvailable: data.isAvailable,
       startTime: data.startTime || null,
       endTime: data.endTime || null,
-      breaks: data.breaks || null,
+      breaks: data.breaks || undefined,
       reason: data.reason || null,
     },
     update: {
       isAvailable: data.isAvailable,
       startTime: data.startTime || null,
       endTime: data.endTime || null,
-      breaks: data.breaks || null,
+      breaks: data.breaks || undefined,
       reason: data.reason || null,
     },
   })

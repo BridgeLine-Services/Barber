@@ -106,8 +106,8 @@ export async function PATCH(req: NextRequest) {
     // Capture old values for audit
     const oldBarber = await prisma.barber.findUnique({ where: { id: barberId } })
 
-    // Filter out barberId from the update data (it was only for owner routing)
-    const { barberId: _unused, ...updateData } = parseResult.data
+    // updateData is the Zod-validated fields (no barberId in schema)
+    const updateData = { ...parseResult.data }
 
     // Auto-generate slug if name changed and slug is empty
     if (updateData.name && !oldBarber?.slug) {

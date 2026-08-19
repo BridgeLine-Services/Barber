@@ -13,6 +13,19 @@ interface SEOProps {
     longitude?: number | null
     hours?: any
     logo?: string | null
+    slug?: string
+    aboutText?: string | null
+  } | null
+  seo?: {
+    metaTitle?: string | null
+    metaDescription?: string | null
+    ogTitle?: string | null
+    ogDescription?: string | null
+    ogImage?: string | null
+    keywords?: string | null
+    canonicalUrl?: string | null
+    robotsIndex?: boolean
+    structuredDataType?: string | null
   } | null
 }
 
@@ -26,12 +39,20 @@ const DAY_MAP: Record<string, string> = {
   sunday: 'Sunday',
 }
 
-export function SEO({ business }: SEOProps) {
+export function SEO({ business, seo }: SEOProps) {
   if (!business) return null
 
   const name = business.name || 'Barber Shop'
   const telephone = business.phone || undefined
   const email = business.email || undefined
+
+  // Use SEO overrides if available, otherwise derive from business
+  const metaTitle = seo?.metaTitle || name
+  const metaDescription = seo?.metaDescription || business.aboutText?.slice(0, 160) || undefined
+  const ogTitle = seo?.ogTitle || metaTitle
+  const ogDescription = seo?.ogDescription || metaDescription
+  const ogImage = seo?.ogImage || business.logo || undefined
+  const keywords = seo?.keywords || undefined
 
   const openingHoursSpec: any[] = []
 
@@ -49,11 +70,16 @@ export function SEO({ business }: SEOProps) {
     })
   }
 
+  // Enhanced structured data — uses SEO type override if provided
+  const structuredType = seo?.structuredDataType || ['LocalBusiness', 'BarberShop']
+
   const structuredData = {
     '@context': 'https://schema.org',
-    '@type': ['LocalBusiness', 'BarberShop'],
+    '@type': structuredType,
     name,
-    image: business.logo || undefined,
+    description: metaDescription,
+    image: ogImage,
+    url: seo?.canonicalUrl || undefined,
     telephone,
     email,
     priceRange: '$$',
@@ -83,10 +109,40 @@ export function SEO({ business }: SEOProps) {
       : { openingHours: 'Mo-Sa 09:00-19:00' }),
   }
 
+  // Meta tags as React elements (rendered in <head> by Next.js)
+  const metaTags = (
+    <>
+      {metaTitle && <title>{metaTitle}</title>}
+      {metaDescription && <meta name="description" content={metaDescription} />}
+      {keywords && <meta name="keywords" content={keywords} />}
+
+      {/* Open Graph */}
+      <meta property="og:title" content={ogTitle} />
+      <meta property="og:description" content={ogDescription} />
+      <meta property="og:type" content="website" />
+      {ogImage && <meta property="og:image" content={ogImage} />}
+
+      {/* Twitter Card */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={ogTitle} />
+      <meta name="twitter:description" content={ogDescription} />
+      {ogImage && <meta name="twitter:image" content={ogImage} />}
+
+      {/* Canonical */}
+      {seo?.canonicalUrl && <link rel="canonical" href={seo.canonicalUrl} />}
+
+      {/* Robots */}
+      {seo?.robotsIndex === false && <meta name="robots" content="noindex, nofollow" />}
+    </>
+  )
+
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-    />
+    <>
+      {metaTags}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+    </>
   )
 }
