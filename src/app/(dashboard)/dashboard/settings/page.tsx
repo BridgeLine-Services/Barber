@@ -30,7 +30,27 @@ const FONTS = [
   { label: 'Montserrat', value: 'montserrat' },
 ]
 
-type Tab = 'business' | 'branding' | 'social' | 'policies' | 'seo'
+const DAYS = [
+  { key: 'monday', label: 'Monday' },
+  { key: 'tuesday', label: 'Tuesday' },
+  { key: 'wednesday', label: 'Wednesday' },
+  { key: 'thursday', label: 'Thursday' },
+  { key: 'friday', label: 'Friday' },
+  { key: 'saturday', label: 'Saturday' },
+  { key: 'sunday', label: 'Sunday' },
+]
+
+const DEFAULT_HOURS: Record<string, { open: string; close: string; isOff: boolean }> = {
+  monday: { open: '09:00', close: '18:00', isOff: false },
+  tuesday: { open: '09:00', close: '18:00', isOff: false },
+  wednesday: { open: '09:00', close: '18:00', isOff: false },
+  thursday: { open: '09:00', close: '18:00', isOff: false },
+  friday: { open: '09:00', close: '18:00', isOff: false },
+  saturday: { open: '09:00', close: '16:00', isOff: false },
+  sunday: { open: '09:00', close: '16:00', isOff: true },
+}
+
+type Tab = 'business' | 'hours' | 'branding' | 'social' | 'policies' | 'seo'
 
 export default function SettingsPage() {
   const { toast } = useToast()
@@ -74,6 +94,28 @@ export default function SettingsPage() {
     }
   }
 
+  // Update hours for a specific day
+  const updateHours = (day: string, field: 'open' | 'close' | 'isOff', value: string | boolean) => {
+    const currentHours = business.hours || DEFAULT_HOURS
+    const updated = {
+      ...currentHours,
+      [day]: { ...currentHours[day], [field]: value },
+    }
+    setBusiness({ ...business, hours: updated })
+  }
+
+  // Copy weekday hours to all days
+  const copyWeekdays = () => {
+    const weekday = business.hours?.monday || DEFAULT_HOURS.monday
+    const updated: any = {}
+    DAYS.forEach(d => {
+      updated[d.key] = d.key === 'sunday' || d.key === 'saturday'
+        ? { ...weekday, isOff: true }
+        : { ...weekday }
+    })
+    setBusiness({ ...business, hours: updated })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -95,18 +137,21 @@ export default function SettingsPage() {
 
   const tabs: { id: Tab; label: string; icon: typeof Building2 }[] = [
     { id: 'business', label: 'Business Info', icon: Building2 },
+    { id: 'hours', label: 'Business Hours', icon: Clock },
     { id: 'branding', label: 'Branding & Theme', icon: Palette },
     { id: 'social', label: 'Social Links', icon: Globe },
     { id: 'policies', label: 'Policies', icon: FileText },
     { id: 'seo', label: 'SEO', icon: Search },
   ]
 
+  const hours = business.hours || DEFAULT_HOURS
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Business Settings</h1>
-          <p className="text-sm text-zinc-400 mt-1">Manage your shop information, branding, policies, and SEO.</p>
+          <p className="text-sm text-zinc-400 mt-1">Manage your shop information, branding, hours, policies, and SEO.</p>
         </div>
         <Button onClick={handleSave} disabled={saving} className="bg-amber-500 text-black hover:bg-amber-400">
           <Save className="mr-2 h-4 w-4" />
@@ -260,6 +305,69 @@ export default function SettingsPage() {
         </>
       )}
 
+      {/* ── Business Hours ── */}
+      {activeTab === 'hours' && (
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Clock className="h-5 w-5 text-amber-500" />
+                Weekly Business Hours
+              </CardTitle>
+              <Button
+                onClick={copyWeekdays}
+                variant="outline"
+                size="sm"
+                className="border-zinc-700 text-zinc-300 text-xs"
+              >
+                Copy Mon to All Weekdays
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-zinc-500">
+              Set your shop&apos;s operating hours. These are shown to customers and used for booking availability.
+            </p>
+            {DAYS.map(day => {
+              const dayHours = hours[day.key] || { open: '09:00', close: '18:00', isOff: false }
+              return (
+                <div key={day.key} className="flex items-center gap-4 py-2 border-b border-zinc-800 last:border-0">
+                  <div className="w-28 shrink-0">
+                    <Label className="text-zinc-200 font-medium">{day.label}</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={!dayHours.isOff}
+                      onCheckedChange={(v: boolean) => updateHours(day.key, 'isOff', !v)}
+                    />
+                    <span className="text-xs text-zinc-500 w-12">
+                      {dayHours.isOff ? 'Closed' : 'Open'}
+                    </span>
+                  </div>
+                  {!dayHours.isOff && (
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Input
+                        type="time"
+                        value={dayHours.open || '09:00'}
+                        onChange={e => updateHours(day.key, 'open', e.target.value)}
+                        className="bg-zinc-800 border-zinc-700 w-32 text-sm"
+                      />
+                      <span className="text-zinc-500">—</span>
+                      <Input
+                        type="time"
+                        value={dayHours.close || '18:00'}
+                        onChange={e => updateHours(day.key, 'close', e.target.value)}
+                        className="bg-zinc-800 border-zinc-700 w-32 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Branding & Theme ── */}
       {activeTab === 'branding' && (
         <Card className="bg-zinc-900 border-zinc-800">
@@ -280,6 +388,7 @@ export default function SettingsPage() {
                 placeholder="https://..."
               />
               {business.logo && (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={business.logo} alt="Logo preview" className="mt-2 h-16 rounded-lg border border-zinc-700 bg-zinc-800 p-2" />
               )}
             </div>
@@ -565,6 +674,7 @@ export default function SettingsPage() {
                   placeholder="https://... (recommended 1200x630px)"
                 />
                 {seo?.ogImage && (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={seo.ogImage} alt="OG preview" className="mt-2 max-w-sm rounded-lg border border-zinc-700" />
                 )}
               </div>
@@ -586,7 +696,7 @@ export default function SettingsPage() {
                 </div>
                 <Switch
                   checked={seo?.robotsIndex !== false}
-                  onCheckedChange={v => setSeo({ ...seo, robotsIndex: v })}
+                  onCheckedChange={(v: boolean) => setSeo({ ...seo, robotsIndex: v })}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -596,7 +706,7 @@ export default function SettingsPage() {
                 </div>
                 <Switch
                   checked={seo?.robotsFollow !== false}
-                  onCheckedChange={v => setSeo({ ...seo, robotsFollow: v })}
+                  onCheckedChange={(v: boolean) => setSeo({ ...seo, robotsFollow: v })}
                 />
               </div>
               <div>
