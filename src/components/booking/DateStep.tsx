@@ -162,6 +162,7 @@ export function DateStep({ selectedDate, onSelect, serviceId, barberId }: DateSt
                 type="button"
                 disabled={isDisabled}
                 onClick={() => onSelect(day)}
+                aria-label={`${format(day, 'EEEE, MMMM d')}${hasAvailability ? ', has available slots' : isFullyBooked ? ', fully booked' : ''}${isDisabled && isCurrentMonthDay ? ', unavailable' : ''}`}
                 className={cn(
                   'h-11 rounded-lg text-sm font-medium transition-all flex flex-col items-center justify-center relative focus:outline-none focus:ring-2 focus:ring-amber-500/50',
                   !isCurrentMonthDay && 'opacity-20 pointer-events-none',

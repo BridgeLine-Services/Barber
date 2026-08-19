@@ -49,9 +49,18 @@ export function ServiceStep({ services, selectedId, onSelect }: ServiceStepProps
           return (
             <Card
               key={service.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelect(service.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelect(service.id)
+                }
+              }}
+              aria-pressed={isSelected}
               className={cn(
-                'relative cursor-pointer transition-all duration-200 p-5 bg-zinc-900/80 border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-900',
+                'relative cursor-pointer transition-all duration-200 p-5 bg-zinc-900/80 border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-900 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none',
                 isSelected &&
                   'border-amber-500 bg-amber-500/5 ring-1 ring-amber-500/30 shadow-lg shadow-amber-500/10'
               )}

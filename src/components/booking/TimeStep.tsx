@@ -226,6 +226,7 @@ export function TimeStep({
                       key={slot.time}
                       type="button"
                       onClick={() => onSelect(slot.time, slot.barberId)}
+                      aria-label={`Book at ${slot.time}${slot.barberName ? ` with ${slot.barberName}` : ''}`}
                       className={cn(
                         'py-3 px-4 rounded-lg text-sm font-semibold transition-all flex flex-col items-center justify-center border focus:outline-none focus:ring-2 focus:ring-amber-500/50',
                         !isSelected &&

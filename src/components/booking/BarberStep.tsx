@@ -92,9 +92,13 @@ export function BarberStep({ barbers, selectedId, onSelect, onSelectFirstAvailab
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* First Available — earliest slot across all barbers */}
         <Card
+          role="button"
+          tabIndex={0}
           onClick={handleFirstAvailable}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleFirstAvailable() } }}
+          aria-pressed={selectedId === 'first-available'}
           className={cn(
-            'relative cursor-pointer transition-all duration-200 p-5 bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/15 md:col-span-2',
+            'relative cursor-pointer transition-all duration-200 p-5 bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/15 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none md:col-span-2',
             selectedId === 'first-available' &&
               'border-amber-500 bg-amber-500/15 ring-1 ring-amber-500/50 shadow-lg shadow-amber-500/20'
           )}
@@ -142,9 +146,13 @@ export function BarberStep({ barbers, selectedId, onSelect, onSelectFirstAvailab
 
         {/* Any Available Barber option */}
         <Card
+          role="button"
+          tabIndex={0}
           onClick={() => onSelect('any')}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect('any') } }}
+          aria-pressed={selectedId === 'any'}
           className={cn(
-            'relative cursor-pointer transition-all duration-200 p-5 bg-gradient-to-r from-amber-950/30 via-zinc-900 to-zinc-900 border-amber-500/30 hover:border-amber-500 hover:bg-zinc-900 md:col-span-2',
+            'relative cursor-pointer transition-all duration-200 p-5 bg-gradient-to-r from-amber-950/30 via-zinc-900 to-zinc-900 border-amber-500/30 hover:border-amber-500 hover:bg-zinc-900 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none md:col-span-2',
             selectedId === 'any' &&
               'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/40 shadow-lg shadow-amber-500/10'
           )}
@@ -180,9 +188,13 @@ export function BarberStep({ barbers, selectedId, onSelect, onSelectFirstAvailab
           return (
             <Card
               key={barber.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelect(barber.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(barber.id) } }}
+              aria-pressed={isSelected}
               className={cn(
-                'relative cursor-pointer transition-all duration-200 p-5 bg-zinc-900/80 border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-900 flex items-center gap-4',
+                'relative cursor-pointer transition-all duration-200 p-5 bg-zinc-900/80 border-zinc-800 hover:border-amber-500/50 hover:bg-zinc-900 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none flex items-center gap-4',
                 isSelected &&
                   'border-amber-500 bg-amber-500/5 ring-1 ring-amber-500/30 shadow-lg shadow-amber-500/10'
               )}

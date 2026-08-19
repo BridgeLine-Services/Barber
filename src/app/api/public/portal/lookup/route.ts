@@ -1,10 +1,21 @@
+export const dynamic = 'force-dynamic'
+
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { NextResponse } from 'next/server'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 // POST /api/public/portal/lookup — customer looks up their appointments by email or phone
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
+  const rateLimitResult = checkRateLimit(req, 'portal-lookup', RATE_LIMITS.PORTAL_LOOKUP)
+  if (rateLimitResult) {
+    return NextResponse.json(
+      { error: rateLimitResult.body.error },
+      { status: rateLimitResult.status }
+    )
+  }
+
   try {
-    const body = await request.json()
+    const body = await req.json()
     const { email, phone, businessId } = body
 
     if (!email && !phone) {
