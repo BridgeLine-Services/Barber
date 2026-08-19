@@ -57,13 +57,13 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // In production, send email with link: /reset-password?token=XXX
-    // For now, return the token (demo mode)
+    // In production, send email with reset link
+    // For demo/dev environments without email, return the reset URL
+    const isDev = process.env.NODE_ENV === 'development'
     return NextResponse.json({
       success: true,
-      message: 'Reset link generated.',
-      // Demo only — in production this goes via email
-      resetUrl: `/reset-password?token=${token}`,
+      message: 'If an account exists, a reset link has been sent.',
+      ...(isDev && { resetUrl: `/reset-password?token=${token}` }),
     })
   } catch (error: any) {
     if (error.code === 'P1001' || error.message?.includes('connect')) {

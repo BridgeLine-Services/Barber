@@ -3,8 +3,8 @@ export const dynamic = 'force-dynamic'
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { resolveBusiness } from '@/lib/tenant'
 import { formatFullDate } from '@/lib/utils'
-import { demoReviews } from '@/lib/demo-data'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -19,31 +19,54 @@ export const revalidate = 60
 
 export default async function ReviewsPage() {
   let reviews: any[] = []
-  let isDemo = false
+  let business: any = null
 
   try {
-    const business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
+    business = await resolveBusiness()
     if (business) {
       reviews = await prisma.review.findMany({
         where: { businessId: business.id },
         orderBy: { createdAt: 'desc' },
       })
     }
-    if (reviews.length === 0) {
-      reviews = demoReviews
-      isDemo = true
-    }
   } catch (error) {
     console.error('Failed to load reviews:', error)
-    reviews = demoReviews
-    isDemo = true
   }
 
   const totalReviews = reviews.length
   const avgRating =
     totalReviews > 0
       ? (reviews.reduce((acc, r) => acc + r.rating, 0) / totalReviews).toFixed(1)
-      : '5.0'
+      : '—'
+
+  if (!business || totalReviews === 0) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+        <div className="text-center max-w-3xl mx-auto space-y-4">
+          <Badge variant="outline" className="border-amber-500/40 text-amber-400 px-3 py-1">
+            Client Feedback
+          </Badge>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-poppins">
+            Real Reviews from Real Clients
+          </h1>
+          <p className="text-zinc-400 text-base leading-relaxed">
+            We take pride in our precision cuts and unmatched customer satisfaction.
+          </p>
+        </div>
+        <div className="mt-12 text-center">
+          <p className="text-zinc-500 text-sm">
+            {business ? 'No reviews yet. Be the first to leave one!' : 'Reviews will appear here once the shop is configured.'}
+          </p>
+          <Button asChild size="lg" className="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold mt-6">
+            <Link href="/book">
+              <Calendar className="mr-2 h-4 w-4" />
+              Book Your Cut
+            </Link>
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 space-y-12">
@@ -58,9 +81,6 @@ export default async function ReviewsPage() {
         <p className="text-zinc-400 text-base leading-relaxed">
           We take pride in our precision cuts and unmatched customer satisfaction.
         </p>
-        {isDemo && (
-          <p className="text-xs text-amber-400/60 italic">Demo reviews shown — connect a database to display real client feedback.</p>
-        )}
       </div>
 
       {/* Rating Summary Banner */}
@@ -103,7 +123,7 @@ export default async function ReviewsPage() {
 
       {/* Reviews Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {reviews.map((review) => (
+        {reviews.map((review: any) => (
           <Card key={review.id} className="bg-zinc-900/90 border-zinc-800 p-6 flex flex-col justify-between space-y-4">
             <div className="space-y-3">
               <div className="flex items-center justify-between">

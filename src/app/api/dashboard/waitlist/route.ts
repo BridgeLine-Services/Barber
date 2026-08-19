@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ entries })
   } catch (error: any) {
     if (error.message?.includes('No business found') || error.code === 'P1001') {
-      return NextResponse.json({ entries: [], demo: true })
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
     return NextResponse.json({ error: 'Failed to fetch waitlist' }, { status: 500 })
   }

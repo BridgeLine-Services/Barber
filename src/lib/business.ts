@@ -1,15 +1,20 @@
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { resolveBusinessId as resolveTenantBusinessId, resolveBusiness } from '@/lib/tenant'
 
 // ============================================================================
 // Multi-tenant resolution helper
-// In production, resolve by domain or slug. For demo, resolve by first business
-// or by the authenticated user's businessId.
+// Production: resolve by domain/slug via tenant.ts
+// Authenticated routes: resolve from session.businessId
 // ============================================================================
 
+/**
+ * @deprecated Use resolveBusiness from @/lib/tenant instead.
+ * Kept for backward compatibility with routes that haven't been migrated yet.
+ */
 export async function getCurrentBusiness() {
-  // Try authenticated user first
+  // Try authenticated user first (for dashboard routes)
   const session = await getServerSession(authOptions)
   if (session?.user) {
     const businessId = (session.user as any).businessId
@@ -19,27 +24,43 @@ export async function getCurrentBusiness() {
     }
   }
 
-  // Fallback: first business (demo mode)
-  return prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
-}
-
-export async function getCurrentBusinessId(): Promise<string> {
-  const business = await getCurrentBusiness()
-  if (!business) throw new Error('No business found. Run the seed script first.')
-  return business.id
+  // Public routes: use production tenant resolution
+  return resolveBusiness()
 }
 
 /**
- * For API routes: resolve businessId from session or fallback to first business.
+ * @deprecated Use resolveBusinessId from @/lib/tenant instead.
  */
-export async function resolveBusinessId(req?: Request): Promise<string> {
+export async function getCurrentBusinessId(): Promise<string> {
   const session = await getServerSession(authOptions)
   if (session?.user) {
     const businessId = (session.user as any).businessId
     if (businessId) return businessId
   }
-  // Demo fallback
-  const business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
-  if (!business) throw new Error('No business found')
-  return business.id
+
+  // Production tenant resolution — throws if no business configured
+  return resolveTenantBusinessId()
+}
+
+/**
+ * For API routes: resolve businessId from session (dashboard) or
+ * tenant resolution (public routes).
+ * @deprecated Use resolveBusinessId from @/lib/tenant for public routes.
+ */
+export async function resolveBusinessIdFromRequest(req?: Request): Promise<string> {
+  const session = await getServerSession(authOptions)
+  if (session?.user) {
+    const businessId = (session.user as any).businessId
+    if (businessId) return businessId
+  }
+
+  // Production tenant resolution
+  return resolveTenantBusinessId()
+}
+
+/**
+ * Backward-compatible export name matching original function signature.
+ */
+export async function resolveBusinessId(req?: Request): Promise<string> {
+  return resolveBusinessIdFromRequest(req)
 }

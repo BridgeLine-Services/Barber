@@ -45,7 +45,7 @@ export async function GET() {
   } catch (error: any) {
     // Demo mode
     if (error.message?.includes('No business found') || error.code === 'P1001') {
-      return NextResponse.json({ closures: [], demo: true })
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
     return NextResponse.json({ error: 'Failed to fetch closures' }, { status: 500 })
   }

@@ -2,7 +2,7 @@
   "name": "barber-booking-system",
   "version": "1.0.0",
   "private": true,
-  "description": "Multi-tenant barber shop website with booking engine and dashboard. No online payments — pay in person.",
+  "description": "Multi-tenant barber shop website with booking engine and dashboard. No online payments \u2014 pay in person.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -13,7 +13,11 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test:tenant": "npx tsx tests/tenant-isolation.test.ts",
+    "test:booking": "npx tsx tests/booking.test.ts",
+    "test:permissions": "npx tsx tests/role-permissions.test.ts",
+    "test:all": "npm run test:tenant && npm run test:booking && npm run test:permissions"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.0",

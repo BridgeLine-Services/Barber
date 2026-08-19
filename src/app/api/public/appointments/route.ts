@@ -195,14 +195,10 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Booking error:', error)
 
-    // Check if it's a demo mode error (no database)
-    if (error?.message?.includes('No business found')) {
+    // Database not available — reject booking
+    if (error?.message?.includes('No business found') || error?.code === 'P1001') {
       return NextResponse.json(
-        {
-          success: false,
-          demo: true,
-          error: 'Demo mode — booking is for preview only. Connect a database to enable real bookings.',
-        },
+        { success: false, error: 'Booking service is currently unavailable. Please try again later.' },
         { status: 503 }
       )
     }

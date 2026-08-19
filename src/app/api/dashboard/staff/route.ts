@@ -49,7 +49,7 @@ export async function GET() {
     return NextResponse.json({ staff })
   } catch (error: any) {
     if (error.code === 'P1001' || error.message?.includes('No business found')) {
-      return NextResponse.json({ staff: [], demo: true })
+      return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
     return NextResponse.json({ error: 'Failed to fetch staff' }, { status: 500 })
   }

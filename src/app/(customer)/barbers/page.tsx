@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { resolveBusiness } from '@/lib/tenant'
 import { getInitials } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
@@ -19,7 +20,7 @@ export const revalidate = 60
 
 export default async function BarbersPage() {
   // Production: resolve business from DB — no demo fallback
-  const business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
+  const business = await resolveBusiness()
 
   if (!business) {
     return (

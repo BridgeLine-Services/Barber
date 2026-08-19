@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { resolveBusiness } from '@/lib/tenant'
 import { getInitials } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -22,7 +23,7 @@ export default async function AboutPage() {
   let barbers: any[] = []
 
   try {
-    business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
+    business = await resolveBusiness()
     if (business) {
       barbers = await prisma.barber.findMany({
         where: { businessId: business.id, isActive: true },

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { Metadata } from 'next'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
+import { resolveBusiness } from '@/lib/tenant'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,7 @@ export default async function BookingPolicyPage() {
   let business = null
 
   try {
-    business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
+    business = await resolveBusiness()
   } catch (error) {
     console.error('Failed to load business policies:', error)
   }

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
+import { resolveBusiness } from '@/lib/tenant'
 import { ContactForm } from '@/components/customer/ContactForm'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -18,7 +19,7 @@ export default async function ContactPage() {
   let business = null
 
   try {
-    business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
+    business = await resolveBusiness()
   } catch (error) {
     console.error('Failed to load contact page data:', error)
   }

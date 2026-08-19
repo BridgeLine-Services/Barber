@@ -121,7 +121,6 @@ export async function GET(req: NextRequest) {
     if (error.code === 'P1001' || error.message?.includes('connect')) {
       return NextResponse.json({
         success: false,
-        demo: true,
         message: 'No database connected. Reminders require a database to query appointments.',
       }, { status: 503 })
     }
