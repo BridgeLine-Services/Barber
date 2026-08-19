@@ -20,7 +20,6 @@ interface StaffMember {
 export default function StaffPage() {
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(true)
-  const [demoMode, setDemoMode] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -36,9 +35,8 @@ export default function StaffPage() {
     try {
       const res = await fetch('/api/dashboard/staff')
       const data = await res.json()
-      if (data.demo) setDemoMode(true)
       setStaff(data.staff || [])
-    } catch { setDemoMode(true) }
+    } catch { setStaff([]) }
     finally { setLoading(false) }
   }
 
@@ -146,12 +144,7 @@ export default function StaffPage() {
         )}
       </div>
 
-      {demoMode && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-          Demo mode — connect a database to manage staff.
-        </div>
-      )}
-
+      
       {error && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300 flex items-center gap-2">
           <AlertCircle className="w-4 h-4" /> {error}

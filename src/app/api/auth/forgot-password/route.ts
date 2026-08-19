@@ -12,8 +12,8 @@ const forgotSchema = z.object({
 
 /**
  * POST /api/auth/forgot-password
- * Generate a password reset token and return it (demo mode — no email server).
- * In production, this would send an email with a reset link.
+ * Generate a password reset token. In development, returns the reset URL.
+ * In production, sends an email with the reset link via SMTP.
  */
 export async function POST(req: NextRequest) {
   // Stricter rate limit for password reset
@@ -57,8 +57,30 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // In production, send email with reset link
-    // For demo/dev environments without email, return the reset URL
+    // Send reset email if SMTP is configured
+    if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+      try {
+        const nodemailer = await import('nodemailer')
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST,
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: parseInt(process.env.SMTP_PORT || '587') === 465,
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        })
+        const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || 'noreply@barbershop.com',
+          to: user.email,
+          subject: 'Password Reset Request',
+          text: `Reset your password: ${baseUrl}/reset-password?token=${token}\n\nThis link expires in 1 hour.`,
+          html: `<p>Reset your password: <a href="${baseUrl}/reset-password?token=${token}">Click here</a></p><p>This link expires in 1 hour.</p>`,
+        })
+      } catch (emailErr) {
+        console.error('Failed to send reset email:', emailErr)
+        // Don't reveal failure to user — security best practice
+      }
+    }
+
     const isDev = process.env.NODE_ENV === 'development'
     return NextResponse.json({
       success: true,

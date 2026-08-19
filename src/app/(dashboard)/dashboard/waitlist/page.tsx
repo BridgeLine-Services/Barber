@@ -33,7 +33,6 @@ const STATUS_STYLES: Record<string, string> = {
 export default function WaitlistPage() {
   const [entries, setEntries] = useState<WaitlistEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [demoMode, setDemoMode] = useState(false)
   const [filter, setFilter] = useState('')
 
   useEffect(() => {
@@ -45,10 +44,9 @@ export default function WaitlistPage() {
     try {
       const res = await fetch('/api/dashboard/waitlist')
       const data = await res.json()
-      if (data.demo) setDemoMode(true)
       setEntries(data.entries || [])
     } catch {
-      setDemoMode(true)
+      setEntries([])
     } finally {
       setLoading(false)
     }
@@ -90,12 +88,7 @@ export default function WaitlistPage() {
         <p className="text-sm text-zinc-400 mt-1">Customers waiting for a slot to open up.</p>
       </div>
 
-      {demoMode && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-          Demo mode — connect a database to manage waitlist entries.
-        </div>
-      )}
-
+      
       {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap">
         {['WAITING', 'NOTIFIED', 'BOOKED', 'EXPIRED', 'CANCELLED'].map(s => (

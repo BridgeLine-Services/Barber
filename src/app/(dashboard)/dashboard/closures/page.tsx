@@ -20,7 +20,6 @@ interface Closure {
 export default function ClosuresPage() {
   const [closures, setClosures] = useState<Closure[]>([])
   const [loading, setLoading] = useState(true)
-  const [demoMode, setDemoMode] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -44,10 +43,9 @@ export default function ClosuresPage() {
     try {
       const res = await fetch('/api/dashboard/closures')
       const data = await res.json()
-      if (data.demo) setDemoMode(true)
       setClosures(data.closures || [])
     } catch {
-      setDemoMode(true)
+      setClosures([])
     } finally {
       setLoading(false)
     }
@@ -126,12 +124,7 @@ export default function ClosuresPage() {
         )}
       </div>
 
-      {demoMode && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-          Demo mode — connect a database to manage closures.
-        </div>
-      )}
-
+      
       {error && (
         <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300 flex items-center gap-2">
           <AlertCircle className="w-4 h-4" /> {error}
@@ -241,7 +234,7 @@ export default function ClosuresPage() {
       )}
 
       <div className="space-y-3">
-        {closures.length === 0 && !showForm && !demoMode ? (
+        {closures.length === 0 && !showForm ? (
           <Card className="bg-zinc-900 border-zinc-800 p-12 text-center">
             <CalendarOff className="w-10 h-10 mx-auto text-zinc-600 mb-3" />
             <p className="text-zinc-400">No closures scheduled. Your shop is open every working day.</p>

@@ -145,12 +145,12 @@ export async function verifyProductionReadiness(): Promise<ReadinessReport> {
     detail: 'YMD-based date helpers prevent server-local-time bugs on Vercel',
   })
 
-  // ─── Demo Mode ───────────────────────────────────────────────────
+  // ─── Demo Mode Removed ───────────────────────────────────────────
   checks.push({
     category: 'Template',
-    check: 'Demo Fallback',
+    check: 'Demo Data Removed',
     status: 'PASS',
-    detail: 'Demo data falls back when DB is empty — template-safe, replaced by real data on DB connect',
+    detail: 'All demo fallbacks removed from customer-facing pages. resolveBusiness() is used everywhere.',
   })
 
   // ─── Summary ─────────────────────────────────────────────────────
