@@ -17,15 +17,16 @@ interface SEOProps {
     aboutText?: string | null
   } | null
   seo?: {
-    metaTitle?: string | null
-    metaDescription?: string | null
+    siteTitle?: string | null
+    siteDescription?: string | null
     ogTitle?: string | null
     ogDescription?: string | null
     ogImage?: string | null
     keywords?: string | null
     canonicalUrl?: string | null
-    robotsIndex?: boolean
-    structuredDataType?: string | null
+    robotsIndex?: boolean | null
+    robotsFollow?: boolean | null
+    googleVerification?: string | null
   } | null
 }
 
@@ -47,8 +48,8 @@ export function SEO({ business, seo }: SEOProps) {
   const email = business.email || undefined
 
   // Use SEO overrides if available, otherwise derive from business
-  const metaTitle = seo?.metaTitle || name
-  const metaDescription = seo?.metaDescription || business.aboutText?.slice(0, 160) || undefined
+  const metaTitle = seo?.siteTitle || name
+  const metaDescription = seo?.siteDescription || business.aboutText?.slice(0, 160) || undefined
   const ogTitle = seo?.ogTitle || metaTitle
   const ogDescription = seo?.ogDescription || metaDescription
   const ogImage = seo?.ogImage || business.logo || undefined
@@ -70,12 +71,9 @@ export function SEO({ business, seo }: SEOProps) {
     })
   }
 
-  // Enhanced structured data — uses SEO type override if provided
-  const structuredType = seo?.structuredDataType || ['LocalBusiness', 'BarberShop']
-
   const structuredData = {
     '@context': 'https://schema.org',
-    '@type': structuredType,
+    '@type': ['LocalBusiness', 'BarberShop'],
     name,
     description: metaDescription,
     image: ogImage,
@@ -109,12 +107,20 @@ export function SEO({ business, seo }: SEOProps) {
       : { openingHours: 'Mo-Sa 09:00-19:00' }),
   }
 
-  // Meta tags as React elements (rendered in <head> by Next.js)
+  // Build robots content
+  const robotsParts: string[] = []
+  if (seo?.robotsIndex === false) robotsParts.push('noindex')
+  else robotsParts.push('index')
+  if (seo?.robotsFollow === false) robotsParts.push('nofollow')
+  else robotsParts.push('follow')
+  const robotsContent = robotsParts.join(', ')
+
   const metaTags = (
     <>
       {metaTitle && <title>{metaTitle}</title>}
       {metaDescription && <meta name="description" content={metaDescription} />}
       {keywords && <meta name="keywords" content={keywords} />}
+      <meta name="robots" content={robotsContent} />
 
       {/* Open Graph */}
       <meta property="og:title" content={ogTitle} />
@@ -131,8 +137,10 @@ export function SEO({ business, seo }: SEOProps) {
       {/* Canonical */}
       {seo?.canonicalUrl && <link rel="canonical" href={seo.canonicalUrl} />}
 
-      {/* Robots */}
-      {seo?.robotsIndex === false && <meta name="robots" content="noindex, nofollow" />}
+      {/* Google Search Console verification */}
+      {seo?.googleVerification && (
+        <meta name="google-site-verification" content={seo.googleVerification} />
+      )}
     </>
   )
 

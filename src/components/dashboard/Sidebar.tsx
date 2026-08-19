@@ -31,6 +31,7 @@ import {
   CalendarX,
   UserX,
   Star,
+  Image as ImageIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -55,6 +56,7 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
     { name: 'Customers', href: '/dashboard/customers', icon: Users },
     { name: 'Services', href: '/dashboard/services', icon: Scissors },
     { name: 'Schedule', href: '/dashboard/schedule', icon: Clock },
+    { name: 'My Profile', href: '/dashboard/profile', icon: UserCog },
     { name: 'Closures', href: '/dashboard/closures', icon: CalendarOff },
     { name: 'Recurring', href: '/dashboard/recurring', icon: Repeat },
     ...(isOwner
@@ -66,6 +68,7 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
           { name: 'Cancellations', href: '/dashboard/cancellations', icon: CalendarX },
           { name: 'No-Shows', href: '/dashboard/no-shows', icon: UserX },
           { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
+          { name: 'Media Gallery', href: '/dashboard/media', icon: ImageIcon },
           { name: 'Barbers', href: '/dashboard/barbers', icon: UserCircle },
           { name: 'Settings', href: '/dashboard/settings', icon: Settings },
           { name: 'Audit Log', href: '/dashboard/audit-log', icon: ScrollText },

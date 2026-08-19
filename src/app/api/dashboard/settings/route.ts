@@ -9,7 +9,7 @@ import { getClientIP } from '@/lib/rate-limit'
 
 /**
  * GET /api/dashboard/settings
- * Returns the business settings (OWNER only)
+ * Returns the business settings + SEO (OWNER only)
  */
 export async function GET(req: NextRequest) {
   const auth = await requireOwner()
@@ -34,7 +34,12 @@ export async function GET(req: NextRequest) {
 
 /**
  * PATCH /api/dashboard/settings
- * Update business settings (OWNER only)
+ * Update business settings + SEO (OWNER only)
+ *
+ * Body: {
+ *   ...businessFields,
+ *   seo?: { siteTitle, siteDescription, keywords, ogTitle, ogDescription, ogImage, canonicalUrl, robotsIndex, robotsFollow, googleVerification }
+ * }
  */
 export async function PATCH(req: NextRequest) {
   const auth = await requireOwner()
@@ -44,7 +49,12 @@ export async function PATCH(req: NextRequest) {
     const businessId = await getBusinessIdForUser(auth.user)
 
     const body = await req.json()
-    const parseResult = updateBusinessSchema.safeParse(body)
+
+    // Extract SEO fields — they go to a separate table
+    const { seo, ...businessFields } = body
+
+    // Validate business fields
+    const parseResult = updateBusinessSchema.safeParse(businessFields)
     if (!parseResult.success) {
       return NextResponse.json(
         { error: 'Invalid settings data', details: parseResult.error.flatten().fieldErrors },
@@ -54,25 +64,48 @@ export async function PATCH(req: NextRequest) {
 
     // Capture old values for audit
     const oldBusiness = await prisma.business.findUnique({ where: { id: businessId } })
+    const oldSeo = await prisma.businessSEO.findUnique({ where: { businessId } })
 
+    // Update business
     const updated = await prisma.business.update({
       where: { id: businessId },
       data: parseResult.data,
     })
 
+    // Update SEO if provided
+    let updatedSeo = null
+    if (seo && typeof seo === 'object') {
+      const seoData: any = {}
+      const allowedSeoFields = [
+        'siteTitle', 'siteDescription', 'keywords', 'ogTitle', 'ogDescription',
+        'ogImage', 'canonicalUrl', 'robotsIndex', 'robotsFollow', 'googleVerification'
+      ]
+      for (const field of allowedSeoFields) {
+        if (field in seo) seoData[field] = seo[field]
+      }
+
+      if (Object.keys(seoData).length > 0) {
+        updatedSeo = await prisma.businessSEO.upsert({
+          where: { businessId },
+          create: { businessId, ...seoData },
+          update: seoData,
+        })
+      }
+    }
+
     await logAudit({
       userId: auth.user.id,
       businessId,
-      action: 'BRANDING_UPDATED',
+      action: 'SETTINGS_UPDATED',
       entityType: 'Business',
       entityId: businessId,
-      oldValues: oldBusiness,
-      newValues: parseResult.data,
+      oldValues: { business: oldBusiness, seo: oldSeo },
+      newValues: { business: parseResult.data, seo: seo || null },
       ipAddress: getClientIP(req),
       userAgent: req.headers.get('user-agent') || undefined,
     })
 
-    return NextResponse.json({ business: updated })
+    return NextResponse.json({ business: updated, seo: updatedSeo })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 })
   }
