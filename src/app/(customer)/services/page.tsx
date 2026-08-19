@@ -50,9 +50,6 @@ export default async function ServicesPage() {
         <p className="text-zinc-400 text-base leading-relaxed">
           From classic precision haircuts to luxury beard sculpting and hot towel shaves. All services include consultation and style finishing.
         </p>
-        {false && (
-          <p className="text-xs text-amber-400/60 italic">Demo services shown — connect a database to display your own pricing.</p>
-        )}
       </div>
 
       {/* Services Grid */}

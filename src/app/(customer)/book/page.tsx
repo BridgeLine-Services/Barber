@@ -58,7 +58,6 @@ function BookingFlow() {
   const [bookingError, setBookingError] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
-  const [demoMode, setDemoMode] = useState(false)
   // Track the resolved barber name for the review step when 'any' or 'first-available' resolves to a specific barber
   const [resolvedBarberName, setResolvedBarberName] = useState<string>('')
 
@@ -117,7 +116,6 @@ function BookingFlow() {
       // APIs return { services: [...] } and { barbers: [...] }
       setServices(s.services || [])
       setBarbers(b.barbers || [])
-      setDemoMode(s.demo || b.demo || false)
       setLoading(false)
     }).catch(() => {
       setLoadError(true)
@@ -216,8 +214,6 @@ function BookingFlow() {
         // Clear booking progress from localStorage after successful booking
         try { localStorage.removeItem('barber-booking-progress') } catch {}
         router.push(`/appointment/${data.confirmationNumber}?token=${data.customerAccessToken}`)
-      } else if (data.demo) {
-        setBookingError(data.error || 'Demo mode — connect a database to enable real bookings.')
       } else {
         setBookingError(data.error || 'Booking failed. Please try again.')
       }
@@ -267,11 +263,6 @@ function BookingFlow() {
         <div className="text-center mb-8">
           <h1 className="font-display text-3xl font-bold sm:text-4xl">Book an Appointment</h1>
           <p className="mt-2 text-gray-400">Pay in person — no online payment required.</p>
-          {demoMode && (
-            <p className="mt-2 text-xs text-amber-400/60 italic">
-              Demo mode — booking is for preview only. Connect a database to enable real bookings.
-            </p>
-          )}
         </div>
 
         {/* Progress */}

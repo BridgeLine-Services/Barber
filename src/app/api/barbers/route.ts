@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { resolveBusiness } from '@/lib/tenant'
 
 /**
  * GET /api/barbers
@@ -9,9 +10,7 @@ import { prisma } from '@/lib/prisma'
  * No demo fallback in production — if no business exists, returns empty.
  */
 export async function GET() {
-  const business = await prisma.business.findFirst({
-    orderBy: { createdAt: 'asc' },
-  })
+  const business = await resolveBusiness().catch(() => null)
 
   if (!business) {
     return NextResponse.json({ barbers: [], error: 'No business configured' }, { status: 404 })

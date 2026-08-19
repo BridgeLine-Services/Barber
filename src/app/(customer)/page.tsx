@@ -52,12 +52,12 @@ export default async function HomePage() {
     }),
   ])
 
-  const shopName = business?.name || 'The Barber Co.'
-  const shopPhone = business?.phone || '(555) 555-0199'
+  const shopName = business?.name || 'Barber Shop'
+  const shopPhone = business?.phone || ''
   const shopPhoneDigits = shopPhone.replace(/\D/g, '')
   const fullAddress = [business?.address, business?.city, business?.state, business?.zipCode]
     .filter(Boolean)
-    .join(', ') || '456 Style Avenue, Your City, ST 00000'
+    .join(', ') || ''
 
   const hoursList = business?.hours && typeof business.hours === 'object'
     ? Object.entries(business.hours).map(([day, val]: [string, any]) => ({
