@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createBarberSchema } from '@/lib/validation'
 import bcrypt from 'bcryptjs'
 
 export async function GET() {
@@ -29,7 +30,18 @@ export async function POST(req: NextRequest) {
   const businessId = (session.user as any)?.businessId
 
   const body = await req.json()
-  const { name, specialty, bio, photo, email, password, serviceIds } = body
+
+  // Validate barber fields (password/email are separate, not in schema)
+  const parseResult = createBarberSchema.safeParse(body)
+  if (!parseResult.success) {
+    return NextResponse.json(
+      { error: 'Invalid barber data', details: parseResult.error.flatten().fieldErrors },
+      { status: 400 }
+    )
+  }
+
+  const { name, specialty, bio, photo, isActive, order, serviceIds } = parseResult.data
+  const { email, password } = body
 
   // Create barber
   const barber = await prisma.barber.create({
@@ -39,6 +51,8 @@ export async function POST(req: NextRequest) {
       specialty: specialty || null,
       bio: bio || null,
       photo: photo || null,
+      isActive: isActive ?? true,
+      order: order ?? 0,
       services: serviceIds?.length
         ? { create: serviceIds.map((id: string) => ({ serviceId: id })) }
         : undefined,

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createBlockedTimeSchema } from '@/lib/validation'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -32,7 +33,15 @@ export async function POST(req: NextRequest) {
   const businessId = (session.user as any)?.businessId
 
   const body = await req.json()
-  const { barberId, startTime, endTime, reason } = body
+  const parseResult = createBlockedTimeSchema.safeParse(body)
+  if (!parseResult.success) {
+    return NextResponse.json(
+      { error: 'Invalid blocked time data', details: parseResult.error.flatten().fieldErrors },
+      { status: 400 }
+    )
+  }
+
+  const { barberId, startTime, endTime, reason } = parseResult.data
 
   const blockedTime = await prisma.blockedTime.create({
     data: {

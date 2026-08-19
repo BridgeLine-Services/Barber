@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { updateServiceSchema } from '@/lib/validation'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -24,7 +25,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if ((session.user as any)?.role !== 'OWNER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const businessId = (session.user as any)?.businessId
   const body = await req.json()
-  const { name, description, duration, price, isActive, order, barberIds } = body
+
+  const parseResult = updateServiceSchema.safeParse(body)
+  if (!parseResult.success) {
+    return NextResponse.json(
+      { error: 'Invalid service data', details: parseResult.error.flatten().fieldErrors },
+      { status: 400 }
+    )
+  }
+
+  const { name, description, duration, price, isActive, order, barberIds } = parseResult.data
 
   // Verify ownership
   const existing = await prisma.service.findFirst({ where: { id: params.id, businessId } })
@@ -45,8 +55,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data: {
       ...(name !== undefined && { name }),
       ...(description !== undefined && { description }),
-      ...(duration !== undefined && { duration: parseInt(duration) }),
-      ...(price !== undefined && { price: parseFloat(price) }),
+      ...(duration !== undefined && { duration }),
+      ...(price !== undefined && { price }),
       ...(isActive !== undefined && { isActive }),
       ...(order !== undefined && { order }),
     },

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createServiceSchema } from '@/lib/validation'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -25,15 +26,24 @@ export async function POST(req: NextRequest) {
 
   const businessId = (session.user as any)?.businessId
   const body = await req.json()
-  const { name, description, duration, price, isActive, barberIds, order } = body
+
+  const parseResult = createServiceSchema.safeParse(body)
+  if (!parseResult.success) {
+    return NextResponse.json(
+      { error: 'Invalid service data', details: parseResult.error.flatten().fieldErrors },
+      { status: 400 }
+    )
+  }
+
+  const { name, description, duration, price, isActive, barberIds, order } = parseResult.data
 
   const service = await prisma.service.create({
     data: {
       businessId,
       name,
       description: description || null,
-      duration: parseInt(duration),
-      price: parseFloat(price),
+      duration,
+      price,
       isActive: isActive ?? true,
       order: order ?? 0,
       barbers: barberIds?.length

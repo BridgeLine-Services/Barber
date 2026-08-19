@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { updateBarberSchema } from '@/lib/validation'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -31,7 +32,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const body = await req.json()
-  const { name, specialty, bio, photo, isActive, order, serviceIds } = body
+  const parseResult = updateBarberSchema.safeParse(body)
+  if (!parseResult.success) {
+    return NextResponse.json(
+      { error: 'Invalid barber data', details: parseResult.error.flatten().fieldErrors },
+      { status: 400 }
+    )
+  }
+
+  const { name, specialty, bio, photo, isActive, order, serviceIds } = parseResult.data
 
   // Update services if provided
   if (serviceIds !== undefined) {
