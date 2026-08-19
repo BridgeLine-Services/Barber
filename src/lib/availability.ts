@@ -71,8 +71,8 @@ export async function getAvailableSlots(params: {
   // Determine day of week in the business timezone
   const dayOfWeek = dayOfWeekFromYMD(timezone, year, month, day)
 
-  // Parallel: service info, barber schedule, appointments, blocked times
-  const [service, schedule, appointments, blockedTimes, closures] = await Promise.all([
+  // Parallel: service info, barber schedule, appointments, blocked times, closures, overrides
+  const [service, schedule, appointments, blockedTimes, closures, override] = await Promise.all([
     prisma.service.findFirst({ where: { id: serviceId, businessId, isActive: true } }),
     prisma.schedule.findUnique({ where: { barberId_dayOfWeek: { barberId, dayOfWeek } } }),
     prisma.appointment.findMany({
@@ -108,10 +108,41 @@ export async function getAvailableSlots(params: {
         endDate: { gte: dayStartUTC },
       },
     }),
+    // Check for date-specific availability override for this barber
+    prisma.availabilityOverride.findUnique({
+      where: { barberId_date: { barberId, date: new Date(year, month - 1, day) } },
+    }),
   ])
 
   if (!service || !service.isActive) return []
-  if (!schedule || schedule.isOff) return []
+
+  // ─── Availability Override takes priority over recurring schedule ─────────
+  // If an override exists for this date, it completely replaces the recurring schedule.
+  // isAvailable=false means the barber is off (vacation, personal, etc.)
+  // isAvailable=true means custom hours for this specific date
+  let workingStart: string
+  let workingEnd: string
+  let workingBreaks: Array<{ start: string; end: string }> = []
+  let usingOverride = false
+
+  if (override) {
+    if (!override.isAvailable) return [] // Barber is off for this date
+    if (!override.startTime || !override.endTime) return []
+    workingStart = override.startTime
+    workingEnd = override.endTime
+    if (override.breaks && Array.isArray(override.breaks)) {
+      workingBreaks = override.breaks as Array<{ start: string; end: string }>
+    }
+    usingOverride = true
+  } else {
+    // Fall back to recurring weekly schedule
+    if (!schedule || schedule.isOff) return []
+    workingStart = schedule.startTime
+    workingEnd = schedule.endTime
+    if (schedule.breaks && Array.isArray(schedule.breaks)) {
+      workingBreaks = schedule.breaks as Array<{ start: string; end: string }>
+    }
+  }
 
   // Check business closures (holidays, vacations, etc.)
   for (const closure of closures) {
@@ -128,19 +159,17 @@ export async function getAvailableSlots(params: {
   const duration = service.duration // minutes
 
   // Parse working hours and convert to UTC using business timezone
-  const dayStart = localTimeToUTCFromYMD(schedule.startTime, year, month, day, timezone)
-  const dayEnd = localTimeToUTCFromYMD(schedule.endTime, year, month, day, timezone)
+  const dayStart = localTimeToUTCFromYMD(workingStart, year, month, day, timezone)
+  const dayEnd = localTimeToUTCFromYMD(workingEnd, year, month, day, timezone)
 
   // Parse breaks — convert from business-local times to UTC
   const breaks: Array<{ start: Date; end: Date }> = []
-  if (schedule.breaks && Array.isArray(schedule.breaks)) {
-    for (const brk of schedule.breaks as any[]) {
-      if (brk && typeof brk === 'object' && 'start' in brk && 'end' in brk) {
-        breaks.push({
-          start: localTimeToUTCFromYMD(String(brk.start), year, month, day, timezone),
-          end: localTimeToUTCFromYMD(String(brk.end), year, month, day, timezone),
-        })
-      }
+  for (const brk of workingBreaks) {
+    if (brk && typeof brk === 'object' && 'start' in brk && 'end' in brk) {
+      breaks.push({
+        start: localTimeToUTCFromYMD(String(brk.start), year, month, day, timezone),
+        end: localTimeToUTCFromYMD(String(brk.end), year, month, day, timezone),
+      })
     }
   }
 
@@ -353,12 +382,41 @@ export async function validateSlot(params: {
   })
   if (conflicting) return { valid: false, error: 'SLOT_TAKEN' }
 
-  // 5. Check barber schedule is active for this day
+  // 5. Check barber schedule — availability override takes priority
+  const timezone = await getBusinessTimezone(businessId)
   const dayOfWeek = startTime.getDay()
   const schedule = await prisma.schedule.findUnique({
     where: { barberId_dayOfWeek: { barberId, dayOfWeek } },
   })
-  if (!schedule || schedule.isOff) return { valid: false, error: 'BARBER_OFF' }
+
+  // Check for date-specific availability override
+  const overrideDate = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate())
+  const override = await prisma.availabilityOverride.findUnique({
+    where: { barberId_date: { barberId, date: overrideDate } },
+  })
+
+  if (override) {
+    // Override exists — it replaces the recurring schedule entirely
+    if (!override.isAvailable) return { valid: false, error: 'BARBER_OFF' }
+    if (!override.startTime || !override.endTime) return { valid: false, error: 'BARBER_OFF' }
+    // Convert override times to UTC for comparison
+    const y = startTime.getFullYear(), m = startTime.getMonth() + 1, d = startTime.getDate()
+    const overrideStart = localTimeToUTCFromYMD(override.startTime, y, m, d, timezone)
+    const overrideEnd = localTimeToUTCFromYMD(override.endTime, y, m, d, timezone)
+    if (startTime < overrideStart || endTime > overrideEnd) {
+      return { valid: false, error: 'OUTSIDE_HOURS' }
+    }
+  } else {
+    // No override — use recurring weekly schedule
+    if (!schedule || schedule.isOff) return { valid: false, error: 'BARBER_OFF' }
+    // Convert schedule times to UTC for comparison
+    const y = startTime.getFullYear(), m = startTime.getMonth() + 1, d = startTime.getDate()
+    const scheduleStart = localTimeToUTCFromYMD(schedule.startTime, y, m, d, timezone)
+    const scheduleEnd = localTimeToUTCFromYMD(schedule.endTime, y, m, d, timezone)
+    if (startTime < scheduleStart || endTime > scheduleEnd) {
+      return { valid: false, error: 'OUTSIDE_HOURS' }
+    }
+  }
 
   // 6. Check blocked times
   const blocked = await prisma.blockedTime.findFirst({
@@ -418,12 +476,28 @@ export async function createAppointmentSafely(params: {
       })
       if (conflicting) throw new Error('SLOT_TAKEN')
 
-      // 4. Check barber schedule is active for this day
+      // 4. Check barber schedule — availability override takes priority
+      const tz = await getBusinessTimezone(businessId)
       const dayOfWeek = startTime.getDay()
       const schedule = await tx.schedule.findUnique({
         where: { barberId_dayOfWeek: { barberId, dayOfWeek } },
       })
-      if (!schedule || schedule.isOff) throw new Error('BARBER_OFF')
+
+      const overrideDate = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate())
+      const override = await tx.availabilityOverride.findUnique({
+        where: { barberId_date: { barberId, date: overrideDate } },
+      })
+
+      if (override) {
+        if (!override.isAvailable) throw new Error('BARBER_OFF')
+        if (!override.startTime || !override.endTime) throw new Error('BARBER_OFF')
+        const y2 = startTime.getFullYear(), m2 = startTime.getMonth() + 1, d2 = startTime.getDate()
+        const oStart = localTimeToUTCFromYMD(override.startTime, y2, m2, d2, tz)
+        const oEnd = localTimeToUTCFromYMD(override.endTime, y2, m2, d2, tz)
+        if (startTime < oStart || endTime > oEnd) throw new Error('OUTSIDE_HOURS')
+      } else {
+        if (!schedule || schedule.isOff) throw new Error('BARBER_OFF')
+      }
 
       // 5. Check blocked times
       const blocked = await tx.blockedTime.findFirst({

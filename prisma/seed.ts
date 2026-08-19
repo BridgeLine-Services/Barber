@@ -85,6 +85,17 @@ async function main() {
     },
   })
 
+  // 1b. Create Business SEO record
+  await prisma.businessSEO.create({
+    data: {
+      businessId: business.id,
+      siteTitle: businessName,
+      siteDescription: `Book your appointment online at ${businessName}. Professional barbering services in ${businessCity}.`,
+      robotsIndex: true,
+      robotsFollow: true,
+    },
+  })
+
   console.log(`💈 Created Business: ${business.name} (ID: ${business.id})`)
 
   // 2. Create Owner User
@@ -101,21 +112,26 @@ async function main() {
   console.log(`👑 Created Owner User: ${owner.email}`)
 
   // 3. Create Barbers (generic placeholder names — customize in Dashboard)
+  const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
   const barberData = [
     {
       name: 'Barber One',
+      slug: 'barber-one',
       specialty: 'Fades • Tapers • Beard Work',
       bio: 'Master barber. Update this bio in the Dashboard.',
       order: 1,
     },
     {
       name: 'Barber Two',
+      slug: 'barber-two',
       specialty: 'Classic Cuts • Hot Towel Shaves',
       bio: 'Skilled stylist. Update this bio in the Dashboard.',
       order: 2,
     },
     {
       name: 'Barber Three',
+      slug: 'barber-three',
       specialty: 'Modern Styles • Kids Cuts',
       bio: 'Creative barber. Update this bio in the Dashboard.',
       order: 3,
@@ -128,6 +144,7 @@ async function main() {
       data: {
         businessId: business.id,
         name: b.name,
+        slug: b.slug,
         specialty: b.specialty,
         bio: b.bio,
         photo: null, // Upload barber photos in Dashboard > Staff

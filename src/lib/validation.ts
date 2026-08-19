@@ -119,10 +119,6 @@ export const scheduleEntrySchema = z.object({
   })).optional(),
 })
 
-export const updateScheduleSchema = z.object({
-  schedules: z.array(scheduleEntrySchema),
-})
-
 // ─── Dashboard: Blocked Time ───────────────────────────────────────────────
 
 export const createBlockedTimeSchema = z.object({
@@ -154,6 +150,7 @@ export const contactFormSchema = z.object({
 // ─── Business Settings ─────────────────────────────────────────────────────
 
 export const updateBusinessSchema = z.object({
+  // Business identity
   name: z.string().min(1).max(100).optional(),
   phone: z.string().max(30).optional(),
   email: z.string().email().max(100).optional(),
@@ -161,12 +158,104 @@ export const updateBusinessSchema = z.object({
   city: z.string().max(100).optional(),
   state: z.string().max(50).optional(),
   zipCode: z.string().max(20).optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
   timezone: z.string().max(50).optional(),
+
+  // Branding
+  logo: z.string().url().max(2000).optional().or(z.literal('').optional()),
+  primaryColor: z.string().regex(/^#[0-9a-fA-F]{3,8}$/).max(20).optional(),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{3,8}$/).max(20).optional(),
+
+  // Social media
   instagram: z.string().max(100).optional(),
   facebook: z.string().max(100).optional(),
   tiktok: z.string().max(100).optional(),
+  youtube: z.string().max(100).optional(),
+  xTwitter: z.string().max(100).optional(),
+  googleBusinessProfile: z.string().max(200).optional(),
+
+  // Content
   aboutText: z.string().max(5000).optional(),
   hours: z.record(z.string(), z.any()).optional(),
+
+  // Policies
+  bookingPolicy: z.string().max(5000).optional(),
+  cancellationPolicy: z.string().max(5000).optional(),
+  latePolicy: z.string().max(5000).optional(),
+  noShowPolicyText: z.string().max(5000).optional(),
+  paymentPolicy: z.string().max(5000).optional(),
+  privacyPolicy: z.string().max(10000).optional(),
+  termsPolicy: z.string().max(10000).optional(),
+})
+
+// ─── SEO Settings ───────────────────────────────────────────────────────────
+
+export const updateBusinessSEOSchema = z.object({
+  siteTitle: z.string().max(200).optional(),
+  siteDescription: z.string().max(2000).optional(),
+  keywords: z.string().max(2000).optional(),
+  ogTitle: z.string().max(200).optional(),
+  ogDescription: z.string().max(2000).optional(),
+  ogImage: z.string().url().max(2000).optional().or(z.literal('').optional()),
+  canonicalUrl: z.string().url().max(2000).optional().or(z.literal('').optional()),
+  robotsIndex: z.boolean().optional(),
+  robotsFollow: z.boolean().optional(),
+  googleVerification: z.string().max(200).optional(),
+})
+
+// ─── Barber Profile (self-service) ─────────────────────────────────────────
+
+export const updateBarberProfileSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  specialty: z.string().max(200).optional(),
+  bio: z.string().max(2000).optional(),
+  photo: z.string().url().max(2000).optional().or(z.literal('').optional()),
+  phone: z.string().max(30).optional(),
+  email: z.string().email().max(100).optional(),
+  instagram: z.string().max(100).optional(),
+  facebook: z.string().max(100).optional(),
+  tiktok: z.string().max(100).optional(),
+  website: z.string().url().max(2000).optional().or(z.literal('').optional()),
+})
+
+// ─── Barber Schedule (weekly recurring) ─────────────────────────────────────
+
+export const updateScheduleSchema = z.object({
+  schedules: z.array(z.object({
+    dayOfWeek: z.number().int().min(0).max(6),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    isOff: z.boolean().optional(),
+    breaks: z.array(z.object({
+      start: z.string().regex(/^\d{2}:\d{2}$/),
+      end: z.string().regex(/^\d{2}:\d{2}$/),
+    })).optional(),
+  })),
+})
+
+// ─── Availability Override (date-specific) ─────────────────────────────────
+
+export const createAvailabilityOverrideSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+  isAvailable: z.boolean(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+  breaks: z.array(z.object({
+    start: z.string().regex(/^\d{2}:\d{2}$/),
+    end: z.string().regex(/^\d{2}:\d{2}$/),
+  })).optional(),
+  reason: z.string().max(200).optional(),
+})
+
+// ─── Barber Service (price/duration override) ──────────────────────────────
+
+export const updateBarberServiceSchema = z.object({
+  serviceId: z.string().min(1),
+  priceOverride: z.number().min(0).max(10000).nullable().optional(),
+  durationOverride: z.number().int().min(5).max(480).nullable().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
 })
 
 // ─── Appointment Status Transitions ────────────────────────────────────────

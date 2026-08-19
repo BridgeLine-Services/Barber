@@ -18,7 +18,7 @@ datasource db {
 model Business {
   id           String   @id @default(cuid())
   name         String
-  slug         String   @unique // URL slug for the shop, e.g. "fade-factory"
+  slug         String   @unique // URL slug for the shop
   logo         String?
   primaryColor String   @default("#1a1a1a") // dark / black theme default
   accentColor  String   @default("#d4af37") // gold accent default
@@ -30,14 +30,22 @@ model Business {
   zipCode      String?
   latitude     Float?
   longitude    Float?
-  timezone     String   @default("America/Los_Angeles") // IANA timezone for all business logic
+  timezone     String   @default("America/Los_Angeles") // IANA timezone
   instagram     String?
   facebook      String?
   tiktok       String?
+  youtube      String?
+  xTwitter     String?
+  googleBusinessProfile String?
   hours        Json? // { monday: { open: "09:00", close: "18:00", isOff: false }, ... }
   aboutText    String? @db.Text
   bookingPolicy String? @db.Text
   cancellationPolicy String? @db.Text
+  latePolicy   String? @db.Text
+  noShowPolicyText String? @db.Text
+  paymentPolicy String? @db.Text
+  privacyPolicy String? @db.Text
+  termsPolicy   String? @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -58,6 +66,9 @@ model Business {
   noShowPolicies   NoShowPolicy[]
   inventoryItems   InventoryItem[]
   marketingCampaigns MarketingCampaign[]
+  mediaAssets   MediaAsset[]
+  seo          BusinessSEO?
+  availabilityOverrides AvailabilityOverride[]
 
   @@index([slug])
 }
@@ -95,11 +106,19 @@ model Barber {
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   name       String
+  slug       String?  @unique // URL slug for /barbers/[slug] pages, auto-generated from name
   photo      String?
   specialty  String? // e.g. "Fades • Tapers • Beard Work"
   bio        String? @db.Text
   isActive   Boolean  @default(true)
   order      Int      @default(0)
+  // Barber contact / social (self-editable via barber portal)
+  phone      String?
+  email      String?
+  instagram  String?
+  facebook   String?
+  tiktok     String?
+  website    String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -110,6 +129,9 @@ model Barber {
   waitlistEntries WaitlistEntry[]
   rewardPrograms   BarberRewardProgram[]
   inventoryItems   InventoryItem[]
+  reviews      Review[]
+  mediaAssets  MediaAsset[]
+  availabilityOverrides AvailabilityOverride[]
 
   @@index([businessId])
 }
@@ -132,6 +154,31 @@ model Schedule {
   @@index([barberId])
 }
 
+// ─── Availability Override (date-specific availability changes) ────────────
+// Allows barbers to override their recurring schedule for specific dates.
+// Examples: work a different shift, take a day off, add a special opening.
+// The booking engine checks overrides FIRST, then falls back to recurring schedule.
+
+model AvailabilityOverride {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  barberId    String
+  barber      Barber   @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date // the specific date being overridden
+  isAvailable Boolean  @default(true) // false = day off / vacation
+  startTime   String?  // "10:00" (24h) — null when isAvailable = false
+  endTime     String?  // "18:00" (24h) — null when isAvailable = false
+  breaks      Json?    // [{ start: "12:00", end: "13:00" }] — overrides recurring breaks
+  reason      String?  // "Vacation", "Special opening", "Personal", etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([barberId, date])
+  @@index([businessId, date])
+  @@index([barberId, date])
+}
+
 // ─── Services ──────────────────────────────────────────────────────────────
 
 model Service {
@@ -141,7 +188,7 @@ model Service {
   name        String
   description String?  @db.Text
   duration    Int     // minutes
-  price       Float   // informational only — payment is in person
+  price       Float   // default price — payment is in person
   isActive    Boolean @default(true)
   order       Int     @default(0)
   createdAt   DateTime @default(now())
@@ -154,15 +201,83 @@ model Service {
   @@index([businessId])
 }
 
-// Junction: which barbers offer which services
+// BarberService: junction with per-barber configuration
+// - priceOverride: null = use Service.price (default), number = custom price
+// - durationOverride: null = use Service.duration (default), number = custom duration
+// - isActive: barber can toggle offering this service without removing the link
+// - sortOrder: barber-specific display order
 model BarberService {
-  barberId  String
-  barber    Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
-  serviceId String
-  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  barberId         String
+  barber           Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  serviceId        String
+  service          Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  priceOverride    Float?
+  durationOverride Int?
+  isActive         Boolean @default(true)
+  sortOrder        Int     @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@id([barberId, serviceId])
   @@index([serviceId])
+}
+
+// ─── Media Asset (logo, hero, gallery, barber photos, etc.) ────────────────
+// Reusable media layer for all images across the platform.
+// type determines where the asset is used.
+
+enum MediaType {
+  LOGO
+  HERO
+  SHOP_PHOTO
+  BARBER_PHOTO
+  BARBER_PORTFOLIO
+  GALLERY
+  SERVICE_PHOTO
+  OG_IMAGE
+  FAVICON
+}
+
+model MediaAsset {
+  id          String    @id @default(cuid())
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  barberId    String?   // null = shop asset, set for barber-specific assets
+  barber      Barber?   @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  type        MediaType
+  url         String    // CDN / storage URL
+  storageKey  String?   // provider-specific key for deletion/management
+  altText     String?
+  caption     String?
+  sortOrder    Int       @default(0)
+  isPublished Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([businessId, type])
+  @@index([barberId, type])
+}
+
+// ─── Business SEO (owner-editable SEO settings) ───────────────────────────
+
+model BusinessSEO {
+  id                String   @id @default(cuid())
+  businessId        String   @unique
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  siteTitle         String?
+  siteDescription   String?  @db.Text
+  keywords          String?  @db.Text // comma-separated
+  ogTitle           String?
+  ogDescription     String?  @db.Text
+  ogImage           String?  // URL to OG image
+  canonicalUrl      String?
+  robotsIndex       Boolean  @default(true)
+  robotsFollow      Boolean  @default(true)
+  googleVerification String? // Google Search Console verification meta tag
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([businessId])
 }
 
 // ─── Customers ────────────────────────────────────────────────────────────
@@ -205,7 +320,7 @@ enum AppointmentStatus {
 model Appointment {
   id                 String           @id @default(cuid())
   confirmationNumber String           @unique // human-readable, e.g. BRB-8F42K
-  customerAccessToken String          @unique // crypto.randomBytes(32).hex — authenticates customer actions
+  customerAccessToken String          @unique // crypto.randomBytes(32).hex
   idempotencyKey     String?          @unique
   businessId         String
   business           Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -255,11 +370,15 @@ model BlockedTime {
 }
 
 // ─── Reviews ──────────────────────────────────────────────────────────────
+// Reviews can be shop-level (barberId = null) or barber-specific.
+// Rating counts/averages are ALWAYS computed from actual records, never manually entered.
 
 model Review {
   id          String   @id @default(cuid())
   businessId  String
   business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  barberId    String?  // null = shop review, set = barber-specific review
+  barber      Barber?  @relation(fields: [barberId], references: [id], onDelete: SetNull)
   authorName  String
   rating      Int // 1-5
   comment     String? @db.Text
@@ -269,6 +388,8 @@ model Review {
   updatedAt   DateTime @updatedAt
 
   @@index([businessId])
+  @@index([businessId, barberId])
+  @@index([barberId])
 }
 
 // ─── Waitlist ─────────────────────────────────────────────────────────────
@@ -304,7 +425,7 @@ model WaitlistEntry {
   claimToken      String?   @unique // secure token for customer to claim a notified slot
   offeredSlotStart DateTime? // the released slot start time offered to this entry
   offeredSlotEnd   DateTime? // the released slot end time offered to this entry
-  offeredBarberId  String? // barber id for the offered slot (may differ from barberId preference)
+  offeredBarberId  String? // barber id for the offered slot
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -313,7 +434,6 @@ model WaitlistEntry {
 }
 
 // ─── Notification Log ──────────────────────────────────────────────────────
-// Tracks every notification attempt (email/SMS) and its delivery status.
 
 enum NotificationType {
   BOOKING_CONFIRMATION
@@ -346,7 +466,7 @@ model NotificationLog {
   recipient   String // email or phone
   channel     NotificationChannel
   type        NotificationType
-  content     String?           @db.Text // message body, for marketing/rebooking notifications
+  content     String?           @db.Text
   status      NotificationStatus  @default(PENDING)
   errorMessage String?
   sentAt      DateTime?
@@ -358,7 +478,6 @@ model NotificationLog {
 }
 
 // ─── Audit Log ─────────────────────────────────────────────────────────────
-// Records every significant administrative action for accountability.
 
 enum AuditAction {
   APPOINTMENT_CREATED
@@ -395,6 +514,14 @@ enum AuditAction {
   CUSTOMER_TAG_REMOVED
   CANCELLATION_RECORDED
   NO_SHOW_POLICY_UPDATED
+  AVAILABILITY_OVERRIDE_ADDED
+  AVAILABILITY_OVERRIDE_REMOVED
+  BRANDING_UPDATED
+  SEO_UPDATED
+  MEDIA_UPLOADED
+  MEDIA_DELETED
+  BARBER_PROFILE_UPDATED
+  BARBER_SCHEDULE_UPDATED
 }
 
 model AuditLog {
@@ -418,7 +545,7 @@ model AuditLog {
 }
 
 // ─── Business Closures (Holidays / Special Hours) ──────────────────────────
-// Owner-managed closure periods: holidays, vacations, special hours, etc.
+
 model BusinessClosure {
   id          String   @id @default(cuid())
   businessId  String
@@ -428,7 +555,6 @@ model BusinessClosure {
   startDate   DateTime @db.Date
   endDate     DateTime @db.Date
   isAllDay    Boolean  @default(true)
-  // For partial-day closures (isAllDay = false)
   startTime   String?  // "09:00"
   endTime     String?  // "14:00"
   isActive    Boolean  @default(true)
@@ -439,8 +565,6 @@ model BusinessClosure {
 }
 
 // ─── Loyalty / Reward Programs ─────────────────────────────────────────────
-// Owner-configurable loyalty engine. Supports visit-based and points-based systems.
-// BusinessRewardProgram = shop-level; BarberRewardProgram = barber-specific (future).
 
 enum RewardProgramType {
   VISITS
@@ -468,7 +592,6 @@ model BusinessRewardProgram {
   @@index([businessId, isActive])
 }
 
-// Barber-specific reward programs (future expansion)
 model BarberRewardProgram {
   id              String           @id @default(cuid())
   barberId        String
@@ -485,7 +608,6 @@ model BarberRewardProgram {
 }
 
 // ─── Customer Tags ──────────────────────────────────────────────────────────
-// Flexible tagging system for customer segmentation and marketing targeting.
 
 enum CustomerTag {
   VIP
@@ -514,7 +636,6 @@ model CustomerTagAssignment {
 }
 
 // ─── Cancellation Reasons ───────────────────────────────────────────────────
-// Track why customers cancel for operational intelligence.
 
 enum CancellationReason {
   TOO_EXPENSIVE
@@ -541,13 +662,12 @@ model CancellationRecord {
 }
 
 // ─── No-Show Policy ──────────────────────────────────────────────────────────
-// Owner-configurable no-show management rules.
 
 model NoShowPolicy {
   id              String   @id @default(cuid())
   businessId      String
   business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  firstNoShow     String   @default("warning") // warning | flag | require_confirmation
+  firstNoShow     String   @default("warning")
   secondNoShow    String   @default("flag")
   thirdNoShow     String   @default("require_confirmation")
   requireDeposit  Boolean  @default(false)
@@ -560,7 +680,6 @@ model NoShowPolicy {
 }
 
 // ─── Inventory ───────────────────────────────────────────────────────────────
-// Track products with stock levels and low-stock alerts.
 
 model InventoryItem {
   id          String   @id @default(cuid())
@@ -571,8 +690,8 @@ model InventoryItem {
   name        String
   sku         String?
   stock       Float    @default(0)
-  unit        String   @default("each") // each, box, bottle, etc.
-  threshold   Float    @default(5) // low-stock threshold
+  unit        String   @default("each")
+  threshold   Float    @default(5)
   cost        Float?
   vendor      String?
   notes       String?  @db.Text
@@ -584,7 +703,6 @@ model InventoryItem {
 }
 
 // ─── Marketing Campaigns ─────────────────────────────────────────────────────
-// Owner creates targeted campaigns based on customer segments.
 
 enum CampaignStatus {
   DRAFT
@@ -615,7 +733,7 @@ model MarketingCampaign {
   subject     String
   body        String           @db.Text
   audience    CampaignAudience
-  audienceConfig Json?         // additional filters, e.g. { barberId, serviceId }
+  audienceConfig Json?
   status      CampaignStatus   @default(DRAFT)
   sentAt      DateTime?
   recipientCount Int?
