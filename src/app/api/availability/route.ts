@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { resolveBusinessId } from '@/lib/tenant'
 import { getAvailableSlots, getEarliestAvailableSlot } from '@/lib/availability'
 import { isValid } from 'date-fns'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 /**
  * GET /api/availability?serviceId=<id>&date=<YYYY-MM-DD>&barberId=<id>&any=true
@@ -15,6 +16,14 @@ import { isValid } from 'date-fns'
  * No demo fallback — requires a configured business and database.
  */
 export async function GET(req: NextRequest) {
+  const rateLimitResult = checkRateLimit(req, 'availability', RATE_LIMITS.AVAILABILITY)
+  if (rateLimitResult) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again in a moment.' },
+      { status: rateLimitResult.status }
+    )
+  }
+
   try {
     const { searchParams } = req.nextUrl
     const barberId = searchParams.get('barberId')
