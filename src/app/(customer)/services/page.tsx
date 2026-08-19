@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { formatDuration, formatPrice } from '@/lib/utils'
 import { PAYMENT_DISCLAIMER } from '@/lib/constants'
-import { demoServices } from '@/lib/demo-data'
+import { resolveBusiness } from '@/lib/tenant'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -19,26 +19,23 @@ export const metadata: Metadata = {
 export const revalidate = 60
 
 export default async function ServicesPage() {
-  let services: any[] = []
-  let isDemo = false
+  const business = await resolveBusiness().catch(() => null)
 
-  try {
-    const business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
-    if (business) {
-      services = await prisma.service.findMany({
-        where: { businessId: business.id, isActive: true },
-        orderBy: { order: 'asc' },
-      })
-    }
-    if (services.length === 0) {
-      services = demoServices
-      isDemo = true
-    }
-  } catch (error) {
-    console.error('Failed to load services:', error)
-    services = demoServices
-    isDemo = true
+  if (!business) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-4">Shop Not Configured</h1>
+          <p className="text-muted-foreground">An administrator needs to run the setup process.</p>
+        </div>
+      </div>
+    )
   }
+
+  const services = await prisma.service.findMany({
+    where: { businessId: business.id, isActive: true },
+    orderBy: { order: 'asc' },
+  })
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 space-y-12">
@@ -53,7 +50,7 @@ export default async function ServicesPage() {
         <p className="text-zinc-400 text-base leading-relaxed">
           From classic precision haircuts to luxury beard sculpting and hot towel shaves. All services include consultation and style finishing.
         </p>
-        {isDemo && (
+        {false && (
           <p className="text-xs text-amber-400/60 italic">Demo services shown — connect a database to display your own pricing.</p>
         )}
       </div>

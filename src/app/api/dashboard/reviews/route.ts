@@ -1,28 +1,61 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { logAudit } from '@/lib/auth-helpers'
+import { getClientIP } from '@/lib/rate-limit'
+import { AuditAction } from '@prisma/client'
+import { z } from 'zod'
 
-// POST /api/public/reviews — customer submits a review
-export async function POST(request: Request) {
+// Validation schemas
+const createReviewSchema = z.object({
+  businessId: z.string().min(1),
+  authorName: z.string().min(1).max(100),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(2000).optional(),
+  barberId: z.string().optional().nullable(),
+})
+
+const updateReviewSchema = z.object({
+  id: z.string().min(1),
+  isFeatured: z.boolean().optional(),
+  barberId: z.string().optional().nullable(),
+  authorName: z.string().min(1).max(100).optional(),
+  rating: z.number().int().min(1).max(5).optional(),
+  comment: z.string().max(2000).optional(),
+})
+
+// POST — customer submits a review OR owner adds a review
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json()
-    const { businessId, authorName, rating, comment } = body
-
-    if (!businessId || !authorName?.trim() || !rating) {
-      return NextResponse.json({ error: 'Business ID, name, and rating are required' }, { status: 400 })
+    const body = await req.json()
+    const parseResult = createReviewSchema.safeParse(body)
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid review data', details: parseResult.error.flatten().fieldErrors },
+        { status: 400 }
+      )
     }
 
-    if (rating < 1 || rating > 5) {
-      return NextResponse.json({ error: 'Rating must be between 1 and 5' }, { status: 400 })
+    const data = parseResult.data
+
+    // If barberId is provided, verify it belongs to this business
+    if (data.barberId) {
+      const barber = await prisma.barber.findFirst({
+        where: { id: data.barberId, businessId: data.businessId },
+      })
+      if (!barber) {
+        return NextResponse.json({ error: 'Barber not found' }, { status: 404 })
+      }
     }
 
     const review = await prisma.review.create({
       data: {
-        businessId,
-        authorName: authorName.trim(),
-        rating: parseInt(rating),
-        comment: comment?.trim() || null,
+        businessId: data.businessId,
+        barberId: data.barberId || null,
+        authorName: data.authorName.trim(),
+        rating: data.rating,
+        comment: data.comment?.trim() || null,
       },
     })
 
@@ -33,8 +66,8 @@ export async function POST(request: Request) {
   }
 }
 
-// GET /api/dashboard/reviews — owner lists reviews (authenticated)
-export async function GET(request: Request) {
+// GET — owner lists reviews (authenticated, OWNER only)
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -46,9 +79,18 @@ export async function GET(request: Request) {
   }
 
   try {
+    const { searchParams } = new URL(req.url)
+    const barberId = searchParams.get('barberId')
+
+    const where: any = { businessId: user.businessId }
+    if (barberId) {
+      where.barberId = barberId
+    }
+
     const reviews = await prisma.review.findMany({
-      where: { businessId: user.businessId },
+      where,
       orderBy: { createdAt: 'desc' },
+      include: barberId ? undefined : { barber: { select: { name: true, slug: true } } },
     })
 
     const serialized = reviews.map(r => ({
@@ -67,8 +109,8 @@ export async function GET(request: Request) {
   }
 }
 
-// PATCH /api/dashboard/reviews — owner toggles featured
-export async function PATCH(request: Request) {
+// PATCH — owner updates review (toggle featured, assign barber, edit)
+export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -80,9 +122,18 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const body = await request.json()
-    const { id, isFeatured } = body
+    const body = await req.json()
+    const parseResult = updateReviewSchema.safeParse(body)
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid review data', details: parseResult.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
 
+    const { id, ...updateData } = parseResult.data
+
+    // Verify review belongs to this business
     const review = await prisma.review.findFirst({
       where: { id, businessId: user.businessId },
     })
@@ -91,9 +142,34 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Review not found' }, { status: 404 })
     }
 
+    // If barberId is being set, verify it belongs to this business
+    if (updateData.barberId) {
+      const barber = await prisma.barber.findFirst({
+        where: { id: updateData.barberId, businessId: user.businessId },
+      })
+      if (!barber) {
+        return NextResponse.json({ error: 'Barber not found' }, { status: 404 })
+      }
+    }
+
     const updated = await prisma.review.update({
       where: { id },
-      data: { isFeatured: !!isFeatured },
+      data: {
+        ...updateData,
+        barberId: updateData.barberId === undefined ? undefined : (updateData.barberId || null),
+      },
+    })
+
+    await logAudit({
+      userId: user.id,
+      businessId: user.businessId,
+      action: AuditAction.SETTINGS_UPDATED,
+      entityType: 'Review',
+      entityId: id,
+      oldValues: review,
+      newValues: updateData,
+      ipAddress: getClientIP(req),
+      userAgent: req.headers.get('user-agent') || undefined,
     })
 
     return NextResponse.json(updated)
@@ -102,8 +178,8 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE /api/dashboard/reviews — owner deletes review
-export async function DELETE(request: Request) {
+// DELETE — owner deletes review
+export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -115,7 +191,7 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
 
     if (!id) {

@@ -4,12 +4,11 @@ import { Metadata } from 'next'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { getInitials } from '@/lib/utils'
-import { demoBarbers, demoServices } from '@/lib/demo-data'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Scissors, Calendar, Users } from 'lucide-react'
+import { Scissors, Calendar } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Meet Our Barbers',
@@ -19,127 +18,170 @@ export const metadata: Metadata = {
 export const revalidate = 60
 
 export default async function BarbersPage() {
-  let barbers: any[] = []
-  let isDemo = false
+  // Production: resolve business from DB — no demo fallback
+  const business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
 
-  try {
-    const business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
-    if (business) {
-      barbers = await prisma.barber.findMany({
-        where: { businessId: business.id, isActive: true },
-        include: {
-          services: {
-            include: {
-              service: true,
-            },
-          },
-        },
-        orderBy: { order: 'asc' },
-      })
-    }
-    if (barbers.length === 0) {
-      barbers = demoBarbers.map(b => ({
-        ...b,
-        services: b.services.map(s => ({
-          serviceId: s.serviceId,
-          service: demoServices.find(svc => svc.id === s.serviceId),
-        })),
-      }))
-      isDemo = true
-    }
-  } catch (error) {
-    console.error('Failed to load barbers:', error)
-    barbers = demoBarbers.map(b => ({
-      ...b,
-      services: b.services.map(s => ({
-        serviceId: s.serviceId,
-        service: demoServices.find(svc => svc.id === s.serviceId),
-      })),
-    }))
-    isDemo = true
+  if (!business) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-20 text-center">
+        <h1 className="text-3xl font-bold mb-4">No business configured</h1>
+        <p className="text-muted-foreground">Please run the setup wizard to configure your shop.</p>
+      </div>
+    )
   }
+
+  const barbers = await prisma.barber.findMany({
+    where: { businessId: business.id, isActive: true },
+    include: {
+      services: {
+        where: { isActive: true },
+        include: { service: true },
+        orderBy: { sortOrder: 'asc' },
+      },
+      reviews: {
+        select: { rating: true },
+      },
+    },
+    orderBy: { order: 'asc' },
+  })
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 space-y-12">
-      {/* Header */}
+      {/* Header — uses business name dynamically */}
       <div className="text-center max-w-3xl mx-auto space-y-4">
-        <Badge variant="outline" className="border-amber-500/40 text-amber-400 px-3 py-1">
+        <Badge variant="outline" className="px-3 py-1" style={{ borderColor: business.accentColor, color: business.accentColor }}>
           Our Team
         </Badge>
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-poppins">
-          Master Barbers & Stylists
+        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
+          Meet the Barbers at {business.name}
         </h1>
-        <p className="text-zinc-400 text-base leading-relaxed">
+        <p className="text-muted-foreground text-base leading-relaxed">
           Each member of our team brings years of experience, attention to detail, and passion for precision cuts and classic grooming.
         </p>
-        {isDemo && (
-          <p className="text-xs text-amber-400/60 italic">Demo barbers shown — connect a database to display your real team.</p>
-        )}
       </div>
 
       {/* Barbers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {barbers.map((barber) => (
-          <Card key={barber.id} className="bg-zinc-900 border-zinc-800 flex flex-col justify-between overflow-hidden">
-            <div>
-              <CardHeader className="text-center pt-8 pb-4">
-                <div className="mx-auto mb-4 relative">
-                  <Avatar className="h-28 w-28 border-2 border-amber-500/40 ring-4 ring-zinc-950">
-                    {barber.photo && <AvatarImage src={barber.photo} alt={barber.name} />}
-                    <AvatarFallback className="bg-zinc-800 text-amber-400 font-bold text-2xl">
-                      {getInitials(barber.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-                <CardTitle className="text-2xl text-white font-bold font-poppins">{barber.name}</CardTitle>
-                {barber.specialty && (
-                  <p className="text-xs font-semibold text-amber-400 mt-1 uppercase tracking-wider">
-                    {barber.specialty}
-                  </p>
-                )}
-              </CardHeader>
+      {barbers.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No barbers have been added yet. Add barbers in the Dashboard under Team.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {barbers.map((barber) => {
+            // Calculate barber's review stats from actual records
+            const barberReviews = barber.reviews || []
+            const reviewCount = barberReviews.length
+            const avgRating = reviewCount > 0
+              ? (barberReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount).toFixed(1)
+              : null
 
-              <CardContent className="px-6 space-y-4 text-sm">
-                <p className="text-zinc-300 leading-relaxed text-center italic">
-                  &ldquo;{barber.bio || 'Dedicated to precision craftsmanship, clean line-ups, and legendary customer care.'}&rdquo;
-                </p>
-
-                {/* Services Offered */}
-                {barber.services && barber.services.length > 0 && (
-                  <div className="pt-4 border-t border-zinc-800/80 space-y-2">
-                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <Scissors className="h-3.5 w-3.5 text-amber-400" /> Services Offered:
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {barber.services.map((bs: any) => (
-                        <Badge
-                          key={bs.serviceId}
-                          variant="secondary"
-                          className="bg-zinc-800/90 text-zinc-300 text-[11px] font-normal border border-zinc-700/60"
-                        >
-                          {bs.service?.name || 'Service'}
-                        </Badge>
-                      ))}
+            return (
+              <Card key={barber.id} className="flex flex-col justify-between overflow-hidden">
+                <div>
+                  <CardHeader className="text-center pt-8 pb-4">
+                    <div className="mx-auto mb-4 relative">
+                      <Avatar className="h-28 w-28" style={{ borderWidth: '2px', borderColor: business.accentColor }}>
+                        {barber.photo && <AvatarImage src={barber.photo} alt={barber.name} />}
+                        <AvatarFallback className="font-bold text-2xl">
+                          {getInitials(barber.name)}
+                        </AvatarFallback>
+                      </Avatar>
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </div>
+                    <CardTitle className="text-2xl font-bold">{barber.name}</CardTitle>
+                    {barber.specialty && (
+                      <p className="text-xs font-semibold mt-1 uppercase tracking-wider" style={{ color: business.accentColor }}>
+                        {barber.specialty}
+                      </p>
+                    )}
+                    {/* Auto-calculated review stats */}
+                    {avgRating && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {avgRating} ★ · {reviewCount} review{reviewCount !== 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </CardHeader>
 
-            <CardFooter className="pt-6 pb-6 px-6 border-t border-zinc-800/60 mt-4">
-              <Button
-                asChild
-                className="w-full bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold transition shadow-sm"
-              >
-                <Link href={`/book?barberId=${barber.id}`}>
-                  <Calendar className="mr-2 h-4 w-4" />
-                  Book with {barber.name.split(' ')[0]}
-                </Link>
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+                  <CardContent className="px-6 space-y-4 text-sm">
+                    <p className="leading-relaxed text-center italic text-muted-foreground">
+                      &ldquo;{barber.bio || 'Dedicated to precision craftsmanship, clean line-ups, and legendary customer care.'}&rdquo;
+                    </p>
+
+                    {/* Services Offered with per-barber pricing */}
+                    {barber.services && barber.services.length > 0 && (
+                      <div className="pt-4 border-t space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 text-muted-foreground">
+                          <Scissors className="h-3.5 w-3.5" /> Services Offered:
+                        </p>
+                        <div className="space-y-1">
+                          {barber.services.map((bs: any) => {
+                            const price = bs.priceOverride ?? bs.service?.price
+                            const duration = bs.durationOverride ?? bs.service?.duration
+                            return (
+                              <div key={bs.serviceId} className="flex justify-between text-sm">
+                                <span>{bs.service?.name || 'Service'}</span>
+                                <span className="text-muted-foreground">
+                                  {price != null && `$${price}`}
+                                  {duration != null && ` · ${duration}min`}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Barber social links */}
+                    {(barber.instagram || barber.facebook || barber.tiktok || barber.website) && (
+                      <div className="flex gap-3 justify-center pt-2 text-xs">
+                        {barber.instagram && (
+                          <a href={barber.instagram.startsWith('http') ? barber.instagram : `https://instagram.com/${barber.instagram}`}
+                             target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                            Instagram
+                          </a>
+                        )}
+                        {barber.facebook && (
+                          <a href={barber.facebook.startsWith('http') ? barber.facebook : `https://facebook.com/${barber.facebook}`}
+                             target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                            Facebook
+                          </a>
+                        )}
+                        {barber.tiktok && (
+                          <a href={barber.tiktok.startsWith('http') ? barber.tiktok : `https://tiktok.com/@${barber.tiktok}`}
+                             target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                            TikTok
+                          </a>
+                        )}
+                        {barber.website && (
+                          <a href={barber.website} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                            Website
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </div>
+
+                <CardFooter className="pt-6 pb-6 px-6 border-t mt-4">
+                  <Button asChild className="w-full font-bold transition" style={{ backgroundColor: business.accentColor }}>
+                    <Link href={`/book?barberId=${barber.id}`}>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Book with {barber.name.split(' ')[0]}
+                    </Link>
+                  </Button>
+                  {barber.slug && (
+                    <Link
+                      href={`/barbers/${barber.slug}`}
+                      className="text-xs text-muted-foreground hover:text-foreground mt-2 mx-auto"
+                    >
+                      View full profile →
+                    </Link>
+                  )}
+                </CardFooter>
+              </Card>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

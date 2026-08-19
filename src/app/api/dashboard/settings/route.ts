@@ -17,15 +17,16 @@ export async function GET(req: NextRequest) {
 
   try {
     const businessId = await getBusinessIdForUser(auth.user)
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-    })
+    const [business, seo] = await Promise.all([
+      prisma.business.findUnique({ where: { id: businessId } }),
+      prisma.businessSEO.findUnique({ where: { businessId } }),
+    ])
 
     if (!business) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ business })
+    return NextResponse.json({ business, seo })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 })
   }
@@ -62,7 +63,7 @@ export async function PATCH(req: NextRequest) {
     await logAudit({
       userId: auth.user.id,
       businessId,
-      action: 'SETTINGS_UPDATED',
+      action: 'BRANDING_UPDATED',
       entityType: 'Business',
       entityId: businessId,
       oldValues: oldBusiness,

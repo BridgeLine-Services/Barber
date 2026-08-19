@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
-import { demoServices, demoBarbers, demoReviews, demoBusiness } from '@/lib/demo-data'
+import { resolveBusiness } from '@/lib/tenant'
 import { formatDuration, formatPrice, getInitials } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
@@ -23,50 +23,34 @@ import {
 export const revalidate = 60
 
 export default async function HomePage() {
-  let business: any = null
-  let barbers: any[] = []
-  let services: any[] = []
-  let reviews: any[] = []
+  const business = await resolveBusiness().catch(() => null)
 
-  try {
-    business = await prisma.business.findFirst({
-      orderBy: { createdAt: 'asc' },
-    })
-
-    if (business) {
-      ;[barbers, services, reviews] = await Promise.all([
-        prisma.barber.findMany({
-          where: { businessId: business.id, isActive: true },
-          orderBy: { order: 'asc' },
-        }),
-        prisma.service.findMany({
-          where: { businessId: business.id, isActive: true },
-          orderBy: { order: 'asc' },
-        }),
-        prisma.review.findMany({
-          where: { businessId: business.id, isFeatured: true },
-          orderBy: { createdAt: 'desc' },
-          take: 6,
-        }),
-      ])
-    }
-  } catch (error) {
-    console.error('Failed to load home page data:', error)
-  }
-
-  // Fallback to demo data when database is empty or not connected
   if (!business) {
-    business = demoBusiness as any
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-4">Shop Not Configured</h1>
+          <p className="text-muted-foreground">An administrator needs to run the setup process.</p>
+        </div>
+      </div>
+    )
   }
-  if (services.length === 0) {
-    services = demoServices as any
-  }
-  if (barbers.length === 0) {
-    barbers = demoBarbers as any
-  }
-  if (reviews.length === 0) {
-    reviews = demoReviews as any
-  }
+
+  const [barbers, services, reviews] = await Promise.all([
+    prisma.barber.findMany({
+      where: { businessId: business.id, isActive: true },
+      orderBy: { order: 'asc' },
+    }),
+    prisma.service.findMany({
+      where: { businessId: business.id, isActive: true },
+      orderBy: { order: 'asc' },
+    }),
+    prisma.review.findMany({
+      where: { businessId: business.id, isFeatured: true },
+      orderBy: { createdAt: 'desc' },
+      take: 6,
+    }),
+  ])
 
   const shopName = business?.name || 'The Barber Co.'
   const shopPhone = business?.phone || '(555) 555-0199'
