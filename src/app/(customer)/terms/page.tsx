@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { Metadata } from 'next'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { resolveBusiness } from '@/lib/tenant'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',

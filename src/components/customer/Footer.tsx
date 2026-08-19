@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Scissors, MapPin, Phone, Mail, Clock, Instagram, Facebook, Video, Lock } from 'lucide-react'
+import { Scissors, MapPin, Phone, Mail, Clock, Instagram, Facebook, Video, Youtube, Twitter, Lock } from 'lucide-react'
 
 interface FooterProps {
   business?: {
@@ -13,7 +13,13 @@ interface FooterProps {
     instagram?: string | null
     facebook?: string | null
     tiktok?: string | null
+    youtube?: string | null
+    xTwitter?: string | null
     hours?: any
+    aboutText?: string | null
+    bookingPolicy?: string | null
+    privacyPolicy?: string | null
+    termsPolicy?: string | null
   } | null
 }
 
@@ -22,11 +28,6 @@ export function Footer({ business }: FooterProps) {
   const fullAddress = [business?.address, business?.city, business?.state, business?.zipCode]
     .filter(Boolean)
     .join(', ')
-
-  // Fallback contact info when business data is not available
-  const phone = business?.phone || '(555) 555-0199'
-  const email = business?.email || 'hello@thebarberco.com'
-  const address = fullAddress || '456 Style Avenue, Your City'
 
   return (
     <footer className="border-t border-zinc-800/80 bg-zinc-950 text-zinc-400 text-sm">
@@ -40,9 +41,11 @@ export function Footer({ business }: FooterProps) {
               </div>
               <span className="text-lg font-bold text-white font-poppins">{shopName}</span>
             </div>
-            <p className="text-zinc-400 text-sm leading-relaxed">
-              Premium haircuts, precision fades, and classic beard care. Book your appointment online and pay in person.
-            </p>
+            {business?.aboutText && (
+              <p className="text-zinc-400 text-sm leading-relaxed line-clamp-3">
+                {business.aboutText}
+              </p>
+            )}
             {/* Social Links */}
             <div className="flex items-center gap-3 pt-2">
               {business?.instagram && (
@@ -78,6 +81,28 @@ export function Footer({ business }: FooterProps) {
                   <Video className="h-4 w-4" />
                 </a>
               )}
+              {business?.youtube && (
+                <a
+                  href={business.youtube.startsWith('http') ? business.youtube : `https://youtube.com/@${business.youtube.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-md bg-zinc-900 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition"
+                  aria-label="YouTube"
+                >
+                  <Youtube className="h-4 w-4" />
+                </a>
+              )}
+              {business?.xTwitter && (
+                <a
+                  href={business.xTwitter.startsWith('http') ? business.xTwitter : `https://x.com/${business.xTwitter.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-md bg-zinc-900 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition"
+                  aria-label="X (Twitter)"
+                >
+                  <Twitter className="h-4 w-4" />
+                </a>
+              )}
             </div>
           </div>
 
@@ -85,22 +110,28 @@ export function Footer({ business }: FooterProps) {
           <div className="space-y-3">
             <h3 className="text-zinc-100 font-semibold text-base font-poppins">Contact & Location</h3>
             <ul className="space-y-2.5">
-              <li className="flex items-start gap-2.5">
-                <MapPin className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-                <span>{address}</span>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <Phone className="h-4 w-4 text-amber-400 shrink-0" />
-                <a href={`tel:${phone.replace(/\D/g, '')}`} className="hover:text-amber-400 transition">
-                  {phone}
-                </a>
-              </li>
-              <li className="flex items-center gap-2.5">
-                <Mail className="h-4 w-4 text-amber-400 shrink-0" />
-                <a href={`mailto:${email}`} className="hover:text-amber-400 transition">
-                  {email}
-                </a>
-              </li>
+              {fullAddress && (
+                <li className="flex items-start gap-2.5">
+                  <MapPin className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                  <span>{fullAddress}</span>
+                </li>
+              )}
+              {business?.phone && (
+                <li className="flex items-center gap-2.5">
+                  <Phone className="h-4 w-4 text-amber-400 shrink-0" />
+                  <a href={`tel:${business.phone.replace(/\D/g, '')}`} className="hover:text-amber-400 transition">
+                    {business.phone}
+                  </a>
+                </li>
+              )}
+              {business?.email && (
+                <li className="flex items-center gap-2.5">
+                  <Mail className="h-4 w-4 text-amber-400 shrink-0" />
+                  <a href={`mailto:${business.email}`} className="hover:text-amber-400 transition">
+                    {business.email}
+                  </a>
+                </li>
+              )}
             </ul>
           </div>
 
@@ -121,16 +152,7 @@ export function Footer({ business }: FooterProps) {
                 <Link href="/book" className="text-amber-400 hover:underline font-medium">Book Appointment</Link>
               </li>
               <li>
-                <Link href="/about" className="hover:text-amber-400 transition">About Us</Link>
-              </li>
-              <li>
                 <Link href="/reviews" className="hover:text-amber-400 transition">Client Reviews</Link>
-              </li>
-              <li>
-                <Link href="/faq" className="hover:text-amber-400 transition">FAQ</Link>
-              </li>
-              <li>
-                <Link href="/contact" className="hover:text-amber-400 transition">Contact Us</Link>
               </li>
             </ul>
           </div>
@@ -139,18 +161,21 @@ export function Footer({ business }: FooterProps) {
           <div className="space-y-3">
             <h3 className="text-zinc-100 font-semibold text-base font-poppins">Shop Policies & Legal</h3>
             <ul className="space-y-2">
-              <li>
-                <Link href="/booking-policy" className="hover:text-amber-400 transition">Booking & Cancellation Policy</Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-amber-400 transition">Privacy Policy</Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-amber-400 transition">Terms of Service</Link>
-              </li>
-              <li>
-                <Link href="/accessibility" className="hover:text-amber-400 transition">Accessibility</Link>
-              </li>
+              {business?.bookingPolicy && (
+                <li>
+                  <Link href="/booking-policy" className="hover:text-amber-400 transition">Booking & Cancellation Policy</Link>
+                </li>
+              )}
+              {business?.privacyPolicy && (
+                <li>
+                  <Link href="/privacy" className="hover:text-amber-400 transition">Privacy Policy</Link>
+                </li>
+              )}
+              {business?.termsPolicy && (
+                <li>
+                  <Link href="/terms" className="hover:text-amber-400 transition">Terms of Service</Link>
+                </li>
+              )}
             </ul>
             <div className="pt-2">
               <p className="text-xs text-amber-400/90 font-medium flex items-center gap-1.5">
@@ -164,9 +189,6 @@ export function Footer({ business }: FooterProps) {
         <div className="mt-12 pt-6 border-t border-zinc-800/60 flex flex-col sm:flex-row items-center justify-between text-xs text-zinc-500 gap-4">
           <p>© {new Date().getFullYear()} {shopName?.replace(/\.$/, '')}. All rights reserved.</p>
           <div className="flex items-center gap-4">
-            <p className="text-zinc-500">
-              Powered by Barber Booking System
-            </p>
             <Link
               href="/login"
               className="flex items-center gap-1.5 text-zinc-600 hover:text-amber-400 transition"
