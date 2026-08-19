@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { resolveBusinessId } from '@/lib/tenant'
 
 // POST /api/public/portal/lookup — customer looks up their appointments by email or phone
 export async function POST(req: NextRequest) {
@@ -16,15 +17,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { email, phone, businessId } = body
+    const { email, phone } = body
 
     if (!email && !phone) {
       return NextResponse.json({ error: 'Email or phone is required' }, { status: 400 })
     }
 
-    if (!businessId) {
-      return NextResponse.json({ error: 'Business is required' }, { status: 400 })
-    }
+    // Resolve businessId server-side — never trust client-provided businessId
+    const businessId = await resolveBusinessId()
 
     const where: any = { businessId }
     if (email) {
