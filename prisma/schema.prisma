@@ -42,6 +42,9 @@ model Business {
   googleBusinessProfile String?
   hours        Json? // { monday: { open: "09:00", close: "18:00", isOff: false }, ... }
   aboutText    String? @db.Text
+  teamSectionLabel       String? // e.g. 'Our Team', 'The Artists' — badge above heading on /barbers
+  teamSectionTitle       String? @db.Text // heading on /barbers page, e.g. 'Meet the Barbers'
+  teamSectionDescription String? @db.Text // paragraph below heading on /barbers page
   bookingPolicy String? @db.Text
   cancellationPolicy String? @db.Text
   latePolicy   String? @db.Text

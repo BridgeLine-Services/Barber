@@ -177,6 +177,9 @@ export const updateBusinessSchema = z.object({
 
   // Content
   aboutText: z.string().max(5000).optional(),
+  teamSectionLabel: z.string().max(100).optional(),
+  teamSectionTitle: z.string().max(500).optional(),
+  teamSectionDescription: z.string().max(2000).optional(),
   hours: z.record(z.string(), z.any()).optional(),
 
   // Policies

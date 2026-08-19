@@ -48,16 +48,16 @@ export default async function BarbersPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 space-y-12">
-      {/* Header — uses business name dynamically */}
+      {/* Header — configurable from business settings */}
       <div className="text-center max-w-3xl mx-auto space-y-4">
         <Badge variant="outline" className="px-3 py-1" style={{ borderColor: business.accentColor, color: business.accentColor }}>
-          Our Team
+          {business.teamSectionLabel || 'Our Team'}
         </Badge>
         <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight">
-          Meet the Barbers at {business.name}
+          {business.teamSectionTitle || `Meet the Barbers at ${business.name}`}
         </h1>
         <p className="text-muted-foreground text-base leading-relaxed">
-          Each member of our team brings years of experience, attention to detail, and passion for precision cuts and classic grooming.
+          {business.teamSectionDescription || 'Each member of our team brings years of experience, attention to detail, and passion for precision cuts and classic grooming.'}
         </p>
       </div>
 

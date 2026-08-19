@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/components/ui/use-toast'
 import {
-  Save, Building2, Phone, Mail, MapPin, Clock, Globe, Palette,
+  Save, Building2, Phone, Mail, MapPin, Clock, Globe, Palette, Users,
   Search, FileText, Image as ImageIcon, Check
 } from 'lucide-react'
 
@@ -223,6 +223,48 @@ export default function SettingsPage() {
                   className="bg-zinc-800 border-zinc-700 mt-1 min-h-[100px]"
                   placeholder="Tell customers about your shop..."
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Team Section Content — configurable text for the /barbers page */}
+          <Card className="bg-zinc-900 border-zinc-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Users className="h-5 w-5 text-amber-500" />
+                Meet the Team Section
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label className="text-zinc-400">Section Label (badge text)</Label>
+                <Input
+                  value={business.teamSectionLabel || ''}
+                  onChange={e => setBusiness({ ...business, teamSectionLabel: e.target.value })}
+                  className="bg-zinc-800 border-zinc-700 mt-1"
+                  placeholder="Our Team"
+                />
+                <p className="text-xs text-zinc-500 mt-1">Small badge shown above the heading on the Barbers page</p>
+              </div>
+              <div>
+                <Label className="text-zinc-400">Section Title</Label>
+                <Input
+                  value={business.teamSectionTitle || ''}
+                  onChange={e => setBusiness({ ...business, teamSectionTitle: e.target.value })}
+                  className="bg-zinc-800 border-zinc-700 mt-1"
+                  placeholder={`Meet the Barbers at ${business.name || 'Your Shop'}`}
+                />
+                <p className="text-xs text-zinc-500 mt-1">Main heading. Leave blank to auto-use "Meet the Barbers at [Shop Name]"</p>
+              </div>
+              <div>
+                <Label className="text-zinc-400">Section Description</Label>
+                <Textarea
+                  value={business.teamSectionDescription || ''}
+                  onChange={e => setBusiness({ ...business, teamSectionDescription: e.target.value })}
+                  className="bg-zinc-800 border-zinc-700 mt-1 min-h-[80px]"
+                  placeholder="Each member of our team brings years of experience, attention to detail, and passion for precision cuts and classic grooming."
+                />
+                <p className="text-xs text-zinc-500 mt-1">Paragraph shown below the heading. Leave blank for default text.</p>
               </div>
             </CardContent>
           </Card>
