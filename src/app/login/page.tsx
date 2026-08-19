@@ -156,11 +156,10 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo credentials hint */}
+          {/* Setup hint — no credentials exposed */}
           <div className="mt-6 pt-5 border-t border-zinc-800/60">
             <p className="text-xs text-zinc-500 text-center">
-              Demo login requires a connected database. Seed with:{' '}
-              <span className="text-zinc-400">owner@fadefactory.com</span> / <span className="text-zinc-400">password123</span>
+              Authorized staff only. Contact your administrator if you need login credentials.
             </p>
           </div>
         </div>

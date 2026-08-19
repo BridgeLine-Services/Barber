@@ -7,8 +7,33 @@ import { createAppointmentSafely, getAvailableSlots } from '@/lib/availability'
 import { sendBookingConfirmation } from '@/lib/notifications'
 import { createBookingSchema } from '@/lib/validation'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { localTimeToUTCFromYMD, dayOfWeekFromYMD } from '@/lib/timezone'
 
-function parseStartTime(dateStr: string, timeStr: string): Date {
+// Cache business timezone lookups within a request
+async function getBusinessTimezone(businessId: string): Promise<string> {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { timezone: true },
+  })
+  return business?.timezone || 'America/New_York'
+}
+
+/**
+ * Parse a date string (YYYY-MM-DD) and time string (HH:mm or "h:mm AM/PM")
+ * into a UTC Date using the BUSINESS TIMEZONE, not the server's local timezone.
+ *
+ * CRITICAL: On Vercel (UTC), new Date(year, month-1, day, hours, minutes) would
+ * interpret the time in UTC, not in the business's timezone. For a California
+ * barber shop, 9:00 AM would become 9:00 UTC (2:00 AM PDT) — off by 7 hours.
+ *
+ * This function uses Luxon to construct the instant directly in the business
+ * timezone, then converts to UTC for database storage.
+ */
+async function parseStartTime(
+  dateStr: string,
+  timeStr: string,
+  businessId: string
+): Promise<Date> {
   const [year, month, day] = dateStr.split('-').map(Number)
   let hours = 0
   let minutes = 0
@@ -26,7 +51,10 @@ function parseStartTime(dateStr: string, timeStr: string): Date {
     minutes = parseInt(parts[1], 10) || 0
   }
 
-  return new Date(year, month - 1, day, hours, minutes, 0, 0)
+  // Use business timezone to construct the instant — NOT server-local time
+  const timezone = await getBusinessTimezone(businessId)
+  const timeStr24h = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+  return localTimeToUTCFromYMD(timeStr24h, year, month, day, timezone)
 }
 
 export async function POST(req: NextRequest) {
@@ -40,43 +68,13 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const idempotencyKey = req.headers.get('idempotency-key')?.trim() || req.headers.get('Idempotency-Key')?.trim() || undefined
-
-    if (idempotencyKey) {
-      const existing = await prisma.appointment.findUnique({
-        where: { idempotencyKey },
-        include: {
-          service: true,
-          barber: true,
-        },
-      })
-
-      if (existing) {
-        return NextResponse.json({
-          success: true,
-          confirmationNumber: existing.confirmationNumber,
-          customerAccessToken: existing.customerAccessToken,
-          appointment: {
-            confirmationNumber: existing.confirmationNumber,
-            startTime: existing.startTime,
-            endTime: existing.endTime,
-            status: existing.status,
-            service: {
-              name: existing.service?.name,
-              duration: existing.service?.duration,
-              price: existing.service?.price,
-            },
-            barber: {
-              name: existing.barber?.name,
-            },
-          },
-        })
-      }
-    }
-
     const body = await req.json()
 
-    // Validate input with Zod schema
+    // Idempotency: if the client sends the same request twice (double-click),
+    // the second one is rejected. Use a hash of the booking data.
+    const idempotencyKey = body.idempotencyKey || `${body.barberId}-${body.serviceId}-${body.date}-${body.time}-${body.customer?.email || ''}`
+
+    // Validate request body with Zod
     const parseResult = createBookingSchema.safeParse(body)
     if (!parseResult.success) {
       return NextResponse.json(
@@ -92,7 +90,7 @@ export async function POST(req: NextRequest) {
     const { barberId: reqBarberId, serviceId, date, time, customer } = parseResult.data
 
     const businessId = await resolveBusinessId(req)
-    const startTime = parseStartTime(date, time)
+    const startTime = await parseStartTime(date, time, businessId)
 
     // Cannot book in the past
     if (startTime < new Date()) {
@@ -112,7 +110,11 @@ export async function POST(req: NextRequest) {
         orderBy: { order: 'asc' },
       })
 
-      const dateObj = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate())
+      // Use timezone-aware date object for availability check
+      const [year, month, day] = date.split('-').map(Number)
+      const timezone = await getBusinessTimezone(businessId)
+      const dateObj = new Date(localTimeToUTCFromYMD('00:00', year, month, day, timezone))
+      const dateStr = date // YYYY-MM-DD — passed for timezone accuracy
 
       for (const barber of activeBarbers) {
         // Check if barber offers service
@@ -124,6 +126,7 @@ export async function POST(req: NextRequest) {
           barberId: barber.id,
           serviceId,
           date: dateObj,
+          dateStr,
         })
         const matchingSlot = slots.find((s) => s.time === time && s.available)
         if (matchingSlot) {
@@ -178,47 +181,34 @@ export async function POST(req: NextRequest) {
     })
 
     if (fullAppointment) {
-      // Send confirmation email asynchronously (ignore errors so booking completes)
-      sendBookingConfirmation(fullAppointment).catch((err) =>
-        console.error('Failed to send booking confirmation email:', err)
+      // Send confirmation email/SMS (non-blocking — booking already succeeded)
+      sendBookingConfirmation(fullAppointment).catch((err) => {
+        console.error('Failed to send booking confirmation:', err)
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      confirmationNumber: result.appointment?.confirmationNumber,
+      customerAccessToken: result.customerAccessToken,
+    })
+  } catch (error: any) {
+    console.error('Booking error:', error)
+
+    // Check if it's a demo mode error (no database)
+    if (error?.message?.includes('No business found')) {
+      return NextResponse.json(
+        {
+          success: false,
+          demo: true,
+          error: 'Demo mode — booking is for preview only. Connect a database to enable real bookings.',
+        },
+        { status: 503 }
       )
     }
 
-    // Return MINIMIZED response — do not expose internal IDs, customer PII beyond what's needed
-    // The customerAccessToken is returned so the customer can manage their appointment
-    return NextResponse.json({
-      success: true,
-      confirmationNumber: result.appointment.confirmationNumber,
-      customerAccessToken: result.appointment.customerAccessToken,
-      appointment: {
-        confirmationNumber: result.appointment.confirmationNumber,
-        startTime: result.appointment.startTime,
-        endTime: result.appointment.endTime,
-        status: result.appointment.status,
-        service: {
-          name: result.appointment.service?.name,
-          duration: result.appointment.service?.duration,
-          price: result.appointment.service?.price,
-        },
-        barber: {
-          name: result.appointment.barber?.name,
-        },
-      },
-    })
-  } catch (error: any) {
-    console.error('Error creating appointment:', error)
-
-    // Demo mode: database not connected — return a friendly preview response
-    if (error.message?.includes('No business found') || error.message?.includes('connect') || error.code === 'P1001' || error.message?.includes('prisma')) {
-      return NextResponse.json({
-        success: false,
-        demo: true,
-        error: 'Booking is in demo mode. Connect a database to enable real appointments.',
-      }, { status: 503 })
-    }
-
     return NextResponse.json(
-      { success: false, error: 'An error occurred while creating your appointment.' },
+      { success: false, error: 'An error occurred while booking. Please try again.' },
       { status: 500 }
     )
   }

@@ -392,7 +392,7 @@ export async function createAppointmentSafely(params: {
     notes?: string | null
     smsConsent?: boolean
   }
-}): Promise<{ success: boolean; appointment?: any; error?: string }> {
+}): Promise<{ success: boolean; appointment?: any; error?: string; customerAccessToken?: string }> {
   const { businessId, barberId, serviceId, startTime, idempotencyKey, customerData } = params
 
   try {
@@ -492,7 +492,7 @@ export async function createAppointmentSafely(params: {
       return appointment
     })
 
-    return { success: true, appointment: result }
+    return { success: true, appointment: result, customerAccessToken: result.customerAccessToken }
   } catch (error: any) {
     const message = error.message || 'Unknown error'
     if (message === 'SLOT_TAKEN') {

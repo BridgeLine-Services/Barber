@@ -1,8 +1,27 @@
-import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { verifyProductionReadiness } from '@/lib/production-readiness'
+export const dynamic = 'force-dynamic'
 
-export async function GET() {
+import { NextResponse, NextRequest } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getToken } from 'next-auth/jwt'
+
+export async function GET(req: NextRequest) {
+  // Check if the requester is an authenticated admin
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+  const isAdmin = token?.role === 'OWNER'
+
+  // ── Public response: minimal status only ──
+  // Don't expose environment variables, database details, counts, or errors
+  if (!isAdmin) {
+    try {
+      // Quick DB ping — if it fails, we still return 503 but with no details
+      await prisma.business.count()
+      return NextResponse.json({ status: 'healthy' }, { status: 200 })
+    } catch {
+      return NextResponse.json({ status: 'degraded' }, { status: 503 })
+    }
+  }
+
+  // ── Admin response: full diagnostic details ──
   const checks: Record<string, { status: string; message?: string }> = {}
 
   // Check environment variables
@@ -67,19 +86,10 @@ export async function GET() {
   const allOk = Object.values(checks).every((c) => c.status === 'ok')
   const httpStatus = allOk ? 200 : 503
 
-  // Production readiness report (read-only, doesn't affect health status)
-  let readiness = null
-  try {
-    readiness = await verifyProductionReadiness()
-  } catch {
-    // Non-critical — health check still works
-  }
-
   return NextResponse.json(
     {
       status: allOk ? 'healthy' : 'degraded',
       checks,
-      readiness,
       timestamp: new Date().toISOString(),
     },
     { status: httpStatus }

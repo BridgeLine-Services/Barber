@@ -76,7 +76,8 @@ function BookingFlow() {
         if (data.selectedBarberId) setSelectedBarberId(data.selectedBarberId)
         if (data.selectedDate) setSelectedDate(new Date(data.selectedDate))
         if (data.selectedTime) setSelectedTime(data.selectedTime)
-        if (data.customerInfo) setCustomerInfo(data.customerInfo)
+        // Deliberately do NOT restore customerInfo (PII) from localStorage
+        // to protect customer privacy on shared devices.
       }
     } catch {
       // Ignore corrupted storage
@@ -91,12 +92,13 @@ function BookingFlow() {
         selectedBarberId,
         selectedDate: selectedDate?.toISOString() || null,
         selectedTime,
-        customerInfo,
+        // Deliberately excluded: customerInfo (name, phone, email, notes)
+        // to prevent PII leakage on shared devices.
       }))
     } catch {
       // Storage full or unavailable — non-critical
     }
-  }, [step, selectedServiceId, selectedBarberId, selectedDate, selectedTime, customerInfo])
+  }, [step, selectedServiceId, selectedBarberId, selectedDate, selectedTime])
 
   // Pre-fill from URL params
   useEffect(() => {
@@ -208,6 +210,8 @@ function BookingFlow() {
       const data = await res.json()
 
       if (data.success) {
+        // Clear booking progress from localStorage after successful booking
+        try { localStorage.removeItem('barber-booking-progress') } catch {}
         router.push(`/appointment/${data.confirmationNumber}?token=${data.customerAccessToken}`)
       } else if (data.demo) {
         setBookingError(data.error || 'Demo mode — connect a database to enable real bookings.')
