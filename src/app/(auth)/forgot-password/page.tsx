@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
       const data = await res.json()
 
       if (data.resetUrl) {
-        // Demo mode — show the link directly
+        // Development only — show the link directly
         setResetUrl(data.resetUrl)
       }
 
@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
           </div>
           {resetUrl && (
             <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-left">
-              <p className="text-xs text-amber-300 mb-2">Demo mode — your reset link:</p>
+              <p className="text-xs text-amber-300 mb-2">Development only — your reset link:</p>
               <Link
                 href={resetUrl}
                 className="text-sm text-amber-400 hover:underline break-all"

@@ -135,7 +135,7 @@ export async function logAudit(params: {
 /**
  * Get the businessId for the current authenticated user.
  * In production (DEMO_MODE !== 'true'): fails closed if businessId is missing.
- * In demo mode: falls back to first business for development convenience.
+ * Falls back to first business for single-tenant deployment convenience.
  * NEVER use the fallback in production — it risks cross-tenant data leakage.
  */
 export async function getBusinessIdForUser(user: { businessId?: string; role: string }): Promise<string> {
@@ -148,7 +148,7 @@ export async function getBusinessIdForUser(user: { businessId?: string; role: st
     throw new Error('No businessId on session. This indicates a misconfigured authentication flow.')
   }
 
-  // Demo mode only: fall back to first business for development
+  // Single-tenant fallback: fall back to first business
   const business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
   if (!business) throw new Error('No business found. Run the seed script first.')
   return business.id

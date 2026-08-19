@@ -79,7 +79,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ entry: updated })
   } catch (error: any) {
     if (error.code === 'P1001' || error.message?.includes('No business found')) {
-      return NextResponse.json({ error: 'Demo mode' }, { status: 503 })
+      return NextResponse.json({ error: 'Database connection error' }, { status: 503 })
     }
     return NextResponse.json({ error: 'Failed to update entry' }, { status: 500 })
   }

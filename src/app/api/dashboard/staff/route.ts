@@ -122,12 +122,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       user,
-      tempPassword, // Demo only — in production, send via email
+      tempPassword, // TODO: send temp password via email in production
       message: 'Staff member invited. Share the temporary password securely.',
     }, { status: 201 })
   } catch (error: any) {
     if (error.code === 'P1001' || error.message?.includes('No business found')) {
-      return NextResponse.json({ error: 'Demo mode — connect a database to manage staff.' }, { status: 503 })
+      return NextResponse.json({ error: 'Database connection error. Please try again.' }, { status: 503 })
     }
     console.error('Error inviting staff:', error)
     return NextResponse.json({ error: 'Failed to invite staff member' }, { status: 500 })

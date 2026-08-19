@@ -101,10 +101,10 @@ export async function POST(
   } catch (error: any) {
     console.error('Error cancelling appointment by token:', error)
 
-    // Demo mode: database not connected
+    // Database not connected
     if (error.message?.includes('No business found') || error.code === 'P1001' || error.message?.includes('prisma') || error.message?.includes('connect')) {
       return NextResponse.json({
-        error: 'Demo mode — connect a database to manage appointments.',
+        error: 'Database connection error. Please try again.',
       }, { status: 503 })
     }
 

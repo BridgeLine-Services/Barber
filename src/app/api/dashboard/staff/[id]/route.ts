@@ -77,7 +77,7 @@ export async function PATCH(
     return NextResponse.json({ user: updated })
   } catch (error: any) {
     if (error.code === 'P1001' || error.message?.includes('No business found')) {
-      return NextResponse.json({ error: 'Demo mode' }, { status: 503 })
+      return NextResponse.json({ error: 'Database connection error' }, { status: 503 })
     }
     return NextResponse.json({ error: 'Failed to update staff member' }, { status: 500 })
   }
@@ -137,7 +137,7 @@ export async function POST(
     })
   } catch (error: any) {
     if (error.code === 'P1001' || error.message?.includes('No business found')) {
-      return NextResponse.json({ error: 'Demo mode' }, { status: 503 })
+      return NextResponse.json({ error: 'Database connection error' }, { status: 503 })
     }
     return NextResponse.json({ error: 'Failed to reset password' }, { status: 500 })
   }
@@ -202,7 +202,7 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   } catch (error: any) {
     if (error.code === 'P1001' || error.message?.includes('No business found')) {
-      return NextResponse.json({ error: 'Demo mode' }, { status: 503 })
+      return NextResponse.json({ error: 'Database connection error' }, { status: 503 })
     }
     return NextResponse.json({ error: 'Failed to remove staff member' }, { status: 500 })
   }

@@ -43,7 +43,7 @@ export async function GET() {
 
     return NextResponse.json({ closures })
   } catch (error: any) {
-    // Demo mode
+    // Database error
     if (error.message?.includes('No business found') || error.code === 'P1001') {
       return NextResponse.json({ error: 'Database not available' }, { status: 503 })
     }
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ closure }, { status: 201 })
   } catch (error: any) {
     if (error.message?.includes('No business found') || error.code === 'P1001') {
-      return NextResponse.json({ error: 'Demo mode — connect a database to manage closures.' }, { status: 503 })
+      return NextResponse.json({ error: 'Database connection error. Please try again.' }, { status: 503 })
     }
     console.error('Error creating closure:', error)
     return NextResponse.json({ error: 'Failed to create closure' }, { status: 500 })

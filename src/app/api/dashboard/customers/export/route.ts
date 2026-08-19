@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (error: any) {
     if (error.code === 'P1001' || error.message?.includes('No business found')) {
-      return NextResponse.json({ error: 'Demo mode — connect a database to export customers.' }, { status: 503 })
+      return NextResponse.json({ error: 'Database connection error. Please try again.' }, { status: 503 })
     }
     console.error('Customer export error:', error)
     return NextResponse.json({ error: 'Failed to export customers' }, { status: 500 })

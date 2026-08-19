@@ -55,7 +55,7 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   } catch (error: any) {
     if (error.message?.includes('No business found') || error.code === 'P1001') {
-      return NextResponse.json({ error: 'Demo mode' }, { status: 503 })
+      return NextResponse.json({ error: 'Database connection error' }, { status: 503 })
     }
     console.error('Error deleting closure:', error)
     return NextResponse.json({ error: 'Failed to delete closure' }, { status: 500 })

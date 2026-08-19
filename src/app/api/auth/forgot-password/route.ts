@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error: any) {
     if (error.code === 'P1001' || error.message?.includes('connect')) {
-      return NextResponse.json({ error: 'Demo mode — connect a database to use password reset.' }, { status: 503 })
+      return NextResponse.json({ error: 'Database connection error. Please try again.' }, { status: 503 })
     }
     console.error('Forgot password error:', error)
     return NextResponse.json({ error: 'Failed to process request' }, { status: 500 })
