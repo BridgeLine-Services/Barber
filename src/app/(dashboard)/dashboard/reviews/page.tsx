@@ -17,20 +17,38 @@ export default async function ReviewsPage() {
   }
 
   let reviews: any[] = []
+  let barbers: any[] = []
   let avgRating = '0.0'
   let total = 0
 
   try {
-    const rawReviews = await prisma.review.findMany({
-      where: { businessId: user.businessId },
-      orderBy: { createdAt: 'desc' },
-    })
+    const [rawReviews, rawBarbers] = await Promise.all([
+      prisma.review.findMany({
+        where: { businessId: user.businessId },
+        orderBy: { createdAt: 'desc' },
+        include: { barber: { select: { name: true, slug: true } } },
+      }),
+      prisma.barber.findMany({
+        where: { businessId: user.businessId, isActive: true },
+        select: { id: true, name: true, slug: true },
+        orderBy: { name: 'asc' },
+      }),
+    ])
 
     reviews = rawReviews.map(r => ({
-      ...r,
+      id: r.id,
+      authorName: r.authorName,
+      rating: r.rating,
+      comment: r.comment,
+      isFeatured: r.isFeatured,
+      isGoogleReview: r.isGoogleReview,
+      barberId: r.barberId,
+      barberName: r.barber?.name || null,
+      barberSlug: r.barber?.slug || null,
       createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
     }))
+
+    barbers = rawBarbers
 
     avgRating = reviews.length > 0
       ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
@@ -40,5 +58,5 @@ export default async function ReviewsPage() {
     console.error('Failed to load reviews:', error)
   }
 
-  return <ReviewsClient initialReviews={reviews} avgRating={avgRating} total={total} />
+  return <ReviewsClient initialReviews={reviews} barbers={barbers} avgRating={avgRating} total={total} businessId={user.businessId} />
 }
