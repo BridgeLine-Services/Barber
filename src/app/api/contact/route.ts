@@ -29,7 +29,8 @@ export async function POST(req: NextRequest) {
 
     const { name, email, message } = parseResult.data
 
-    console.log(`[Contact Form] From: ${name} <${email}>: ${message.substring(0, 100)}`)
+    // Log without PII for production safety
+    console.info('[Contact Form] New submission received')
 
     // If SMTP environment variables exist, send email notification
     if (process.env.SMTP_HOST && process.env.SMTP_USER) {

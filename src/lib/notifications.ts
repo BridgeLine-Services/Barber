@@ -278,7 +278,7 @@ export async function sendAppointmentReminder(appointment: AppointmentWithRelati
  */
 export async function sendSmsReminder(phone: string, message: string) {
   if (!isTwilioConfigured()) {
-    console.log(`[SMS not configured] To: ${phone}, Message: ${message}`)
+    console.warn(`[SMS not configured] — notification skipped`)
     await logNotification({
       recipient: phone,
       channel: 'SMS',
