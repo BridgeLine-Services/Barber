@@ -11,8 +11,9 @@ import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/components/ui/use-toast'
 import {
   Save, Building2, Phone, Mail, MapPin, Clock, Globe, Palette, Users,
-  Search, FileText, Image as ImageIcon, Check
+  Search, FileText, Image as ImageIcon, Check, HelpCircle
 } from 'lucide-react'
+import { FaqManager } from '@/components/dashboard/FaqManager'
 
 const TIMEZONES = [
   'America/Los_Angeles',
@@ -51,7 +52,7 @@ const DEFAULT_HOURS: Record<string, { open: string; close: string; isOff: boolea
   sunday: { open: '09:00', close: '16:00', isOff: true },
 }
 
-type Tab = 'business' | 'hours' | 'branding' | 'social' | 'policies' | 'seo'
+type Tab = 'business' | 'hours' | 'branding' | 'social' | 'policies' | 'seo' | 'faq'
 
 export default function SettingsPage() {
   const { toast } = useToast()
@@ -144,6 +145,7 @@ export default function SettingsPage() {
     { id: 'social', label: 'Social Links', icon: Globe },
     { id: 'policies', label: 'Policies', icon: FileText },
     { id: 'seo', label: 'SEO', icon: Search },
+    { id: 'faq', label: 'FAQ', icon: HelpCircle },
   ]
 
   const hours = business.hours || DEFAULT_HOURS
@@ -777,6 +779,8 @@ export default function SettingsPage() {
           </Card>
         </>
       )}
+
+      {activeTab === 'faq' && <FaqManager />}
     </div>
   )
 }

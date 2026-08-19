@@ -75,6 +75,7 @@ model Business {
   mediaAssets   MediaAsset[]
   seo          BusinessSEO?
   availabilityOverrides AvailabilityOverride[]
+  faqs         Faq[]
 
   @@index([slug])
 }
@@ -748,4 +749,21 @@ model MarketingCampaign {
 
   @@index([businessId, status])
   @@index([businessId, audience])
+}
+
+// ─── FAQ (Database-driven, owner-editable) ──────────────────────────────────
+
+model Faq {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category    String
+  question    String
+  answer      String   @db.Text
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId, isActive, sortOrder])
 }

@@ -101,6 +101,7 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
         { name: 'Policies', href: '/dashboard/settings?tab=policies', icon: FileText },
         { name: 'Social Media', href: '/dashboard/settings?tab=social', icon: Globe },
         { name: 'SEO', href: '/dashboard/settings?tab=seo', icon: Search },
+        { name: 'FAQ', href: '/dashboard/settings?tab=faq', icon: FileText },
       ],
     },
     {

@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { Metadata } from 'next'
 import Link from 'next/link'
+import { prisma } from '@/lib/prisma'
+import { resolveBusiness } from '@/lib/tenant'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -12,7 +14,8 @@ export const metadata: Metadata = {
   description: 'Find answers to common questions about booking, payments, cancellations, parking, and shop policies.',
 }
 
-const FAQS = [
+// Fallback FAQs shown only if the owner hasn't added any yet via the dashboard.
+const DEFAULT_FAQS = [
   {
     category: 'Booking & Appointments',
     questions: [
@@ -45,10 +48,6 @@ const FAQS = [
         q: 'What payment methods do you accept at the shop?',
         a: 'We accept Cash, Debit Cards, Credit Cards (Visa, MasterCard, American Express), Apple Pay, Google Pay, and contactless tap payments.',
       },
-      {
-        q: 'Are prices subject to change?',
-        a: 'Listed prices reflect standard service costs. Any custom add-ons or special requests discussed during your consultation will be clarified before service begins.',
-      },
     ],
   },
   {
@@ -62,19 +61,31 @@ const FAQS = [
         q: 'What happens if I run late?',
         a: 'If you are running more than 10 minutes late, please call us. We will do our best to accommodate you, but may need to adjust your service duration to keep the schedule on time for other clients.',
       },
-      {
-        q: 'Is parking available at the shop?',
-        a: 'Yes, we have free client parking available in the dedicated lot directly behind our building, as well as metered street parking upfront.',
-      },
-      {
-        q: 'Do you cut children’s hair?',
-        a: 'Yes! We provide specialized Kids Haircuts for children aged 3 and above in a safe, patient, and friendly environment.',
-      },
     ],
   },
 ]
 
-export default function FAQPage() {
+export default async function FAQPage() {
+  const business = await resolveBusiness().catch(() => null)
+
+  let categories: { category: string; questions: { q: string; a: string }[] }[] = DEFAULT_FAQS
+
+  if (business) {
+    const faqs = await prisma.faq.findMany({
+      where: { businessId: business.id, isActive: true },
+      orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }],
+    })
+
+    if (faqs.length > 0) {
+      const grouped = new Map<string, { q: string; a: string }[]>()
+      for (const faq of faqs) {
+        if (!grouped.has(faq.category)) grouped.set(faq.category, [])
+        grouped.get(faq.category)!.push({ q: faq.question, a: faq.answer })
+      }
+      categories = Array.from(grouped.entries()).map(([category, questions]) => ({ category, questions }))
+    }
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 space-y-12">
       {/* Header */}
@@ -92,7 +103,7 @@ export default function FAQPage() {
 
       {/* FAQ Sections */}
       <div className="space-y-10">
-        {FAQS.map((cat, idx) => (
+        {categories.map((cat, idx) => (
           <div key={idx} className="space-y-4">
             <h2 className="text-xl font-bold text-amber-400 font-poppins flex items-center gap-2 border-b border-zinc-800 pb-2">
               <HelpCircle className="h-5 w-5" />
