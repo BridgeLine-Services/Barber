@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 const setupSchema = z.object({
   businessName: z.string().min(2).max(100),
@@ -50,6 +51,15 @@ export async function GET() {
  * This is the "first-run" endpoint — once a business is created, this route refuses.
  */
 export async function POST(req: NextRequest) {
+  // Rate limit setup attempts to prevent brute-force
+  const rateLimitResult = checkRateLimit(req, 'setup', { windowMs: 60_000, maxRequests: 3 })
+  if (rateLimitResult) {
+    return NextResponse.json(
+      { error: 'Too many attempts. Please wait a minute and try again.' },
+      { status: rateLimitResult.status }
+    )
+  }
+
   try {
     // Guard: refuse if a business already exists
     const existing = await prisma.business.count()
