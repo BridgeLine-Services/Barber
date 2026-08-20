@@ -3,7 +3,14 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 
+// Fallback secret so the app still works if NEXTAUTH_SECRET isn't set yet.
+// In production you SHOULD set NEXTAUTH_SECRET in Vercel env vars for persistence.
+const fallbackSecret =
+  process.env.NEXTAUTH_SECRET ||
+  'dev-only-fallback-secret-change-me-in-production-' + (process.env.NEXTAUTH_URL || 'local')
+
 export const authOptions: NextAuthOptions = {
+  secret: fallbackSecret,
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
@@ -41,9 +48,6 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           console.error('Auth error - database may not be configured:', error)
-          // Throw the error so NextAuth surfaces it as a Configuration error
-          // instead of silently treating it as wrong credentials.
-          // The login page already handles Configuration errors gracefully.
           throw new Error('Database connection failed. The database may not be configured.')
         }
       },

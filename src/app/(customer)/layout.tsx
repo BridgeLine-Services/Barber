@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 
+import { redirect } from 'next/navigation'
 import { resolveBusiness } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
 import { Navbar } from '@/components/customer/Navbar'
@@ -15,18 +16,9 @@ export default async function CustomerLayout({
 }) {
   const business = await resolveBusiness().catch(() => null)
 
-  // No demo fallback in production — show setup message if no business
+  // No business configured — redirect to first-run setup wizard
   if (!business) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-8">
-        <div className="text-center max-w-md">
-          <h1 className="text-2xl font-bold mb-4">Shop Not Configured</h1>
-          <p className="text-muted-foreground">
-            No business has been set up yet. An administrator needs to run the setup process.
-          </p>
-        </div>
-      </div>
-    )
+    redirect('/setup')
   }
 
   // Fetch SEO settings for this business
