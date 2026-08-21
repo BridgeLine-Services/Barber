@@ -18,7 +18,7 @@ export interface AuthResult {
     email: string
     name: string
     role: 'OWNER' | 'BARBER'
-    businessId: string
+    businessId: string | null
     barberId?: string | null
   }
 }
@@ -48,6 +48,7 @@ export async function requireAuth(): Promise<AuthResult | AuthError> {
 
 /**
  * Require OWNER role only. Barbers get 403.
+ * Also returns a specific error if the owner hasn't created a shop yet.
  */
 export async function requireOwner(): Promise<AuthResult | AuthError> {
   const auth = await requireAuth()
@@ -62,6 +63,18 @@ export async function requireOwner(): Promise<AuthResult | AuthError> {
       ),
     }
   }
+
+  // If the owner hasn't created a shop yet, tell the client
+  if (!auth.user.businessId) {
+    return {
+      success: false,
+      response: NextResponse.json(
+        { error: 'No shop found. Please create your shop first.', needsShop: true },
+        { status: 422 }
+      ),
+    }
+  }
+
   return auth
 }
 
@@ -92,9 +105,10 @@ export async function requireStaff(
  * Prevents cross-tenant data access even if someone guesses an ID.
  */
 export async function verifyBusinessAccess(
-  userBusinessId: string,
+  userBusinessId: string | null,
   resourceBusinessId: string
 ): Promise<boolean> {
+  if (!userBusinessId) return false
   return userBusinessId === resourceBusinessId
 }
 
@@ -134,22 +148,22 @@ export async function logAudit(params: {
 
 /**
  * Get the businessId for the current authenticated user.
- * In production (DEMO_MODE !== 'true'): fails closed if businessId is missing.
- * Falls back to first business for single-tenant deployment convenience.
- * NEVER use the fallback in production — it risks cross-tenant data leakage.
+ * Returns a non-null string — throws if businessId is missing.
+ * Callers should check for businessId existence before calling this
+ * (e.g. requireOwner already checks and returns 422 if missing).
  */
-export async function getBusinessIdForUser(user: { businessId?: string; role: string }): Promise<string> {
+export async function getBusinessIdForUser(user: { businessId?: string | null; role: string }): Promise<string> {
   if (user.businessId) return user.businessId
 
   const isDemoMode = process.env.DEMO_MODE === 'true'
 
   if (!isDemoMode) {
     // Production: fail closed — no fallback to prevent cross-tenant access
-    throw new Error('No businessId on session. This indicates a misconfigured authentication flow.')
+    throw new Error('No businessId on session. This indicates the owner has not created a shop yet.')
   }
 
-  // Single-tenant fallback: fall back to first business
+  // Single-tenant fallback: fall back to first business (demo mode only)
   const business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
-  if (!business) throw new Error('No business found. Run the seed script first.')
+  if (!business) throw new Error('No business found. Create a shop first.')
   return business.id
 }
