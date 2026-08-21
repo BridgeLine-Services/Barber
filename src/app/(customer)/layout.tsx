@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { redirect } from 'next/navigation'
-import { resolveBusiness } from '@/lib/tenant'
+import { DEMO_BUSINESS } from '@/lib/demo-data'
 import { prisma } from '@/lib/prisma'
 import { Navbar } from '@/components/customer/Navbar'
 import { Footer } from '@/components/customer/Footer'
@@ -14,14 +13,9 @@ export default async function CustomerLayout({
 }: {
   children: React.ReactNode
 }) {
-  const business = await resolveBusiness().catch(() => null)
+  const business = DEMO_BUSINESS
 
-  // No business configured — redirect to first-run setup wizard
-  if (!business) {
-    redirect('/setup')
-  }
-
-  // Fetch SEO settings for this business
+  // Fetch SEO settings (mock prisma will return demo SEO)
   const seo = await prisma.businessSEO.findUnique({
     where: { businessId: business.id },
   }).catch(() => null)
@@ -31,15 +25,15 @@ export default async function CustomerLayout({
   return (
     <div className={`min-h-screen ${isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-white text-zinc-900'} flex flex-col font-sans pb-16 md:pb-0`}
          style={{ ['--accent' as any]: business.accentColor }}>
-      <ThemeStyle business={business} />
-      <SEO business={business} seo={seo} />
+      <ThemeStyle business={business as any} />
+      <SEO business={business as any} seo={seo as any} />
       <Navbar
         businessName={business.name}
         logo={business.logo}
         phone={business.phone}
       />
       <main className="flex-1">{children}</main>
-      <Footer business={business} />
+      <Footer business={business as any} />
       <MobileBottomNav />
     </div>
   )

@@ -1,24 +1,17 @@
-import { getServerSession } from 'next-auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import { redirect } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { TodayAppointmentsView } from '@/components/dashboard/TodayAppointmentsView'
 
 export default async function DashboardHomePage() {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
 
   if (!session?.user) {
     redirect('/login')
   }
 
-  const user = session.user as any
+  const user = session.user
   const businessId = user.businessId
-
-  // If the owner hasn't created a shop yet, redirect to shop creation
-  if (!businessId) {
-    redirect('/dashboard/create-shop')
-  }
-
   const userRole = user.role
   const barberId = user.barberId
 
@@ -63,29 +56,29 @@ export default async function DashboardHomePage() {
   // Format dates to JSON safe strings
   const formattedAppointments = appointments.map((a) => ({
     ...a,
-    startTime: a.startTime.toISOString(),
-    endTime: a.endTime.toISOString(),
-    createdAt: a.createdAt.toISOString(),
-    updatedAt: a.updatedAt.toISOString(),
+    startTime: a.startTime instanceof Date ? a.startTime.toISOString() : a.startTime,
+    endTime: a.endTime instanceof Date ? a.endTime.toISOString() : a.endTime,
+    createdAt: a.createdAt instanceof Date ? a.createdAt.toISOString() : a.createdAt,
+    updatedAt: a.updatedAt instanceof Date ? a.updatedAt.toISOString() : a.updatedAt,
     customer: a.customer
       ? {
           ...a.customer,
-          createdAt: a.customer.createdAt.toISOString(),
-          updatedAt: a.customer.updatedAt.toISOString(),
+          createdAt: a.customer.createdAt instanceof Date ? a.customer.createdAt.toISOString() : a.customer.createdAt,
+          updatedAt: a.customer.updatedAt instanceof Date ? a.customer.updatedAt.toISOString() : a.customer.updatedAt,
         }
       : null,
     barber: a.barber
       ? {
           ...a.barber,
-          createdAt: a.barber.createdAt.toISOString(),
-          updatedAt: a.barber.updatedAt.toISOString(),
+          createdAt: a.barber.createdAt instanceof Date ? a.barber.createdAt.toISOString() : a.barber.createdAt,
+          updatedAt: a.barber.updatedAt instanceof Date ? a.barber.updatedAt.toISOString() : a.barber.updatedAt,
         }
       : null,
     service: a.service
       ? {
           ...a.service,
-          createdAt: a.service.createdAt.toISOString(),
-          updatedAt: a.service.updatedAt.toISOString(),
+          createdAt: a.service.createdAt instanceof Date ? a.service.createdAt.toISOString() : a.service.createdAt,
+          updatedAt: a.service.updatedAt instanceof Date ? a.service.updatedAt.toISOString() : a.service.updatedAt,
         }
       : null,
   }))

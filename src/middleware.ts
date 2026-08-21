@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { getDemoSessionFromRequest } from '@/lib/demo-auth'
 
 // ============================================================================
 // Middleware
-// 1. Security headers on ALL responses (CSP, HSTS, X-Frame-Options, etc.)
+// 1. Security headers on ALL responses
 // 2. Auth gate ONLY for /dashboard and /api/dashboard routes
-//
-// We use getToken() directly instead of withAuth() to avoid redirect-loop
-// issues that can occur when withAuth's matcher covers public routes.
+//    Demo mode: checks demo-session cookie instead of NextAuth JWT
 // ============================================================================
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -36,11 +34,10 @@ export async function middleware(req: NextRequest) {
   const isDashboardApi = pathname.startsWith('/api/dashboard')
 
   if (isDashboard || isDashboardApi) {
-    // Verify authentication for protected routes
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+    // Demo mode: check demo-session cookie
+    const session = getDemoSessionFromRequest(req)
 
-    if (!token) {
-      // API routes get 401 JSON, page routes redirect to /login
+    if (!session) {
       if (isDashboardApi) {
         const response = NextResponse.json(
           { error: 'Authentication required' },
@@ -65,7 +62,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Match all routes except static assets, Next.js internals, and auth callbacks
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|api/auth).*)',
   ],

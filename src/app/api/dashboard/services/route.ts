@@ -1,13 +1,12 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import { prisma } from '@/lib/prisma'
 import { createServiceSchema } from '@/lib/validation'
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const businessId = (session.user as any)?.businessId
@@ -20,7 +19,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if ((session.user as any)?.role !== 'OWNER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 

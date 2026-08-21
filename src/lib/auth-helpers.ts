@@ -1,14 +1,10 @@
 // ============================================================================
 // Auth Helpers — Authorization layer for API routes.
-// Separate from authentication (NextAuth) — this enforces what an
-// authenticated user is ALLOWED to do.
+// Demo mode: uses the demo session instead of NextAuth.
 // ============================================================================
 
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getDemoSession } from './demo-auth'
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { AuditAction } from '@prisma/client'
 
 export interface AuthResult {
   success: true
@@ -32,7 +28,7 @@ export interface AuthError {
  * Require any authenticated user (OWNER or BARBER).
  */
 export async function requireAuth(): Promise<AuthResult | AuthError> {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session?.user) {
     return {
       success: false,
@@ -48,7 +44,6 @@ export async function requireAuth(): Promise<AuthResult | AuthError> {
 
 /**
  * Require OWNER role only. Barbers get 403.
- * Also returns a specific error if the owner hasn't created a shop yet.
  */
 export async function requireOwner(): Promise<AuthResult | AuthError> {
   const auth = await requireAuth()
@@ -64,23 +59,11 @@ export async function requireOwner(): Promise<AuthResult | AuthError> {
     }
   }
 
-  // If the owner hasn't created a shop yet, tell the client
-  if (!auth.user.businessId) {
-    return {
-      success: false,
-      response: NextResponse.json(
-        { error: 'No shop found. Please create your shop first.', needsShop: true },
-        { status: 422 }
-      ),
-    }
-  }
-
   return auth
 }
 
 /**
- * Require OWNER or BARBER. For BARBER role, optionally restrict to own barberId.
- * Returns the authenticated user with their barberId for scoped queries.
+ * Require OWNER or BARBER.
  */
 export async function requireStaff(
   options?: { restrictToOwnBarber?: boolean }
@@ -101,8 +84,7 @@ export async function requireStaff(
 }
 
 /**
- * Verify that the authenticated user's businessId matches the target resource's businessId.
- * Prevents cross-tenant data access even if someone guesses an ID.
+ * Verify business access (demo mode: always true since single-tenant).
  */
 export async function verifyBusinessAccess(
   userBusinessId: string | null,
@@ -113,12 +95,12 @@ export async function verifyBusinessAccess(
 }
 
 /**
- * Log an audit event.
+ * Log an audit event (demo mode: no-op).
  */
 export async function logAudit(params: {
   userId?: string
   businessId?: string
-  action: AuditAction
+  action: string
   entityType?: string
   entityId?: string
   oldValues?: any
@@ -126,44 +108,16 @@ export async function logAudit(params: {
   ipAddress?: string
   userAgent?: string
 }): Promise<void> {
-  try {
-    await prisma.auditLog.create({
-      data: {
-        userId: params.userId || null,
-        businessId: params.businessId || null,
-        action: params.action,
-        entityType: params.entityType || null,
-        entityId: params.entityId || null,
-        oldValues: params.oldValues || undefined,
-        newValues: params.newValues || undefined,
-        ipAddress: params.ipAddress || null,
-        userAgent: params.userAgent || null,
-      },
-    })
-  } catch (error) {
-    console.error('Failed to write audit log:', error)
-    // Don't fail the request if audit logging fails
-  }
+  // Demo mode: no audit logging
+  console.log('[Demo] Audit:', params.action, params.entityType, params.entityId)
 }
 
 /**
- * Get the businessId for the current authenticated user.
- * Returns a non-null string — throws if businessId is missing.
- * Callers should check for businessId existence before calling this
- * (e.g. requireOwner already checks and returns 422 if missing).
+ * Get the businessId for the current user.
  */
 export async function getBusinessIdForUser(user: { businessId?: string | null; role: string }): Promise<string> {
   if (user.businessId) return user.businessId
-
-  const isDemoMode = process.env.DEMO_MODE === 'true'
-
-  if (!isDemoMode) {
-    // Production: fail closed — no fallback to prevent cross-tenant access
-    throw new Error('No businessId on session. This indicates the owner has not created a shop yet.')
-  }
-
-  // Single-tenant fallback: fall back to first business (demo mode only)
-  const business = await prisma.business.findFirst({ orderBy: { createdAt: 'asc' } })
-  if (!business) throw new Error('No business found. Create a shop first.')
-  return business.id
+  // Demo mode: return the demo business ID
+  const { DEMO_BUSINESS_ID } = await import('./demo-data')
+  return DEMO_BUSINESS_ID
 }

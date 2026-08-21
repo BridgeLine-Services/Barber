@@ -1,7 +1,6 @@
-import { getServerSession } from 'next-auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ScheduleEditor } from '@/components/dashboard/ScheduleEditor'
 import { AvailabilityOverrides } from '@/components/dashboard/AvailabilityOverrides'
@@ -15,7 +14,7 @@ interface SchedulePageProps {
 }
 
 export default async function SchedulePage({ searchParams }: SchedulePageProps) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session?.user) {
     redirect('/login')
   }

@@ -1,7 +1,6 @@
-import { getServerSession } from 'next-auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import { redirect } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { DEMO_BUSINESS } from '@/lib/demo-data'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 
 export default async function DashboardLayout({
@@ -9,37 +8,16 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
 
   if (!session?.user) {
     redirect('/login')
   }
 
-  const user = session.user as any
-  const businessId = user.businessId
-  const userRole = user.role
-
-  // If the owner has no business yet, redirect to the shop creation page.
-  // Barbers always have a businessId (they're created by an owner who already
-  // has a shop), so this redirect only applies to newly-registered owners.
-  if (!businessId && userRole === 'OWNER') {
-    redirect('/dashboard/create-shop')
-  }
-
-  let business = null
-  if (businessId) {
-    try {
-      business = await prisma.business.findUnique({
-        where: { id: businessId },
-        select: { name: true, logo: true, primaryColor: true, accentColor: true },
-      })
-    } catch (error) {
-      console.error('Failed to load business data:', error)
-    }
-  }
-
-  const businessName = business?.name || user.businessName || 'Barber Shop'
+  const user = session.user
+  const businessName = DEMO_BUSINESS.name
   const userName = user.name || user.email || 'User'
+  const userRole = user.role
 
   return (
     <div className="min-h-screen bg-zinc-900 text-zinc-100 flex flex-col lg:flex-row">
@@ -79,5 +57,4 @@ export default async function DashboardLayout({
       </div>
     </div>
   )
-
 }

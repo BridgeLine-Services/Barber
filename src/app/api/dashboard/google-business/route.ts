@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import {
   isGBPConfigured,
   isGBPConnected,
@@ -12,7 +11,7 @@ import {
 
 // GET /api/dashboard/google-business — check connection status and get OAuth URL
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -55,7 +54,7 @@ export async function GET(request: Request) {
 
 // POST /api/dashboard/google-business — trigger a real sync to GBP
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

@@ -1,13 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Scissors, Lock, Mail, AlertCircle, ArrowRight, ServerCrash } from 'lucide-react'
+import { Scissors, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -17,16 +15,9 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Check for NextAuth error params (Configuration, Verification, etc.)
   useEffect(() => {
     const errorParam = searchParams.get('error')
-    if (errorParam === 'Configuration') {
-      setError('Server configuration error. The database may not be connected. Please contact the site administrator to set up DATABASE_URL and NEXTAUTH_SECRET environment variables.')
-    } else if (errorParam === 'Verification') {
-      setError('The sign in link is no longer valid. It may have already been used or it has expired.')
-    } else if (errorParam === 'AccessDenied') {
-      setError('Access denied. You do not have permission to access the dashboard.')
-    } else if (errorParam === 'Default') {
+    if (errorParam) {
       setError('Authentication error. Please try again.')
     }
   }, [searchParams])
@@ -37,29 +28,25 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
+      const res = await fetch('/api/auth/demo-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       })
 
-      if (result?.error) {
-        // Check if it's a configuration error
-        if (result.error === 'Configuration') {
-          setError('Server configuration error. The database may not be connected. Please contact the site administrator.')
-        } else {
-          setError('Invalid email or password. Please try again.')
-        }
+      const data = await res.json()
+
+      if (!data.success) {
+        setError(data.error || 'Invalid email or password.')
         setLoading(false)
-      } else if (result?.ok) {
-        router.push('/dashboard')
-        router.refresh()
-      } else {
-        setError('An unexpected error occurred. Please try again.')
-        setLoading(false)
+        return
       }
+
+      const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+      router.push(callbackUrl)
+      router.refresh()
     } catch (err) {
-      setError('Failed to connect to the server. Please check your network connection and try again.')
+      setError('Failed to connect to the server. Please try again.')
       setLoading(false)
     }
   }
@@ -79,7 +66,7 @@ export default function LoginPage() {
             Barber Dashboard
           </h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Sign in to manage appointments, schedule & customers
+            Sign in to manage appointments, schedule &amp; customers
           </p>
         </div>
 
@@ -87,96 +74,98 @@ export default function LoginPage() {
         <div className="bg-zinc-900/90 border border-zinc-800 backdrop-blur-md rounded-2xl p-6 sm:p-8 shadow-2xl">
           {error && (
             <div className="mb-6 p-3.5 rounded-lg bg-red-950/50 border border-red-800/50 text-red-300 text-sm flex items-start gap-3">
-              {error.includes('configuration') || error.includes('database') ? (
-                <ServerCrash className="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
-              ) : (
-                <AlertCircle className="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
-              )}
+              <AlertCircle className="w-5 h-5 shrink-0 text-red-400 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email */}
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-zinc-300 text-xs font-medium uppercase tracking-wider">
-                Email Address
+              <Label htmlFor="email" className="text-zinc-300 text-sm font-medium">
+                Email
               </Label>
               <div className="relative">
-                <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="barber@shop.com"
+                  autoComplete="email"
+                  placeholder="you@barbershop.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="pl-10 bg-zinc-950/60 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500 focus:ring-amber-500/20 h-11"
+                  className="bg-zinc-950/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20 pl-10"
                 />
               </div>
             </div>
 
+            {/* Password */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-zinc-300 text-xs font-medium uppercase tracking-wider">
-                  Password
-                </Label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+              <Label htmlFor="password" className="text-zinc-300 text-sm font-medium">
+                Password
+              </Label>
               <div className="relative">
-                <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pl-10 bg-zinc-950/60 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500 focus:ring-amber-500/20 h-11"
+                  className="bg-zinc-950/50 border-zinc-700 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500/50 focus:ring-amber-500/20 pl-10"
                 />
               </div>
             </div>
 
+            {/* Submit */}
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold h-11 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10"
+              className="w-full bg-amber-500 text-zinc-950 hover:bg-amber-400 font-bold py-2.5 text-base shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-zinc-950/30 border-t-zinc-950 rounded-full animate-spin" />
+                  Signing in...
+                </span>
               ) : (
-                <>
-                  <span>Sign In</span>
+                <span className="flex items-center gap-2">
+                  Sign In
                   <ArrowRight className="w-4 h-4" />
-                </>
+                </span>
               )}
             </Button>
           </form>
 
-          {/* Setup hint — link to create account */}
-          <div className="mt-6 pt-5 border-t border-zinc-800/60">
-            <p className="text-xs text-zinc-500 text-center">
-              First time setting up?{' '}
-              <Link href="/setup" className="text-amber-400 hover:text-amber-300 transition-colors font-medium">
-                Create an owner account →
-              </Link>
+          {/* Demo Credentials Hint */}
+          <div className="mt-6 pt-6 border-t border-zinc-800">
+            <p className="text-xs text-zinc-500 text-center mb-3">
+              Demo credentials — edit in <code className="text-zinc-400">src/lib/demo-data.ts</code>
             </p>
+            <div className="space-y-1.5 text-xs text-zinc-400">
+              <div className="flex justify-between">
+                <span className="text-amber-400">Owner:</span>
+                <span>owner@barbershop.demo / OwnerDemo123!</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-amber-400">Barber 1:</span>
+                <span>barber1@barbershop.demo / BarberOne123!</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-amber-400">Barber 2:</span>
+                <span>barber2@barbershop.demo / BarberTwo123!</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-amber-400">Barber 3:</span>
+                <span>barber3@barbershop.demo / BarberThree123!</span>
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* Footer info */}
-        <div className="text-center text-xs text-zinc-600 mt-8 space-y-2">
-          <p>Multi-Tenant Barber Shop Operating System</p>
-          <a href="/" className="text-zinc-500 hover:text-amber-400 transition-colors">
-            ← Back to Website
-          </a>
         </div>
       </div>
     </div>
   )
-
 }
