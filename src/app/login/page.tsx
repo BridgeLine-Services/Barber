@@ -157,10 +157,13 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Setup hint — no credentials exposed */}
+          {/* Setup hint — link to create account */}
           <div className="mt-6 pt-5 border-t border-zinc-800/60">
             <p className="text-xs text-zinc-500 text-center">
-              Authorized staff only. Contact your administrator if you need login credentials.
+              First time setting up?{' '}
+              <Link href="/setup" className="text-amber-400 hover:text-amber-300 transition-colors font-medium">
+                Create an owner account →
+              </Link>
             </p>
           </div>
         </div>
@@ -175,4 +178,3 @@ export default function LoginPage() {
       </div>
     </div>
   )
-}
