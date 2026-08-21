@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create business and link to owner in a transaction
-    const business = await prisma.$transaction(async (tx) => {
+    const business = await prisma.$transaction(async (tx: any) => {
       const newBusiness = await tx.business.create({
         data: {
           name: d.name,

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession, update } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -23,7 +23,7 @@ const TIMEZONES = [
 export default function CreateShopPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const [submitting, setSubmitting] = useState(false)
 
   const [form, setForm] = useState({
@@ -286,3 +286,5 @@ export default function CreateShopPage() {
       </div>
     </div>
   )
+
+}
