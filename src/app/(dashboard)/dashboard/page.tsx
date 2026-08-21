@@ -13,6 +13,12 @@ export default async function DashboardHomePage() {
 
   const user = session.user as any
   const businessId = user.businessId
+
+  // If the owner hasn't created a shop yet, redirect to shop creation
+  if (!businessId) {
+    redirect('/dashboard/create-shop')
+  }
+
   const userRole = user.role
   const barberId = user.barberId
 
