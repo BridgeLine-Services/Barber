@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "prisma generate && (prisma db push --accept-data-loss 2>&1 || echo 'DB_NOT_READY') && next build",
+  "buildCommand": "prisma generate && prisma db push && next build",
   "installCommand": "npm install",
   "functions": {
     "src/app/api/**/*.ts": {
