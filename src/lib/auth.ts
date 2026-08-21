@@ -3,14 +3,16 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 
-// Fallback secret so the app still works if NEXTAUTH_SECRET isn't set yet.
-// In production you SHOULD set NEXTAUTH_SECRET in Vercel env vars for persistence.
-const fallbackSecret =
-  process.env.NEXTAUTH_SECRET ||
-  'dev-only-fallback-secret-change-me-in-production-' + (process.env.NEXTAUTH_URL || 'local')
+// No more fallback secret. next.config.mjs enforces that NEXTAUTH_SECRET
+// is set in production. If we reach this point in production without it,
+// the app should fail, not silently use a fake secret.
+const authSecret = process.env.NEXTAUTH_SECRET
+if (!authSecret && process.env.NODE_ENV === 'production') {
+  throw new Error('NEXTAUTH_SECRET is not set. Configure it in your Vercel environment variables.')
+}
 
 export const authOptions: NextAuthOptions = {
-  secret: fallbackSecret,
+  secret: authSecret || 'dev-only-secret-do-not-use-in-production',
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
@@ -54,13 +56,22 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      // Initial sign-in: populate token from user record
       if (user) {
         token.role = (user as any).role
         token.businessId = (user as any).businessId
         token.businessName = (user as any).businessName
         token.barberId = (user as any).barberId
       }
+
+      // Session update (triggered by client calling update()):
+      // Used after shop creation to refresh businessId/businessName in the JWT
+      if (trigger === 'update' && session) {
+        if (session.businessId) token.businessId = session.businessId
+        if (session.businessName) token.businessName = session.businessName
+      }
+
       return token
     },
     async session({ session, token }) {

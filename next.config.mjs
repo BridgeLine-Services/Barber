@@ -1,19 +1,14 @@
 // ============================================================================
-// Env normalization — runs before Next.js boots (build AND runtime).
+// next.config.mjs — Production-hardened configuration for the barber template.
 //
-// Root cause of a real production incident: Vercel env vars that exist but
-// are set to an EMPTY STRING (not unset) crash next-auth/react's internal
-// `parseUrl()`, which calls `new URL(process.env.NEXTAUTH_URL)` directly.
-// Since `??` only substitutes for null/undefined (not ''), an empty string
-// slips through and throws `TypeError: Invalid URL`. Because <SessionProvider>
-// renders in the root layout, this crashed prerendering for EVERY page in
-// the app, taking down the entire build.
-//
-// Fix: normalize known env vars here — treat empty string same as unset,
-// and derive a sane fallback from Vercel's auto-injected VERCEL_URL so the
-// build is resilient even if the dashboard env var is misconfigured.
-// This does not replace setting real values in Vercel — it just stops a
-// single blank field from taking the whole site down.
+// KEY CHANGES FROM PREVIOUS VERSION:
+// 1. NEXTAUTH_URL: still normalized (Vercel sets empty strings that crash
+//    next-auth's URL parser). We fall back to VERCEL_URL / localhost so the
+//    build doesn't crash — but the real value SHOULD be set in Vercel.
+// 2. NEXTAUTH_SECRET: NO MORE FALLBACK. A missing secret now throws a hard
+//    error at build/runtime. A production authentication secret should never
+//    silently become a generated string — that means sessions won't persist
+//    and the deployment looks "fine" while being insecure.
 // ============================================================================
 
 function firstNonEmpty(...values) {
@@ -23,19 +18,39 @@ function firstNonEmpty(...values) {
   return undefined
 }
 
+// --- NEXTAUTH_URL normalization (build-safe) ---
+// Vercel can set NEXTAUTH_URL to an empty string, which crashes next-auth's
+// parseUrl(). We normalize to VERCEL_URL or localhost so the build survives,
+// but the operator should still set the real value in Vercel env vars.
 if (!process.env.NEXTAUTH_URL || process.env.NEXTAUTH_URL.trim() === '') {
-  const vercelUrl = process.env.VERCEL_URL // e.g. "my-app.vercel.app" — no protocol
+  const vercelUrl = process.env.VERCEL_URL // e.g. "my-app.vercel.app"
   process.env.NEXTAUTH_URL = firstNonEmpty(
     vercelUrl ? `https://${vercelUrl}` : undefined,
     'http://localhost:3000'
   )
 }
 
+// --- NEXTAUTH_SECRET hard check (no fallback) ---
+// A production auth secret must be explicitly configured. If it's missing,
+// the build/deployment should fail loudly, not silently use a fake secret.
 if (!process.env.NEXTAUTH_SECRET || process.env.NEXTAUTH_SECRET.trim() === '') {
-  // Not persisted across deployments, but prevents a hard crash. Sessions
-  // will invalidate on redeploy until a real NEXTAUTH_SECRET is set in Vercel.
-  process.env.NEXTAUTH_SECRET =
-    'build-time-fallback-secret-set-NEXTAUTH_SECRET-in-vercel-' + (process.env.VERCEL_URL || 'local')
+  if (process.env.NODE_ENV === 'production') {
+    // In production: hard fail. The deployment should not succeed without a real secret.
+    throw new Error(
+      '\n❌ NEXTAUTH_SECRET is not set!\n\n' +
+      'Generate one with: openssl rand -base64 32\n' +
+      'Then add it to your Vercel project → Settings → Environment Variables.\n' +
+      'Do NOT deploy without a real NEXTAUTH_SECRET.\n'
+    )
+  }
+  // In development only: warn but allow (so local dev still works)
+  if (!process.env.NEXTAUTH_SECRET) {
+    console.warn(
+      '\n⚠️  NEXTAUTH_SECRET is not set. Using a dev-only secret.\n' +
+      'Set NEXTAUTH_SECRET in your .env file for local development.\n'
+    )
+    process.env.NEXTAUTH_SECRET = 'dev-only-secret-do-not-use-in-production-' + Math.random().toString(36).slice(2)
+  }
 }
 
 /** @type {import('next').NextConfig} */
