@@ -60,6 +60,7 @@ export const updateAppointmentSchema = z.object({
   ]).optional(),
   startTime: z.string().optional(), // ISO string for reschedule
   cancellationReason: z.string().max(500).optional(),
+  noShowReason: z.string().max(500).optional(),
 })
 
 // ─── Dashboard: Services ───────────────────────────────────────────────────
@@ -192,7 +193,7 @@ export const updateBusinessSchema = z.object({
   termsPolicy: z.string().max(10000).optional(),
 })
 
-// ─── SEO Settings ───────────────────────────────────────────────────────────
+// ─── SEO Settings ───────────────────────────────���───────────────────────────
 
 export const updateBusinessSEOSchema = z.object({
   siteTitle: z.string().max(200).optional(),
