@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDemoSession } from '@/lib/demo-auth'
 import { prisma } from '@/lib/prisma'
+import { logAudit } from '@/lib/auth-helpers'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getDemoSession()
@@ -40,6 +41,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (body.preferences && typeof body.preferences === 'object' && !Array.isArray(body.preferences)) data.preferences = body.preferences
     if (!Object.keys(data).length) return NextResponse.json({ error: 'No valid fields supplied' }, { status: 400 })
     const updated = await prisma.customer.update({ where: { id: existing.id }, data })
+    await logAudit({
+      userId: (session.user as any)?.id,
+      businessId,
+      action: 'CUSTOMER_UPDATED',
+      entityType: 'Customer',
+      entityId: existing.id,
+      oldValues: { notes: existing.notes, tags: existing.tags, preferences: existing.preferences },
+      newValues: data,
+    })
     return NextResponse.json(updated)
   } catch {
     return NextResponse.json({ error: 'Failed to update customer' }, { status: 500 })
