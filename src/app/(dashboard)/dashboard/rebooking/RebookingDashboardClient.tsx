@@ -16,6 +16,17 @@ import {
   TrendingUp,
 } from 'lucide-react'
 
+interface RetentionMetrics {
+  due: number
+  overdue: number
+  atRisk: number
+  inactive: number
+  cancellations: number
+  noShows: number
+  todayAppointments: number
+  tomorrowAppointments: number
+}
+
 interface RebookingTask {
   customerId: string
   customerName: string
@@ -33,8 +44,9 @@ interface RebookingTask {
   }
 }
 
-export function RebookingDashboardClient({ initialTasks }: { initialTasks: RebookingTask[] }) {
+export function RebookingDashboardClient({ initialTasks, initialMetrics }: { initialTasks: RebookingTask[]; initialMetrics: RetentionMetrics | null }) {
   const [tasks, setTasks] = useState(initialTasks)
+  const metrics = initialMetrics
   const [sending, setSending] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [sentIds, setSentIds] = useState<Set<string>>(new Set())
@@ -131,7 +143,23 @@ export function RebookingDashboardClient({ initialTasks }: { initialTasks: Reboo
         </div>
       )}
 
-      {/* Tasks List */}
+      {metrics && (
+  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+  {[
+  ['Due', metrics.due, 'text-amber-400'],
+  ['Overdue', metrics.overdue, 'text-orange-400'],
+  ['At risk', metrics.atRisk, 'text-red-400'],
+  ['Today', metrics.todayAppointments, 'text-emerald-400'],
+  ].map(([label, value, color]) => (
+  <Link key={label} href="#retention-tasks" className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 hover:border-amber-500/40 transition-colors">
+  <p className="text-xs text-zinc-400 font-medium">{label}</p>
+  <p className={`text-2xl font-bold font-mono mt-1 ${color}`}>{value}</p>
+  </Link>
+  ))}
+  </div>
+  )}
+
+  {/* Tasks List */}
       {tasks.length === 0 ? (
         <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-12 text-center">
           <Calendar className="w-10 h-10 mx-auto text-zinc-700 mb-3" />

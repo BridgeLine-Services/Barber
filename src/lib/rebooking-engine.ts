@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getCustomerIntelligence } from '@/lib/customer-intelligence'
+import { buildRebookingIdempotencyKey, buildRebookingMessage } from '@/lib/retention'
+import { queueCustomerNotification } from '@/lib/notifications'
 
 // ============================================================================
 // Automated Rebooking Engine
@@ -126,26 +128,31 @@ export async function sendRebookingReminder(
   const barberName = intelligence.favoriteBarber?.name || 'your preferred barber'
   const serviceName = intelligence.favoriteService?.name || 'your usual service'
 
-  // For now, we log the reminder. Eventually this would call sendBookingReminder
-  // or similar notification function.
+  const referenceDate = intelligence.nextPredictedDate || new Date()
+  const bookingUrl = `/book?customer=${encodeURIComponent(customer.id)}`
+  const content = buildRebookingMessage(customer.firstName, serviceName, barberName, bookingUrl)
+  const recipient = channel === 'EMAIL' ? customer.email : customer.phone
+
   try {
-    await prisma.notificationLog.create({
-      data: {
-        appointmentId: null, // not tied to a specific appointment
-        channel: channel === 'EMAIL' ? 'EMAIL' : 'SMS',
-        type: 'REBOOKING_REMINDER',
-        recipient: channel === 'EMAIL' ? customer.email : customer.phone,
-        content: `Hi ${customer.firstName}! You're due for ${serviceName} with ${barberName}. Book your next appointment:`,
-        status: 'PENDING',
-        businessId,
-      },
+    const result = await queueCustomerNotification({
+      businessId,
+      customerId: customer.id,
+      recipient,
+      channel,
+      type: 'REBOOKING_REMINDER',
+      content,
+      idempotencyKey: buildRebookingIdempotencyKey(customer.id, channel, referenceDate),
+      smsConsent: customer.smsConsent,
     })
+
+    if (!result.queued) return { success: false, message: result.reason || 'Notification was not queued' }
 
     return {
       success: true,
-      message: `Rebooking reminder sent to ${customer.firstName} ${customer.lastName} via ${channel}`,
+      message: `Rebooking reminder queued for ${customer.firstName} ${customer.lastName} via ${channel}`,
     }
   } catch (e) {
-    return { success: false, message: 'Failed to send reminder' }
+    console.error('[rebooking] failed to queue reminder', e)
+    return { success: false, message: 'Failed to queue reminder' }
   }
 }

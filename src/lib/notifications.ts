@@ -83,7 +83,37 @@ async function logNotification(params: {
   } catch (error) {
     console.error('Failed to log notification:', error)
   }
-} 
+}
+
+/** Queue a customer notification through the shared, idempotent notification log. */
+export async function queueCustomerNotification(params: {
+  businessId: string
+  customerId: string
+  recipient: string
+  channel: 'EMAIL' | 'SMS'
+  type: 'REBOOKING_REMINDER' | 'WAITLIST_NOTIFICATION' | 'MARKETING_CAMPAIGN'
+  content: string
+  scheduledAt?: Date
+  idempotencyKey: string
+  smsConsent?: boolean
+}) {
+  if (params.channel === 'SMS' && (!params.recipient || !params.smsConsent)) {
+    return { queued: false, reason: 'SMS consent or phone number is missing' }
+  }
+
+  await logNotification({
+    businessId: params.businessId,
+    customerId: params.customerId,
+    recipient: params.recipient,
+    channel: params.channel,
+    type: params.type,
+    status: 'PENDING',
+    scheduledAt: params.scheduledAt,
+    idempotencyKey: params.idempotencyKey,
+  })
+
+  return { queued: true }
+}
 
 export async function scheduleAppointmentReminders(appointment: AppointmentWithRelations, settings: {
   reminder24HoursEnabled?: boolean
