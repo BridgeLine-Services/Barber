@@ -51,9 +51,11 @@ async function logNotification(params: {
   type: 'BOOKING_CONFIRMATION' | 'BOOKING_REMINDER' | 'CANCELLATION_NOTICE' | 'RESCHEDULE_NOTICE' | 'CONTACT_FORM' | 'WAITLIST_NOTIFICATION'
   status: 'PENDING' | 'SENT' | 'FAILED'
   errorMessage?: string
-}) {
+  idempotencyKey?: string
+  }) {
   try {
-    await prisma.notificationLog.create({
+  const idempotencyKey = params.idempotencyKey || [params.appointmentId, params.type, params.channel, params.recipient].filter(Boolean).join(':')
+  await prisma.notificationLog.create({
       data: {
         businessId: params.businessId || null,
         appointmentId: params.appointmentId || null,
@@ -61,9 +63,10 @@ async function logNotification(params: {
         channel: params.channel,
         type: params.type,
         status: params.status,
-        errorMessage: params.errorMessage || null,
-        sentAt: params.status === 'SENT' ? new Date() : null,
-      },
+  errorMessage: params.errorMessage || null,
+  idempotencyKey: idempotencyKey || null,
+  sentAt: params.status === 'SENT' ? new Date() : null,
+  },
     })
   } catch (error) {
     console.error('Failed to log notification:', error)

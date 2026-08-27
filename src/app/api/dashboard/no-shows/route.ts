@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getDemoSession } from '@/lib/demo-auth'
 import { prisma } from '@/lib/prisma'
+import { getReliabilitySummary } from '@/lib/reliability'
 
 // GET /api/dashboard/no-shows — list no-show appointments and policy
 export async function GET(request: Request) {
@@ -35,10 +36,22 @@ export async function GET(request: Request) {
       take: limit,
     })
 
-    // Count no-shows per customer (for escalation level)
+    // Count all lifecycle outcomes per customer so limited result pages do not under-report risk.
+    const customerAppointments = await prisma.appointment.findMany({
+      where: { businessId: user.businessId },
+      select: { customerId: true, status: true },
+    })
+    const customerMetrics = new Map<string, { completed: number; cancelled: number; noShows: number }>()
+    for (const appointment of customerAppointments) {
+      const metrics = customerMetrics.get(appointment.customerId) || { completed: 0, cancelled: 0, noShows: 0 }
+      if (appointment.status === 'COMPLETED') metrics.completed++
+      if (appointment.status === 'CANCELLED') metrics.cancelled++
+      if (appointment.status === 'NO_SHOW') metrics.noShows++
+      customerMetrics.set(appointment.customerId, metrics)
+    }
     const customerNoShowCounts = new Map<string, number>()
-    for (const a of noShows) {
-      customerNoShowCounts.set(a.customerId, (customerNoShowCounts.get(a.customerId) || 0) + 1)
+    for (const [customerId, metrics] of customerMetrics) {
+      customerNoShowCounts.set(customerId, metrics.noShows)
     }
 
     // Get or create no-show policy
@@ -52,14 +65,18 @@ export async function GET(request: Request) {
       })
     }
 
-    const serializedNoShows = noShows.map(a => ({
-      ...a,
-      startTime: a.startTime.toISOString(),
-      endTime: a.endTime.toISOString(),
-      createdAt: a.createdAt.toISOString(),
-      updatedAt: a.updatedAt.toISOString(),
-      noShowCount: customerNoShowCounts.get(a.customerId) || 1,
-    }))
+    const serializedNoShows = noShows.map(a => {
+      const metrics = customerMetrics.get(a.customerId) || { completed: 0, cancelled: 0, noShows: 1 }
+      return {
+        ...a,
+        startTime: a.startTime.toISOString(),
+        endTime: a.endTime.toISOString(),
+        createdAt: a.createdAt.toISOString(),
+        updatedAt: a.updatedAt.toISOString(),
+        noShowCount: customerNoShowCounts.get(a.customerId) || 1,
+        reliability: getReliabilitySummary(metrics),
+      }
+    })
 
     return NextResponse.json({
       noShows: serializedNoShows,

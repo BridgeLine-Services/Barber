@@ -9,6 +9,9 @@ interface NoShowAppointment {
   confirmationNumber: string
   startTime: string
   noShowCount: number
+  noShowReason?: string | null
+  noShowAt?: string | null
+  reliability?: { band: string; label: string; noShowPercentage: number }
   customer: { id: string; firstName: string; lastName: string; phone: string; email: string }
   barber: { name: string } | null
   service: { name: string; price: number } | null
@@ -194,6 +197,8 @@ export function NoShowManagementClient({ initialData }: { initialData: NoShowDat
                   <th className="text-left py-3 px-4 font-medium hidden md:table-cell">Barber</th>
                   <th className="text-left py-3 px-4 font-medium hidden lg:table-cell">Service</th>
                   <th className="text-center py-3 px-4 font-medium">Offenses</th>
+                  <th className="text-left py-3 px-4 font-medium hidden sm:table-cell">Reliability</th>
+                  <th className="text-left py-3 px-4 font-medium hidden lg:table-cell">Reason</th>
                   <th className="text-right py-3 px-4 font-medium">Date</th>
                 </tr>
               </thead>
@@ -213,6 +218,19 @@ export function NoShowManagementClient({ initialData }: { initialData: NoShowDat
                       )}>
                         {a.noShowCount}x
                       </span>
+                    </td>
+                    <td className="py-3 px-4 hidden sm:table-cell">
+                      <span className={cn(
+                        'inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium',
+                        a.reliability?.band === 'HIGH_RISK' ? 'text-red-400 bg-red-500/10 border-red-500/20' :
+                          a.reliability?.band === 'WATCH' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
+                            'text-zinc-300 bg-zinc-800/60 border-zinc-700'
+                      )}>
+                        {a.reliability?.label || 'Watch'}{a.reliability ? ` · ${a.reliability.noShowPercentage}%` : ''}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 hidden lg:table-cell text-zinc-400 max-w-48 truncate">
+                      {a.noShowReason || 'Not recorded'}
                     </td>
                     <td className="py-3 px-4 text-right text-zinc-500 text-xs">
                       {new Date(a.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}

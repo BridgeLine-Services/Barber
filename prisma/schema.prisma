@@ -70,6 +70,7 @@ model Business {
   customerTags     CustomerTagAssignment[]
   cancellationRecords CancellationRecord[]
   noShowPolicies   NoShowPolicy[]
+  retentionSettings RetentionSettings?
   inventoryItems   InventoryItem[]
   marketingCampaigns MarketingCampaign[]
   mediaAssets   MediaAsset[]
@@ -287,6 +288,21 @@ model BusinessSEO {
   @@index([businessId])
 }
 
+// ─── Retention / booking protection settings ───────────────────────────────
+
+model RetentionSettings {
+  id                         String   @id @default(cuid())
+  businessId                 String   @unique
+  business                   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  reminder24HoursEnabled     Boolean  @default(true)
+  reminder2HoursEnabled      Boolean  @default(true)
+  highRiskWarningThreshold   Int      @default(2)
+  requireVerifiedContact    Boolean  @default(false)
+  requireManualApproval      Boolean  @default(false)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
 // ─── Customers ────────────────────────────────────────────────────────────
 
 model Customer {
@@ -299,6 +315,10 @@ model Customer {
   email      String
   notes      String?  @db.Text
   smsConsent Boolean  @default(false)
+  tags       String[] @default([])
+  preferences Json?
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
   archivedAt DateTime? // soft-delete support
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -342,6 +362,9 @@ model Appointment {
   status            AppointmentStatus @default(PENDING)
   customerNotes     String?          @db.Text
   cancellationReason String?
+  noShowReason      String?
+  noShowAt          DateTime?
+  noShowMarkedBy    String?
   createdBy         String? // "ONLINE" | "MANUAL" | userId
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -474,8 +497,13 @@ model NotificationLog {
   channel     NotificationChannel
   type        NotificationType
   content     String?           @db.Text
-  status      NotificationStatus  @default(PENDING)
+  status     NotificationStatus  @default(PENDING)
   errorMessage String?
+  failureReason String?
+  providerMessageId String?
+  idempotencyKey String? @unique
+  scheduledAt DateTime?
+  updatedAt   DateTime            @updatedAt
   sentAt      DateTime?
   createdAt   DateTime            @default(now())
 
@@ -668,7 +696,7 @@ model CancellationRecord {
   @@index([businessId, createdAt])
 }
 
-// ─── No-Show Policy ──────────────────────────────────────────────────────────
+// ─── No-Show Policy ──────────────────────────────────────────���───────────────
 
 model NoShowPolicy {
   id              String   @id @default(cuid())

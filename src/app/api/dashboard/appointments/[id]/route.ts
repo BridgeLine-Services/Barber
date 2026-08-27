@@ -97,7 +97,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const { status, startTime: newStartTimeIso, cancellationReason } = parseResult.data
+    const { status, startTime: newStartTimeIso, cancellationReason, noShowReason } = parseResult.data
 
     // STATE MACHINE: Check valid transitions
     if (status && status !== appointment.status) {
@@ -125,6 +125,14 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     if (cancellationReason !== undefined) {
       updateData.cancellationReason = cancellationReason
+    }
+
+    if (noShowReason !== undefined) {
+      updateData.noShowReason = noShowReason
+    }
+    if (status === 'NO_SHOW') {
+      updateData.noShowAt = new Date()
+      updateData.noShowMarkedBy = user.id
     }
 
     // RESCHEDULE: Use canonical validateSlot for full validation

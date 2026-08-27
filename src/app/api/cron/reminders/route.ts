@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000) // next 24 hours
 
   try {
-    // Find all confirmed appointments in the next 24h that haven't had a reminder sent
+    // Keep this query tenant-safe and idempotent: each appointment is processed once per run.
     const appointments = await prisma.appointment.findMany({
       where: {
         status: 'CONFIRMED',
