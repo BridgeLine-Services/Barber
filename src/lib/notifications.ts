@@ -45,6 +45,7 @@ interface AppointmentWithRelations {
  */
 async function logNotification(params: {
   businessId?: string
+  customerId?: string
   appointmentId?: string
   recipient: string
   channel: 'EMAIL' | 'SMS'
@@ -60,10 +61,11 @@ async function logNotification(params: {
     if (!idempotencyKey) return
     await prisma.notificationLog.upsert({
       where: { idempotencyKey },
-      create: {
-        businessId: params.businessId || null,
-        appointmentId: params.appointmentId || null,
-        recipient: params.recipient,
+  create: {
+  businessId: params.businessId || null,
+  customerId: params.customerId || null,
+  appointmentId: params.appointmentId || null,
+  recipient: params.recipient,
         channel: params.channel,
         type: params.type,
         status: params.status,
@@ -81,7 +83,37 @@ async function logNotification(params: {
   } catch (error) {
     console.error('Failed to log notification:', error)
   }
-} 
+}
+
+/** Queue a customer notification through the shared, idempotent notification log. */
+export async function queueCustomerNotification(params: {
+  businessId: string
+  customerId: string
+  recipient: string
+  channel: 'EMAIL' | 'SMS'
+  type: 'REBOOKING_REMINDER' | 'WAITLIST_NOTIFICATION' | 'MARKETING_CAMPAIGN'
+  content: string
+  scheduledAt?: Date
+  idempotencyKey: string
+  smsConsent?: boolean
+}) {
+  if (params.channel === 'SMS' && (!params.recipient || !params.smsConsent)) {
+    return { queued: false, reason: 'SMS consent or phone number is missing' }
+  }
+
+  await logNotification({
+    businessId: params.businessId,
+    customerId: params.customerId,
+    recipient: params.recipient,
+    channel: params.channel,
+    type: params.type,
+    status: 'PENDING',
+    scheduledAt: params.scheduledAt,
+    idempotencyKey: params.idempotencyKey,
+  })
+
+  return { queued: true }
+}
 
 export async function scheduleAppointmentReminders(appointment: AppointmentWithRelations, settings: {
   reminder24HoursEnabled?: boolean
@@ -95,9 +127,10 @@ export async function scheduleAppointmentReminders(appointment: AppointmentWithR
   ].filter(Boolean) as Array<{ type: 'BOOKING_REMINDER'; hours: number }>
 
   await Promise.all(reminders.map((reminder) => logNotification({
-    businessId: appointment.business.id,
-    appointmentId: appointment.id,
-    recipient: appointment.customer.email,
+  businessId: appointment.business.id,
+  customerId: appointment.customer.id,
+  appointmentId: appointment.id,
+  recipient: appointment.customer.email,
     channel: 'EMAIL',
     type: reminder.type,
     status: 'PENDING',

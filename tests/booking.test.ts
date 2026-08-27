@@ -198,6 +198,7 @@ async function testBookingFlow(ids: any) {
   // Test 5: Different barber at same time is OK (no conflict)
   const barber2Appt = await prisma.appointment.findFirst({
     where: {
+      businessId: business.id,
       barberId: barber2.id,
       status: { in: ['PENDING', 'CONFIRMED'] },
       startTime: { lte: tomorrow },
