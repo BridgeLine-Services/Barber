@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS "RetentionSettings" (
   "businessId" TEXT NOT NULL,
   "reminder24HoursEnabled" BOOLEAN NOT NULL DEFAULT true,
   "reminder2HoursEnabled" BOOLEAN NOT NULL DEFAULT true,
+  "sameDayReminderEnabled" BOOLEAN NOT NULL DEFAULT false,
   "highRiskWarningThreshold" INTEGER NOT NULL DEFAULT 2,
   "requireVerifiedContact" BOOLEAN NOT NULL DEFAULT false,
   "requireManualApproval" BOOLEAN NOT NULL DEFAULT false,

@@ -34,7 +34,7 @@ interface AppointmentWithRelations {
   confirmationNumber: string
   startTime: Date
   endTime: Date
-  customer: { firstName: string; lastName: string; email: string; phone: string }
+  customer: { firstName: string; lastName: string; email: string; phone: string; smsConsent?: boolean }
   barber: { name: string }
   service: { name: string; duration: number; price: number }
   business: { name: string; phone: string | null; email: string | null; address: string | null; id?: string }
@@ -48,29 +48,66 @@ async function logNotification(params: {
   appointmentId?: string
   recipient: string
   channel: 'EMAIL' | 'SMS'
-  type: 'BOOKING_CONFIRMATION' | 'BOOKING_REMINDER' | 'CANCELLATION_NOTICE' | 'RESCHEDULE_NOTICE' | 'CONTACT_FORM' | 'WAITLIST_NOTIFICATION'
+  type: 'BOOKING_CONFIRMATION' | 'BOOKING_REMINDER' | 'CANCELLATION_NOTICE' | 'RESCHEDULE_NOTICE' | 'CONTACT_FORM' | 'WAITLIST_NOTIFICATION' | 'REBOOKING_REMINDER'
   status: 'PENDING' | 'SENT' | 'FAILED'
   errorMessage?: string
+  providerMessageId?: string
+  scheduledAt?: Date
   idempotencyKey?: string
   }) {
   try {
-  const idempotencyKey = params.idempotencyKey || [params.appointmentId, params.type, params.channel, params.recipient].filter(Boolean).join(':')
-  await prisma.notificationLog.create({
-      data: {
+    const idempotencyKey = params.idempotencyKey || [params.appointmentId, params.type, params.channel, params.recipient].filter(Boolean).join(':')
+    if (!idempotencyKey) return
+    await prisma.notificationLog.upsert({
+      where: { idempotencyKey },
+      create: {
         businessId: params.businessId || null,
         appointmentId: params.appointmentId || null,
         recipient: params.recipient,
         channel: params.channel,
         type: params.type,
         status: params.status,
-  errorMessage: params.errorMessage || null,
-  idempotencyKey: idempotencyKey || null,
-  sentAt: params.status === 'SENT' ? new Date() : null,
-  },
+        errorMessage: params.errorMessage || null,
+        failureReason: params.errorMessage || null,
+        providerMessageId: params.providerMessageId || null,
+        idempotencyKey,
+        scheduledAt: params.scheduledAt || null,
+        sentAt: params.status === 'SENT' ? new Date() : null,
+      },
+      update: params.status === 'SENT' ? {
+        status: 'SENT', sentAt: new Date(), providerMessageId: params.providerMessageId || undefined,
+      } : {},
     })
   } catch (error) {
     console.error('Failed to log notification:', error)
   }
+} 
+
+export async function scheduleAppointmentReminders(appointment: AppointmentWithRelations, settings: {
+  reminder24HoursEnabled?: boolean
+  reminder2HoursEnabled?: boolean
+  sameDayReminderEnabled?: boolean
+} = {}) {
+  const reminders = [
+    settings.reminder24HoursEnabled !== false ? { type: 'BOOKING_REMINDER' as const, hours: 24 } : null,
+    settings.reminder2HoursEnabled !== false ? { type: 'BOOKING_REMINDER' as const, hours: 2 } : null,
+    settings.sameDayReminderEnabled ? { type: 'BOOKING_REMINDER' as const, hours: 0 } : null,
+  ].filter(Boolean) as Array<{ type: 'BOOKING_REMINDER'; hours: number }>
+
+  await Promise.all(reminders.map((reminder) => logNotification({
+    businessId: appointment.business.id,
+    appointmentId: appointment.id,
+    recipient: appointment.customer.email,
+    channel: 'EMAIL',
+    type: reminder.type,
+    status: 'PENDING',
+    scheduledAt: new Date(appointment.startTime.getTime() - reminder.hours * 60 * 60 * 1000),
+    idempotencyKey: `${appointment.id}:REMINDER_${reminder.hours || 'SAME_DAY'}:EMAIL`,
+  })))
+} 
+
+function hasSmsConsent(appointment: AppointmentWithRelations & { customer: { smsConsent?: boolean } }) {
+  return Boolean(appointment.customer.phone && appointment.customer.smsConsent)
 }
 
 export async function sendBookingConfirmation(appointment: AppointmentWithRelations) {
@@ -179,7 +216,7 @@ export async function sendBookingConfirmation(appointment: AppointmentWithRelati
   }
 
   // Send SMS confirmation if Twilio is configured
-  if (isTwilioConfigured() && appointment.customer.phone) {
+  if (isTwilioConfigured() && hasSmsConsent(appointment)) {
     const smsBody = buildConfirmationMessage({
       businessName: appointment.business.name,
       customerName: appointment.customer.firstName,
@@ -253,7 +290,7 @@ export async function sendAppointmentReminder(appointment: AppointmentWithRelati
   }
 
   // SMS reminder if Twilio is configured
-  if (isTwilioConfigured() && appointment.customer.phone) {
+  if (isTwilioConfigured() && hasSmsConsent(appointment)) {
     const smsBody = buildReminderMessage({
       businessName: appointment.business.name,
       customerName: appointment.customer.firstName,

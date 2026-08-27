@@ -296,6 +296,7 @@ model RetentionSettings {
   business                   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   reminder24HoursEnabled     Boolean  @default(true)
   reminder2HoursEnabled      Boolean  @default(true)
+  sameDayReminderEnabled     Boolean  @default(false)
   highRiskWarningThreshold   Int      @default(2)
   requireVerifiedContact    Boolean  @default(false)
   requireManualApproval      Boolean  @default(false)
