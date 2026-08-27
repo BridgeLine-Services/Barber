@@ -2,6 +2,7 @@ import { getDemoSession } from '@/lib/demo-auth'
 import { redirect } from 'next/navigation'
 import { DEMO_BUSINESS } from '@/lib/demo-data'
 import { Sidebar } from '@/components/dashboard/Sidebar'
+import { MobileBottomNav } from '@/components/dashboard/MobileBottomNav'
 
 export default async function DashboardLayout({
   children,
@@ -51,9 +52,10 @@ export default async function DashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-zinc-900 overflow-x-hidden">
+        <main className="flex-1 overflow-x-hidden bg-zinc-900 p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-8">
           {children}
         </main>
+        <MobileBottomNav />
       </div>
     </div>
   )

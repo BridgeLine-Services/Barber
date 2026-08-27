@@ -67,14 +67,27 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Entry not found' }, { status: 404 })
     }
 
-    const updated = await prisma.waitlistEntry.update({
-      where: { id },
+    const normalizedStatus = String(status).toUpperCase()
+    const allowedStatuses = ['WAITING', 'NOTIFIED', 'BOOKED', 'EXPIRED', 'CANCELLED']
+    if (!allowedStatuses.includes(normalizedStatus)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    }
+    const result = await prisma.waitlistEntry.updateMany({
+      where: {
+        id,
+        businessId,
+        status: entry.status,
+        ...(normalizedStatus === 'NOTIFIED' ? { status: 'WAITING' } : {}),
+      },
       data: {
-        status,
-        notifiedAt: status === 'NOTIFIED' ? new Date() : entry.notifiedAt,
+        status: normalizedStatus as any,
+        notifiedAt: normalizedStatus === 'NOTIFIED' ? new Date() : entry.notifiedAt,
       },
     })
-
+    if (result.count !== 1) {
+      return NextResponse.json({ error: 'Entry was already updated' }, { status: 409 })
+    }
+    const updated = await prisma.waitlistEntry.findUnique({ where: { id } })
     return NextResponse.json({ entry: updated })
   } catch (error: any) {
     if (error.code === 'P1001' || error.message?.includes('No business found')) {
