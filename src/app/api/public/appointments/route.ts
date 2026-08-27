@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { resolveBusinessId } from '@/lib/business'
 import { createAppointmentSafely, getAvailableSlots } from '@/lib/availability'
-import { sendBookingConfirmation } from '@/lib/notifications'
+import { sendBookingConfirmation, scheduleAppointmentReminders } from '@/lib/notifications'
 import { createBookingSchema } from '@/lib/validation'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { localTimeToUTCFromYMD, dayOfWeekFromYMD } from '@/lib/timezone'
@@ -185,6 +185,9 @@ export async function POST(req: NextRequest) {
       sendBookingConfirmation(fullAppointment).catch((err) => {
         console.error('Failed to send booking confirmation:', err)
       })
+      prisma.retentionSettings.findUnique({ where: { businessId: fullAppointment.businessId } })
+        .then((settings) => scheduleAppointmentReminders(fullAppointment, settings || undefined))
+        .catch((err) => console.error('Failed to schedule appointment reminders:', err))
     }
 
     return NextResponse.json({
