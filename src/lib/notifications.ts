@@ -45,6 +45,7 @@ interface AppointmentWithRelations {
  */
 async function logNotification(params: {
   businessId?: string
+  customerId?: string
   appointmentId?: string
   recipient: string
   channel: 'EMAIL' | 'SMS'
@@ -60,10 +61,11 @@ async function logNotification(params: {
     if (!idempotencyKey) return
     await prisma.notificationLog.upsert({
       where: { idempotencyKey },
-      create: {
-        businessId: params.businessId || null,
-        appointmentId: params.appointmentId || null,
-        recipient: params.recipient,
+  create: {
+  businessId: params.businessId || null,
+  customerId: params.customerId || null,
+  appointmentId: params.appointmentId || null,
+  recipient: params.recipient,
         channel: params.channel,
         type: params.type,
         status: params.status,
@@ -95,9 +97,10 @@ export async function scheduleAppointmentReminders(appointment: AppointmentWithR
   ].filter(Boolean) as Array<{ type: 'BOOKING_REMINDER'; hours: number }>
 
   await Promise.all(reminders.map((reminder) => logNotification({
-    businessId: appointment.business.id,
-    appointmentId: appointment.id,
-    recipient: appointment.customer.email,
+  businessId: appointment.business.id,
+  customerId: appointment.customer.id,
+  appointmentId: appointment.id,
+  recipient: appointment.customer.email,
     channel: 'EMAIL',
     type: reminder.type,
     status: 'PENDING',

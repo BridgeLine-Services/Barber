@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { getRetentionLifecycle, getRecommendedIntervalDays, calculateRetentionStats, type RetentionLifecycle } from '@/lib/retention'
 
 // ============================================================================
 // Customer Intelligence Engine
@@ -31,6 +32,10 @@ export interface CustomerIntelligence {
   lastCancellationDate: Date | null
   nextPredictedDate: Date | null
   isDueForRebook: boolean
+  retentionStatus: RetentionLifecycle
+  cancellationRate: number
+  noShowRate: number
+  recordedServiceValue: number
 }
 
 export async function getCustomerIntelligence(
@@ -41,7 +46,7 @@ export async function getCustomerIntelligence(
     where: { customerId, businessId },
     include: {
       barber: { select: { id: true, name: true } },
-      service: { select: { id: true, name: true, price: true } },
+      service: { select: { id: true, name: true, price: true, recommendedRebookingIntervalDays: true } },
     },
     orderBy: { startTime: 'asc' },
   })
@@ -130,22 +135,30 @@ export async function getCustomerIntelligence(
   // No-show count
   const noShowCount = noShows.length
 
-  // Predict next appointment date
+  // Predict next appointment date using observed behavior first, then the service rule.
+  const intervalDays = getRecommendedIntervalDays(
+    averageIntervalDays,
+    completed.at(-1)?.service?.recommendedRebookingIntervalDays,
+  )
   let nextPredictedDate: Date | null = null
   let isDueForRebook = false
-  if (lastVisit && averageIntervalDays && averageIntervalDays > 0) {
+  if (lastVisit) {
     nextPredictedDate = new Date(lastVisit)
-    nextPredictedDate.setDate(nextPredictedDate.getDate() + averageIntervalDays)
+    nextPredictedDate.setDate(nextPredictedDate.getDate() + intervalDays)
 
-    // If predicted date has passed and no upcoming appointment, customer is due
     const now = new Date()
     const hasUpcoming = activeOrCompleted.some(
-      (a) =>
-        a.startTime > now &&
-        (a.status === 'CONFIRMED' || a.status === 'PENDING')
+      (a) => a.startTime > now && (a.status === 'CONFIRMED' || a.status === 'PENDING')
     )
     isDueForRebook = nextPredictedDate < now && !hasUpcoming
   }
+
+  const stats = calculateRetentionStats(appointments.map((appointment) => ({
+    status: appointment.status,
+    startTime: appointment.startTime,
+    servicePrice: appointment.service?.price,
+  })))
+  const retentionStatus = getRetentionLifecycle(stats, nextPredictedDate)
 
   return {
     customerId,
@@ -163,6 +176,10 @@ export async function getCustomerIntelligence(
     lastCancellationDate,
     nextPredictedDate,
     isDueForRebook,
+    retentionStatus,
+    cancellationRate: stats.cancellationRate,
+    noShowRate: stats.noShowRate,
+    recordedServiceValue: stats.recordedServiceValue,
   }
 }
 
