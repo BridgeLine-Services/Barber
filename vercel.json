@@ -3,18 +3,10 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "installCommand": "npm install",
-  "functions": {
-    "src/app/api/**/*.ts": {
-      "maxDuration": 30
-    }
-  },
-  "regions": [
-    "sfo1"
-  ],
   "crons": [
     {
       "path": "/api/cron/reminders",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 9 * * *"
     }
   ]
 }

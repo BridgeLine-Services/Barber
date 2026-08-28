@@ -178,15 +178,27 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       cancellationReason: appointment.cancellationReason,
     }
 
-    const updated = await prisma.appointment.update({
-      where: { id: params.id },
-      data: updateData,
-      include: {
-        customer: true,
-        barber: true,
-        service: true,
-      },
-    })
+    const updated = await prisma.$transaction(async (tx) => {
+      if (updateData.startTime && updateData.endTime) {
+        const conflict = await tx.appointment.findFirst({
+          where: {
+            businessId,
+            barberId: appointment.barberId,
+            id: { not: appointment.id },
+            status: { in: ['PENDING', 'CONFIRMED', 'RESCHEDULED'] },
+            startTime: { lt: updateData.endTime },
+            endTime: { gt: updateData.startTime },
+          },
+        })
+        if (conflict) throw new Error('SLOT_TAKEN')
+      }
+
+      return tx.appointment.update({
+        where: { id: params.id, businessId },
+        data: updateData,
+        include: { customer: true, barber: true, service: true },
+      })
+    }, { isolationLevel: 'Serializable' })
 
     // Log audit event
     const actionMap: Record<string, any> = {
@@ -210,6 +222,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(updated)
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 })
+    if (error?.message === 'SLOT_TAKEN' || error?.code === 'P2034') {
+      return NextResponse.json({ error: 'That appointment was just booked by someone else. Please choose another time.' }, { status: 409 })
+    }
+    console.error('[appointment-mutation] failed', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
