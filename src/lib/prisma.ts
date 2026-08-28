@@ -39,6 +39,10 @@ function byBusiness<T extends { businessId: string }>(items: T[], businessId?: s
 }
 
 // ─── Mock model delegate ──────────────────────────────────────────────────
+// Date.now() alone can collide when tests create records in the same
+// millisecond, causing false tenant and conflict-detection failures.
+let mockIdSequence = 0
+
 function createModelDelegate(modelName: string, data: any[]) {
   return {
     findMany: async (args?: any) => {
@@ -124,7 +128,7 @@ function createModelDelegate(modelName: string, data: any[]) {
     },
 
     create: async (args?: any) => {
-      const newItem = { id: `demo-${modelName}-${Date.now()}`, ...args?.data, createdAt: new Date(), updatedAt: new Date() }
+      const newItem = { id: `demo-${modelName}-${Date.now()}-${++mockIdSequence}`, ...args?.data, createdAt: new Date(), updatedAt: new Date() }
       data.push(newItem)
       return clone(newItem)
     },
