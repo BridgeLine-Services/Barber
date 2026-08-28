@@ -10,15 +10,47 @@ import type { NextRequest } from 'next/server'
 import { DEMO_USERS, findDemoUser, findDemoUserById, DEMO_BUSINESS } from './demo-data'
 
 const SESSION_COOKIE = 'demo-session'
-
-// Simple base64 encode/decode for the session (NOT secure — demo only)
-function encodeSession(userId: string): string {
-  return Buffer.from(JSON.stringify({ userId, ts: Date.now() })).toString('base64')
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+function getSessionSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET
+  if (secret) return secret
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Session secret is not configured')
+  }
+  return 'development-only-session-secret'
 }
 
-function decodeSession(token: string): { userId: string; ts: number } | null {
+function toBase64Url(bytes: Uint8Array): string {
+  return Buffer.from(bytes).toString('base64url')
+}
+
+function fromBase64Url(value: string): Uint8Array {
+  return new Uint8Array(Buffer.from(value, 'base64url'))
+}
+
+async function sign(value: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(getSessionSecret()),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  return toBase64Url(new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value))))
+}
+
+async function encodeSession(userId: string): Promise<string> {
+  const payload = toBase64Url(new TextEncoder().encode(JSON.stringify({ userId, exp: Date.now() + SESSION_TTL_MS })))
+  return `${payload}.${await sign(payload)}`
+}
+
+async function decodeSession(token: string): Promise<{ userId: string; exp: number } | null> {
   try {
-    return JSON.parse(Buffer.from(token, 'base64').toString('utf-8'))
+    const [payload, signature] = token.split('.')
+    if (!payload || !signature || signature !== await sign(payload)) return null
+    const decoded = JSON.parse(new TextDecoder().decode(fromBase64Url(payload)))
+    if (!decoded.userId || typeof decoded.exp !== 'number' || decoded.exp <= Date.now()) return null
+    return decoded
   } catch {
     return null
   }
@@ -44,7 +76,7 @@ export async function getDemoSession(): Promise<DemoSession | null> {
 
   if (!token) return null
 
-  const decoded = decodeSession(token)
+  const decoded = await decodeSession(token)
   if (!decoded) return null
 
   const user = findDemoUserById(decoded.userId)
@@ -88,8 +120,8 @@ export async function demoLogin(email: string, password: string): Promise<{ succ
 
 // ─── Create login response with cookie ────────────────────────────────────
 
-export function createDemoLoginResponse(session: DemoSession): NextResponse {
-  const token = encodeSession(session.user.id)
+export async function createDemoLoginResponse(session: DemoSession): Promise<NextResponse> {
+  const token = await encodeSession(session.user.id)
   const response = NextResponse.json({ success: true, user: session.user })
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -143,11 +175,11 @@ export async function clientGetDemoUser(): Promise<DemoSession['user'] | null> {
 
 // ─── Middleware: check demo session token ──────────────────────────────────
 
-export function getDemoSessionFromRequest(req: NextRequest): DemoSession | null {
+export async function getDemoSessionFromRequest(req: NextRequest): Promise<DemoSession | null> {
   const token = req.cookies.get(SESSION_COOKIE)?.value
   if (!token) return null
 
-  const decoded = decodeSession(token)
+  const decoded = await decodeSession(token)
   if (!decoded) return null
 
   const user = findDemoUserById(decoded.userId)

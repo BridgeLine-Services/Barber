@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Setup failed', detail: error.message },
+      { error: 'Setup failed. Please try again.' },
       { status: 500 }
     )
   }

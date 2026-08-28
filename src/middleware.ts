@@ -35,7 +35,7 @@ export async function middleware(req: NextRequest) {
 
   if (isDashboard || isDashboardApi) {
     // Demo mode: check demo-session cookie
-    const session = getDemoSessionFromRequest(req)
+    const session = await getDemoSessionFromRequest(req)
 
     if (!session) {
       if (isDashboardApi) {
