@@ -564,13 +564,13 @@ export async function createAppointmentSafely(params: {
       })
 
       return appointment
-    })
+    }, { isolationLevel: 'Serializable' })
 
     return { success: true, appointment: result, customerAccessToken: result.customerAccessToken }
   } catch (error: any) {
     const message = error.message || 'Unknown error'
-    if (message === 'SLOT_TAKEN') {
-      return { success: false, error: 'This time slot was just booked. Please select another time.' }
+    if (message === 'SLOT_TAKEN' || error?.code === 'P2034') {
+      return { success: false, error: 'That appointment was just booked by someone else. Please choose another time.' }
     }
     if (message === 'BARBER_OFF') {
       return { success: false, error: 'The barber is not scheduled to work at this time.' }
