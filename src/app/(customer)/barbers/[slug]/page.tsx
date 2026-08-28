@@ -23,10 +23,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!barber) return { title: 'Barber Not Found' }
 
-  const title = `${barber.name} | ${barber.business.name}`
+  // Keep metadata resilient when a seeded/demo barber has no related business
+  // record, while the page itself still validates the full public tenant below.
+  const businessName = barber.business?.name ?? 'Our Barbershop'
+  const title = `${barber.name} | ${businessName}`
   const description = barber.specialty
-    ? `${barber.name} — ${barber.specialty} at ${barber.business.name}. Book your appointment online.`
-    : `Book an appointment with ${barber.name} at ${barber.business.name}.`
+    ? `${barber.name} — ${barber.specialty} at ${businessName}. Book your appointment online.`
+    : `Book an appointment with ${barber.name} at ${businessName}.`
 
   return {
     title,
