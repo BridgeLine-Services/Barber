@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getDemoSessionFromRequest } from '@/lib/demo-auth'
+import { isDemoMode } from '@/lib/app-config'
 
 // ============================================================================
 // Middleware
@@ -34,8 +35,9 @@ export async function middleware(req: NextRequest) {
   const isDashboardApi = pathname.startsWith('/api/dashboard')
 
   if (isDashboard || isDashboardApi) {
-    // Demo mode: check demo-session cookie
-    const session = await getDemoSessionFromRequest(req)
+    // Demo mode checks the seeded cookie. Production remains fail-closed until
+    // the configured production auth adapter is enabled.
+    const session = isDemoMode() ? await getDemoSessionFromRequest(req) : null
 
     if (!session) {
       if (isDashboardApi) {

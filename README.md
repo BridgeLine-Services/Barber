@@ -286,6 +286,33 @@ To prevent race conditions when two clients attempt to select the same slot simu
 
 ---
 
+## Template and production modes
+
+This repository is a reusable barber-booking template. It is intentionally not configured for a specific client.
+
+### Template mode
+
+Set `APP_MODE=demo` for local evaluation. Demo mode uses the seeded business and demo session flow so the customer site and dashboard can run without a client database. Demo credentials and seeded data are for development only and must never be reused for a client deployment.
+
+### Production mode
+
+Set `APP_MODE=production` for a client deployment. Production must use a real `DATABASE_URL`, `NEXTAUTH_URL`, and high-entropy `NEXTAUTH_SECRET`; dashboard access is fail-closed until a real authenticated production session is configured. Public tenants resolve from the request host/slug, while dashboard tenants resolve from the authenticated user membership—there is no demo-business fallback in production.
+
+Client configuration belongs in the `Business` record and related settings models: name, description, contact details, timezone, branding, hours, policies, reminders, rebooking, customer verification, and waitlist behavior. Do not put client secrets or business-specific values in source code.
+
+### Production checklist
+
+1. Provision PostgreSQL and apply reviewed Prisma migrations (`npx prisma migrate deploy`).
+2. Configure environment variables in the deployment provider, never in Git.
+3. Create the client owner and business through the onboarding/admin path; verify the owner and barber memberships.
+4. Configure SMTP and optional SMS credentials only when the client enables those channels.
+5. Verify tenant isolation, booking conflict handling, customer token access, cancellation/rescheduling, and backup restoration before publishing the client domain.
+6. Enable automated encrypted database backups with point-in-time recovery where supported; test a restore regularly in a separate database.
+
+Detailed client-specific values should be supplied during onboarding rather than baked into this template.
+
+---
+
 ## 📜 License
 
 Distributed under the **MIT License**. See `LICENSE` for more information.
