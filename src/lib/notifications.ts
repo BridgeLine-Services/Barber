@@ -49,8 +49,9 @@ async function logNotification(params: {
   appointmentId?: string
   recipient: string
   channel: 'EMAIL' | 'SMS'
-  type: 'BOOKING_CONFIRMATION' | 'BOOKING_REMINDER' | 'CANCELLATION_NOTICE' | 'RESCHEDULE_NOTICE' | 'CONTACT_FORM' | 'WAITLIST_NOTIFICATION' | 'REBOOKING_REMINDER'
+  type: 'BOOKING_CONFIRMATION' | 'BOOKING_REMINDER' | 'CANCELLATION_NOTICE' | 'RESCHEDULE_NOTICE' | 'CONTACT_FORM' | 'WAITLIST_NOTIFICATION' | 'REBOOKING_REMINDER' | 'MARKETING_CAMPAIGN'
   status: 'PENDING' | 'SENT' | 'FAILED'
+  content?: string
   errorMessage?: string
   providerMessageId?: string
   scheduledAt?: Date
@@ -69,6 +70,7 @@ async function logNotification(params: {
         channel: params.channel,
         type: params.type,
         status: params.status,
+        content: params.content || null,
         errorMessage: params.errorMessage || null,
         failureReason: params.errorMessage || null,
         providerMessageId: params.providerMessageId || null,
@@ -108,6 +110,7 @@ export async function queueCustomerNotification(params: {
     channel: params.channel,
     type: params.type,
     status: 'PENDING',
+    content: params.content,
     scheduledAt: params.scheduledAt,
     idempotencyKey: params.idempotencyKey,
   })
@@ -134,6 +137,7 @@ export async function scheduleAppointmentReminders(appointment: AppointmentWithR
     channel: 'EMAIL',
     type: reminder.type,
     status: 'PENDING',
+    content: `Reminder: ${appointment.business.name} — ${appointment.service.name} on ${formatFullDate(appointment.startTime)} at ${formatTime(appointment.startTime)}. Confirmation #${appointment.confirmationNumber}`,
     scheduledAt: new Date(appointment.startTime.getTime() - reminder.hours * 60 * 60 * 1000),
     idempotencyKey: `${appointment.id}:REMINDER_${reminder.hours || 'SAME_DAY'}:EMAIL`,
   })))

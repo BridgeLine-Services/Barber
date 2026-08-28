@@ -408,7 +408,7 @@ model BlockedTime {
   @@index([businessId, startTime])
 }
 
-// ─── Reviews ──────────────────────────────────────────────────────────────
+// ─── Reviews ─────────────────────────────��────────────────────────────────
 // Reviews can be shop-level (barberId = null) or barber-specific.
 // Rating counts/averages are ALWAYS computed from actual records, never manually entered.
 
@@ -492,6 +492,7 @@ enum NotificationChannel {
 
 enum NotificationStatus {
   PENDING
+  PROCESSING
   SENT
   FAILED
 }
@@ -653,7 +654,7 @@ model BarberRewardProgram {
   @@index([barberId, isActive])
 }
 
-// ─── Customer Tags ──────────────────────────────────────────────────────────
+// ─── Customer Tags ────────────────────────────────────────────────────��─────
 
 enum CustomerTag {
   VIP
