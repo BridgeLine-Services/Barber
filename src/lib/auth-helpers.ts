@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { getDemoSession } from './demo-auth'
+import { isProductionMode } from './app-config'
 import { NextResponse } from 'next/server'
 
 export interface AuthResult {
@@ -28,7 +29,9 @@ export interface AuthError {
  * Require any authenticated user (OWNER or BARBER).
  */
 export async function requireAuth(): Promise<AuthResult | AuthError> {
-  const session = await getDemoSession()
+  // Production authentication is intentionally fail-closed until the client
+  // configures a real NextAuth provider/session adapter.
+  const session = isProductionMode() ? null : await getDemoSession()
   if (!session?.user) {
     return {
       success: false,
@@ -117,7 +120,7 @@ export async function logAudit(params: {
  */
 export async function getBusinessIdForUser(user: { businessId?: string | null; role: string }): Promise<string> {
   if (user.businessId) return user.businessId
-  // Demo mode: return the demo business ID
+  if (isProductionMode()) throw new Error('Authenticated user is not assigned to a business')
   const { DEMO_BUSINESS_ID } = await import('./demo-data')
   return DEMO_BUSINESS_ID
 }
