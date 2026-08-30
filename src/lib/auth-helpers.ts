@@ -6,6 +6,8 @@
 import { getDemoSession } from './demo-auth'
 import { isProductionMode } from './app-config'
 import { NextResponse } from 'next/server'
+import { prisma } from './prisma'
+import { logEvent } from './logger'
 
 export interface AuthResult {
   success: true
@@ -111,8 +113,28 @@ export async function logAudit(params: {
   ipAddress?: string
   userAgent?: string
 }): Promise<void> {
-  // Demo mode: no audit logging
-  console.log('[Demo] Audit:', params.action, params.entityType, params.entityId)
+  if (isProductionMode() && params.businessId && params.userId) {
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: params.userId,
+          businessId: params.businessId,
+          action: params.action as any,
+          entityType: params.entityType ?? 'System',
+          entityId: params.entityId ?? 'unknown',
+          oldValues: params.oldValues ?? undefined,
+          newValues: params.newValues ?? undefined,
+          ipAddress: params.ipAddress,
+          userAgent: params.userAgent,
+        },
+      })
+    } catch (error) {
+      logEvent('audit_log_failed', { action: params.action, entityType: params.entityType })
+      throw error
+    }
+    return
+  }
+  logEvent('demo_audit', { action: params.action, entityType: params.entityType, entityId: params.entityId })
 }
 
 /**

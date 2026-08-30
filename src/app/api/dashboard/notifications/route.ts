@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ logs })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 })
+    console.error('[notifications] request failed', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
