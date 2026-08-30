@@ -449,6 +449,7 @@ export async function createAppointmentSafely(params: {
     email: string
     notes?: string | null
     smsConsent?: boolean
+    answers?: Record<string, string | boolean | string[]>
   }
 }): Promise<{ success: boolean; appointment?: any; error?: string; customerAccessToken?: string }> {
   const { businessId, barberId, serviceId, startTime, idempotencyKey, customerData } = params

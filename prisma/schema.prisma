@@ -16,67 +16,77 @@ datasource db {
 // ─── Business (Tenant) ──────────────────────────────────────────────────────
 
 model Business {
-  id           String   @id @default(cuid())
-  name         String
-  slug         String   @unique // URL slug for the shop
-  logo         String?
-  primaryColor String   @default("#1a1a1a") // dark / black theme default
-  accentColor  String   @default("#d4af37") // gold accent default
-  secondaryColor String? @default("#2a2a2a") // secondary surface color
-  fontFamily  String?  // "poppins", "inter", "montserrat", etc.
-  themeMode   String   @default("dark") // "dark" or "light"
-  phone        String?
-  email        String?
-  address      String?
-  city         String?
-  state        String?
-  zipCode      String?
-  latitude     Float?
-  longitude    Float?
-  timezone     String   @default("America/Los_Angeles") // IANA timezone
-  instagram     String?
-  facebook      String?
-  tiktok       String?
-  youtube      String?
-  xTwitter     String?
-  googleBusinessProfile String?
-  hours        Json? // { monday: { open: "09:00", close: "18:00", isOff: false }, ... }
-  aboutText    String? @db.Text
+  id                     String   @id @default(cuid())
+  name                   String
+  slug                   String   @unique // URL slug for the shop
+  logo                   String?
+  primaryColor           String   @default("#1a1a1a") // dark / black theme default
+  accentColor            String   @default("#d4af37") // gold accent default
+  secondaryColor         String?  @default("#2a2a2a") // secondary surface color
+  fontFamily             String? // "poppins", "inter", "montserrat", etc.
+  themeMode              String   @default("dark") // "dark" or "light"
+  phone                  String?
+  email                  String?
+  address                String?
+  city                   String?
+  state                  String?
+  zipCode                String?
+  latitude               Float?
+  longitude              Float?
+  timezone               String   @default("America/Los_Angeles") // IANA timezone
+  instagram              String?
+  facebook               String?
+  tiktok                 String?
+  youtube                String?
+  xTwitter               String?
+  googleBusinessProfile  String?
+  hours                  Json? // { monday: { open: "09:00", close: "18:00", isOff: false }, ... }
+  aboutText              String?  @db.Text
   teamSectionLabel       String? // e.g. 'Our Team', 'The Artists' — badge above heading on /barbers
-  teamSectionTitle       String? @db.Text // heading on /barbers page, e.g. 'Meet the Barbers'
-  teamSectionDescription String? @db.Text // paragraph below heading on /barbers page
-  bookingPolicy String? @db.Text
-  cancellationPolicy String? @db.Text
-  latePolicy   String? @db.Text
-  noShowPolicyText String? @db.Text
-  paymentPolicy String? @db.Text
-  privacyPolicy String? @db.Text
-  termsPolicy   String? @db.Text
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  teamSectionTitle       String?  @db.Text // heading on /barbers page, e.g. 'Meet the Barbers'
+  teamSectionDescription String?  @db.Text // paragraph below heading on /barbers page
+  bookingPolicy          String?  @db.Text
+  cancellationPolicy     String?  @db.Text
+  latePolicy             String?  @db.Text
+  noShowPolicyText       String?  @db.Text
+  paymentPolicy          String?  @db.Text
+  privacyPolicy          String?  @db.Text
+  termsPolicy            String?  @db.Text
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
-  users        User[]
-  barbers      Barber[]
-  services     Service[]
-  customers    Customer[]
-  appointments Appointment[]
-  blockedTimes BlockedTime[]
-  reviews      Review[]
-  auditLogs    AuditLog[]
-  notificationLogs NotificationLog[]
-  waitlistEntries    WaitlistEntry[]
-  closures          BusinessClosure[]
-  rewardPrograms   BusinessRewardProgram[]
-  customerTags     CustomerTagAssignment[]
-  cancellationRecords CancellationRecord[]
-  noShowPolicies   NoShowPolicy[]
-  retentionSettings RetentionSettings?
-  inventoryItems   InventoryItem[]
-  marketingCampaigns MarketingCampaign[]
-  mediaAssets   MediaAsset[]
-  seo          BusinessSEO?
+  users                 User[]
+  barbers               Barber[]
+  services              Service[]
+  customers             Customer[]
+  appointments          Appointment[]
+  blockedTimes          BlockedTime[]
+  reviews               Review[]
+  auditLogs             AuditLog[]
+  notificationLogs      NotificationLog[]
+  waitlistEntries       WaitlistEntry[]
+  closures              BusinessClosure[]
+  rewardPrograms        BusinessRewardProgram[]
+  customerTags          CustomerTagAssignment[]
+  cancellationRecords   CancellationRecord[]
+  noShowPolicies        NoShowPolicy[]
+  retentionSettings     RetentionSettings?
+  inventoryItems        InventoryItem[]
+  marketingCampaigns    MarketingCampaign[]
+  mediaAssets           MediaAsset[]
+  seo                   BusinessSEO?
   availabilityOverrides AvailabilityOverride[]
-  faqs         Faq[]
+  faqs                  Faq[]
+  websiteContent        WebsiteContent?
+  bookingQuestions      BookingQuestion[]
+  rescheduleHistory     RescheduleHistory[]
+
+  walkInsWelcome                   Boolean @default(true)
+  parkingAvailable                 Boolean @default(false)
+  paymentInPerson                  Boolean @default(true)
+  customerRescheduleEnabled        Boolean @default(true)
+  customerRescheduleMinNoticeHours Int     @default(24)
+  customerRescheduleWindowDays     Int?
 
   @@index([slug])
 }
@@ -89,20 +99,20 @@ enum UserRole {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   passwordHash String
   name         String
-  role         UserRole @default(BARBER)
+  role         UserRole  @default(BARBER)
   businessId   String?
   business     Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
   barberId     String? // links to Barber profile when role = BARBER
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  auditLogs    AuditLog[]
-  passwordResetToken    String?
-  passwordResetExpires  DateTime?
+  auditLogs            AuditLog[]
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
 
   @@index([businessId])
 }
@@ -117,7 +127,7 @@ model Barber {
   slug       String?  @unique // URL slug for /barbers/[slug] pages, auto-generated from name
   photo      String?
   specialty  String? // e.g. "Fades • Tapers • Beard Work"
-  bio        String? @db.Text
+  bio        String?  @db.Text
   isActive   Boolean  @default(true)
   order      Int      @default(0)
   // Barber contact / social (self-editable via barber portal)
@@ -130,15 +140,15 @@ model Barber {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  schedules    Schedule[]
-  appointments Appointment[]
-  blockedTimes BlockedTime[]
-  services     BarberService[]
-  waitlistEntries WaitlistEntry[]
-  rewardPrograms   BarberRewardProgram[]
-  inventoryItems   InventoryItem[]
-  reviews      Review[]
-  mediaAssets  MediaAsset[]
+  schedules             Schedule[]
+  appointments          Appointment[]
+  blockedTimes          BlockedTime[]
+  services              BarberService[]
+  waitlistEntries       WaitlistEntry[]
+  rewardPrograms        BarberRewardProgram[]
+  inventoryItems        InventoryItem[]
+  reviews               Review[]
+  mediaAssets           MediaAsset[]
   availabilityOverrides AvailabilityOverride[]
 
   @@index([businessId])
@@ -147,16 +157,16 @@ model Barber {
 // ─── Schedules (recurring weekly hours per barber) ─────────────────────────
 
 model Schedule {
-  id         String  @id @default(cuid())
-  barberId   String
-  barber     Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
-  dayOfWeek  Int    // 0 = Sunday, 1 = Monday, ... 6 = Saturday
-  startTime  String // "09:00" (24h)
-  endTime    String // "18:00" (24h)
-  isOff      Boolean @default(false)
-  breaks     Json?  // [{ start: "12:00", end: "13:00" }]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  barberId  String
+  barber    Barber   @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  dayOfWeek Int // 0 = Sunday, 1 = Monday, ... 6 = Saturday
+  startTime String // "09:00" (24h)
+  endTime   String // "18:00" (24h)
+  isOff     Boolean  @default(false)
+  breaks    Json? // [{ start: "12:00", end: "13:00" }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([barberId, dayOfWeek])
   @@index([barberId])
@@ -175,10 +185,10 @@ model AvailabilityOverride {
   barber      Barber   @relation(fields: [barberId], references: [id], onDelete: Cascade)
   date        DateTime @db.Date // the specific date being overridden
   isAvailable Boolean  @default(true) // false = day off / vacation
-  startTime   String?  // "10:00" (24h) — null when isAvailable = false
-  endTime     String?  // "18:00" (24h) — null when isAvailable = false
-  breaks      Json?    // [{ start: "12:00", end: "13:00" }] — overrides recurring breaks
-  reason      String?  // "Vacation", "Special opening", "Personal", etc.
+  startTime   String? // "10:00" (24h) — null when isAvailable = false
+  endTime     String? // "18:00" (24h) — null when isAvailable = false
+  breaks      Json? // [{ start: "12:00", end: "13:00" }] — overrides recurring breaks
+  reason      String? // "Vacation", "Special opening", "Personal", etc.
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -190,21 +200,21 @@ model AvailabilityOverride {
 // ─── Services ──────────────────────────────────────────────────────────────
 
 model Service {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  name        String
-  description String?  @db.Text
-  duration    Int     // minutes
-  price       Float   // default price — payment is in person
+  id                               String   @id @default(cuid())
+  businessId                       String
+  business                         Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name                             String
+  description                      String?  @db.Text
+  duration                         Int // minutes
+  price                            Float // default price — payment is in person
   recommendedRebookingIntervalDays Int?
-  isActive    Boolean @default(true)
-  order       Int     @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive                         Boolean  @default(true)
+  order                            Int      @default(0)
+  createdAt                        DateTime @default(now())
+  updatedAt                        DateTime @updatedAt
 
-  barbers      BarberService[]
-  appointments Appointment[]
+  barbers         BarberService[]
+  appointments    Appointment[]
   waitlistEntries WaitlistEntry[]
 
   @@index([businessId])
@@ -217,13 +227,13 @@ model Service {
 // - sortOrder: barber-specific display order
 model BarberService {
   barberId         String
-  barber           Barber  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  barber           Barber   @relation(fields: [barberId], references: [id], onDelete: Cascade)
   serviceId        String
-  service          Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  service          Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   priceOverride    Float?
   durationOverride Int?
-  isActive         Boolean @default(true)
-  sortOrder        Int     @default(0)
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -251,14 +261,14 @@ model MediaAsset {
   id          String    @id @default(cuid())
   businessId  String
   business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  barberId    String?   // null = shop asset, set for barber-specific assets
+  barberId    String? // null = shop asset, set for barber-specific assets
   barber      Barber?   @relation(fields: [barberId], references: [id], onDelete: Cascade)
   type        MediaType
-  url         String    // CDN / storage URL
-  storageKey  String?   // provider-specific key for deletion/management
+  url         String // CDN / storage URL
+  storageKey  String? // provider-specific key for deletion/management
   altText     String?
   caption     String?
-  sortOrder    Int       @default(0)
+  sortOrder   Int       @default(0)
   isPublished Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -270,18 +280,18 @@ model MediaAsset {
 // ─── Business SEO (owner-editable SEO settings) ───────────────────────────
 
 model BusinessSEO {
-  id                String   @id @default(cuid())
-  businessId        String   @unique
-  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  siteTitle         String?
-  siteDescription   String?  @db.Text
-  keywords          String?  @db.Text // comma-separated
-  ogTitle           String?
-  ogDescription     String?  @db.Text
-  ogImage           String?  // URL to OG image
-  canonicalUrl      String?
-  robotsIndex       Boolean  @default(true)
-  robotsFollow      Boolean  @default(true)
+  id                 String   @id @default(cuid())
+  businessId         String   @unique
+  business           Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  siteTitle          String?
+  siteDescription    String?  @db.Text
+  keywords           String?  @db.Text // comma-separated
+  ogTitle            String?
+  ogDescription      String?  @db.Text
+  ogImage            String? // URL to OG image
+  canonicalUrl       String?
+  robotsIndex        Boolean  @default(true)
+  robotsFollow       Boolean  @default(true)
   googleVerification String? // Google Search Console verification meta tag
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -292,50 +302,50 @@ model BusinessSEO {
 // ─── Retention / booking protection settings ───────────────────────────────
 
 model RetentionSettings {
-  id                         String   @id @default(cuid())
-  businessId                 String   @unique
-  business                   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  reminder24HoursEnabled     Boolean  @default(true)
-  reminder2HoursEnabled      Boolean  @default(true)
-  sameDayReminderEnabled     Boolean  @default(false)
-  highRiskWarningThreshold   Int      @default(2)
-  requireVerifiedContact    Boolean  @default(false)
-  requireManualApproval      Boolean  @default(false)
-  defaultRebookingIntervalDays Int    @default(21)
-  dueSoonWindowDays          Int      @default(5)
-  atRiskAfterDays            Int      @default(30)
-  inactiveAfterDays          Int      @default(90)
-  rebookingAutomationEnabled  Boolean  @default(true)
-  rebookingCooldownDays       Int      @default(21)
-  createdAt                  DateTime @default(now())
-  updatedAt                  DateTime @updatedAt
+  id                           String   @id @default(cuid())
+  businessId                   String   @unique
+  business                     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  reminder24HoursEnabled       Boolean  @default(true)
+  reminder2HoursEnabled        Boolean  @default(true)
+  sameDayReminderEnabled       Boolean  @default(false)
+  highRiskWarningThreshold     Int      @default(2)
+  requireVerifiedContact       Boolean  @default(false)
+  requireManualApproval        Boolean  @default(false)
+  defaultRebookingIntervalDays Int      @default(21)
+  dueSoonWindowDays            Int      @default(5)
+  atRiskAfterDays              Int      @default(30)
+  inactiveAfterDays            Int      @default(90)
+  rebookingAutomationEnabled   Boolean  @default(true)
+  rebookingCooldownDays        Int      @default(21)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
 }
 
 // ─── Customers ────────────────────────────────────────────────────────────
 
 model Customer {
-  id         String   @id @default(cuid())
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  firstName  String
-  lastName   String
-  phone      String
-  email      String
-  notes      String?  @db.Text
-  smsConsent Boolean  @default(false)
-  tags       String[] @default([])
-  preferences Json?
+  id              String    @id @default(cuid())
+  businessId      String
+  business        Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  firstName       String
+  lastName        String
+  phone           String
+  email           String
+  notes           String?   @db.Text
+  smsConsent      Boolean   @default(false)
+  tags            String[]  @default([])
+  preferences     Json?
   emailVerifiedAt DateTime?
   phoneVerifiedAt DateTime?
-  archivedAt DateTime? // soft-delete support
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  archivedAt      DateTime? // soft-delete support
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  appointments Appointment[]
-  waitlistEntries WaitlistEntry[]
-  tagAssignments CustomerTagAssignment[]
+  appointments        Appointment[]
+  waitlistEntries     WaitlistEntry[]
+  tagAssignments      CustomerTagAssignment[]
   cancellationRecords CancellationRecord[]
-  notificationHistory NotificationLog[] @relation("CustomerNotificationLogs")
+  notificationHistory NotificationLog[]       @relation("CustomerNotificationLogs")
 
   @@unique([businessId, email])
   @@index([businessId])
@@ -354,32 +364,34 @@ enum AppointmentStatus {
 }
 
 model Appointment {
-  id                 String           @id @default(cuid())
-  confirmationNumber String           @unique // human-readable, e.g. BRB-8F42K
-  customerAccessToken String          @unique // crypto.randomBytes(32).hex
-  idempotencyKey     String?          @unique
-  businessId         String
-  business           Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  customerId         String
-  customer           Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  barberId          String
-  barber            Barber            @relation(fields: [barberId], references: [id])
-  serviceId         String
-  service           Service           @relation(fields: [serviceId], references: [id])
-  startTime         DateTime
-  endTime           DateTime
-  status            AppointmentStatus @default(PENDING)
-  customerNotes     String?          @db.Text
-  cancellationReason String?
-  noShowReason      String?
-  noShowAt          DateTime?
-  noShowMarkedBy    String?
-  createdBy         String? // "ONLINE" | "MANUAL" | userId
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id                  String            @id @default(cuid())
+  confirmationNumber  String            @unique // human-readable, e.g. BRB-8F42K
+  customerAccessToken String            @unique // crypto.randomBytes(32).hex
+  idempotencyKey      String?           @unique
+  businessId          String
+  business            Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId          String
+  customer            Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  barberId            String
+  barber              Barber            @relation(fields: [barberId], references: [id])
+  serviceId           String
+  service             Service           @relation(fields: [serviceId], references: [id])
+  startTime           DateTime
+  endTime             DateTime
+  status              AppointmentStatus @default(PENDING)
+  customerNotes       String?           @db.Text
+  cancellationReason  String?
+  noShowReason        String?
+  noShowAt            DateTime?
+  noShowMarkedBy      String?
+  createdBy           String? // "ONLINE" | "MANUAL" | userId
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
-  notificationLogs  NotificationLog[]
+  notificationLogs   NotificationLog[]
   cancellationRecord CancellationRecord?
+  intakeResponses    AppointmentIntakeResponse[]
+  rescheduleHistory  RescheduleHistory[]
 
   @@index([businessId, startTime])
   @@index([businessId, barberId, startTime])
@@ -396,7 +408,7 @@ model BlockedTime {
   id         String   @id @default(cuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  barberId   String?  // null = shop-wide block
+  barberId   String? // null = shop-wide block
   barber     Barber?  @relation(fields: [barberId], references: [id], onDelete: Cascade)
   startTime  DateTime
   endTime    DateTime
@@ -408,23 +420,23 @@ model BlockedTime {
   @@index([businessId, startTime])
 }
 
-// ─── Reviews ─────────────────────────────��────────────────────────────────
+// ─── Reviews ─────────────────────────────���────────────────────────────────
 // Reviews can be shop-level (barberId = null) or barber-specific.
 // Rating counts/averages are ALWAYS computed from actual records, never manually entered.
 
 model Review {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  barberId    String?  // null = shop review, set = barber-specific review
-  barber      Barber?  @relation(fields: [barberId], references: [id], onDelete: SetNull)
-  authorName  String
-  rating      Int // 1-5
-  comment     String? @db.Text
-  isFeatured  Boolean @default(false)
-  isGoogleReview Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  barberId       String? // null = shop review, set = barber-specific review
+  barber         Barber?  @relation(fields: [barberId], references: [id], onDelete: SetNull)
+  authorName     String
+  rating         Int // 1-5
+  comment        String?  @db.Text
+  isFeatured     Boolean  @default(false)
+  isGoogleReview Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([businessId])
   @@index([businessId, barberId])
@@ -442,31 +454,31 @@ enum WaitlistStatus {
 }
 
 model WaitlistEntry {
-  id          String         @id @default(cuid())
-  businessId  String
-  business    Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  customerId   String? // link if customer exists
-  customer     Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  firstName   String
-  lastName    String
-  phone       String
-  email       String
-  barberId    String? // null = any barber
-  barber      Barber?       @relation(fields: [barberId], references: [id], onDelete: SetNull)
-  serviceId   String
-  service     Service       @relation(fields: [serviceId], references: [id])
-  preferredDate DateTime @db.Date
+  id                 String         @id @default(cuid())
+  businessId         String
+  business           Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId         String? // link if customer exists
+  customer           Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  firstName          String
+  lastName           String
+  phone              String
+  email              String
+  barberId           String? // null = any barber
+  barber             Barber?        @relation(fields: [barberId], references: [id], onDelete: SetNull)
+  serviceId          String
+  service            Service        @relation(fields: [serviceId], references: [id])
+  preferredDate      DateTime       @db.Date
   preferredTimeRange String? // e.g. 'morning', 'afternoon', 'evening'
-  status      WaitlistStatus @default(WAITING)
-  notes       String?
-  notifiedAt  DateTime?
-  expiresAt   DateTime?
-  claimToken      String?   @unique // secure token for customer to claim a notified slot
-  offeredSlotStart DateTime? // the released slot start time offered to this entry
-  offeredSlotEnd   DateTime? // the released slot end time offered to this entry
-  offeredBarberId  String? // barber id for the offered slot
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  status             WaitlistStatus @default(WAITING)
+  notes              String?
+  notifiedAt         DateTime?
+  expiresAt          DateTime?
+  claimToken         String?        @unique // secure token for customer to claim a notified slot
+  offeredSlotStart   DateTime? // the released slot start time offered to this entry
+  offeredSlotEnd     DateTime? // the released slot end time offered to this entry
+  offeredBarberId    String? // barber id for the offered slot
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   @@index([businessId, status])
   @@index([businessId, preferredDate])
@@ -498,26 +510,26 @@ enum NotificationStatus {
 }
 
 model NotificationLog {
-  id          String            @id @default(cuid())
-  businessId  String?
-  business    Business?         @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  appointmentId String? // optional link to appointment
-  appointment  Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  customerId String?
-  customer Customer? @relation("CustomerNotificationLogs", fields: [customerId], references: [id], onDelete: Cascade)
-  recipient   String // email or phone
-  channel     NotificationChannel
-  type        NotificationType
-  content     String?           @db.Text
-  status     NotificationStatus  @default(PENDING)
-  errorMessage String?
-  failureReason String?
+  id                String              @id @default(cuid())
+  businessId        String?
+  business          Business?           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointmentId     String? // optional link to appointment
+  appointment       Appointment?        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  customerId        String?
+  customer          Customer?           @relation("CustomerNotificationLogs", fields: [customerId], references: [id], onDelete: Cascade)
+  recipient         String // email or phone
+  channel           NotificationChannel
+  type              NotificationType
+  content           String?             @db.Text
+  status            NotificationStatus  @default(PENDING)
+  errorMessage      String?
+  failureReason     String?
   providerMessageId String?
-  idempotencyKey String? @unique
-  scheduledAt DateTime?
-  updatedAt   DateTime            @updatedAt
-  sentAt      DateTime?
-  createdAt   DateTime            @default(now())
+  idempotencyKey    String?             @unique
+  scheduledAt       DateTime?
+  updatedAt         DateTime            @updatedAt
+  sentAt            DateTime?
+  createdAt         DateTime            @default(now())
 
   @@index([businessId, createdAt])
   @@index([appointmentId])
@@ -572,19 +584,19 @@ enum AuditAction {
 }
 
 model AuditLog {
-  id          String      @id @default(cuid())
-  businessId  String?
-  business    Business?   @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  userId      String?
-  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action      AuditAction
-  entityType  String? // "Appointment", "Customer", "Service", etc.
-  entityId    String?
-  oldValues   Json?
-  newValues   Json?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime    @default(now())
+  id         String      @id @default(cuid())
+  businessId String?
+  business   Business?   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     AuditAction
+  entityType String? // "Appointment", "Customer", "Service", etc.
+  entityId   String?
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
 
   @@index([businessId, createdAt])
   @@index([userId])
@@ -597,13 +609,13 @@ model BusinessClosure {
   id          String   @id @default(cuid())
   businessId  String
   business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  title       String   // e.g. "Christmas Day", "Summer Vacation"
+  title       String // e.g. "Christmas Day", "Summer Vacation"
   description String?
   startDate   DateTime @db.Date
   endDate     DateTime @db.Date
   isAllDay    Boolean  @default(true)
-  startTime   String?  // "09:00"
-  endTime     String?  // "14:00"
+  startTime   String? // "09:00"
+  endTime     String? // "14:00"
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -625,31 +637,31 @@ enum RewardType {
 }
 
 model BusinessRewardProgram {
-  id              String           @id @default(cuid())
+  id              String            @id @default(cuid())
   businessId      String
-  business        Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  name            String           @default("Loyalty Program")
+  business        Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name            String            @default("Loyalty Program")
   type            RewardProgramType @default(VISITS)
-  isActive        Boolean          @default(true)
-  pointsPerDollar Float?           // for POINTS type: $1 spent = X points
-  config          Json             // [{ threshold: 5, reward: "$5 off", rewardType: "DISCOUNT", discountValue: 5 }, ...]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  isActive        Boolean           @default(true)
+  pointsPerDollar Float? // for POINTS type: $1 spent = X points
+  config          Json // [{ threshold: 5, reward: "$5 off", rewardType: "DISCOUNT", discountValue: 5 }, ...]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@index([businessId, isActive])
 }
 
 model BarberRewardProgram {
-  id              String           @id @default(cuid())
+  id              String            @id @default(cuid())
   barberId        String
-  barber          Barber           @relation(fields: [barberId], references: [id], onDelete: Cascade)
-  name            String           @default("Barber Loyalty")
+  barber          Barber            @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  name            String            @default("Barber Loyalty")
   type            RewardProgramType @default(VISITS)
-  isActive        Boolean          @default(false)
+  isActive        Boolean           @default(false)
   pointsPerDollar Float?
   config          Json
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@index([barberId, isActive])
 }
@@ -667,15 +679,15 @@ enum CustomerTag {
 }
 
 model CustomerTagAssignment {
-  id          String       @id @default(cuid())
-  customerId  String
-  customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  businessId  String
-  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  tag         CustomerTag
-  assignedAt  DateTime     @default(now())
-  assignedBy  String?      // userId or "AUTO"
-  note        String?
+  id         String      @id @default(cuid())
+  customerId String
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  tag        CustomerTag
+  assignedAt DateTime    @default(now())
+  assignedBy String? // userId or "AUTO"
+  note       String?
 
   @@unique([customerId, tag])
   @@index([businessId, tag])
@@ -693,16 +705,16 @@ enum CancellationReason {
 }
 
 model CancellationRecord {
-  id          String           @id @default(cuid())
-  appointmentId  String        @unique
-  appointment    Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  businessId   String
-  business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  customerId   String
-  customer     Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  reason       CancellationReason
-  note         String?
-  createdAt    DateTime       @default(now())
+  id            String             @id @default(cuid())
+  appointmentId String             @unique
+  appointment   Appointment        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  businessId    String
+  business      Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  reason        CancellationReason
+  note          String?
+  createdAt     DateTime           @default(now())
 
   @@index([businessId, reason])
   @@index([businessId, createdAt])
@@ -711,17 +723,17 @@ model CancellationRecord {
 // ─── No-Show Policy ──────────────────────────────────────────���───────────────
 
 model NoShowPolicy {
-  id              String   @id @default(cuid())
-  businessId      String
-  business        Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  firstNoShow     String   @default("warning")
-  secondNoShow    String   @default("flag")
-  thirdNoShow     String   @default("require_confirmation")
-  requireDeposit  Boolean  @default(false)
-  depositAmount   Float?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  firstNoShow    String   @default("warning")
+  secondNoShow   String   @default("flag")
+  thirdNoShow    String   @default("require_confirmation")
+  requireDeposit Boolean  @default(false)
+  depositAmount  Float?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([businessId])
 }
@@ -729,21 +741,21 @@ model NoShowPolicy {
 // ─── Inventory ───────────────────────────────────────────────────────────────
 
 model InventoryItem {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  barberId    String?  // null = shop-wide, specific barber = barber-owned
-  barber      Barber?  @relation(fields: [barberId], references: [id], onDelete: Cascade)
-  name        String
-  sku         String?
-  stock       Float    @default(0)
-  unit        String   @default("each")
-  threshold   Float    @default(5)
-  cost        Float?
-  vendor      String?
-  notes       String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  barberId   String? // null = shop-wide, specific barber = barber-owned
+  barber     Barber?  @relation(fields: [barberId], references: [id], onDelete: Cascade)
+  name       String
+  sku        String?
+  stock      Float    @default(0)
+  unit       String   @default("each")
+  threshold  Float    @default(5)
+  cost       Float?
+  vendor     String?
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([businessId])
   @@index([businessId, barberId])
@@ -773,36 +785,137 @@ enum CampaignAudience {
 }
 
 model MarketingCampaign {
-  id          String           @id @default(cuid())
-  businessId  String
-  business    Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  name        String
-  subject     String
-  body        String           @db.Text
-  audience    CampaignAudience
+  id             String           @id @default(cuid())
+  businessId     String
+  business       Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name           String
+  subject        String
+  body           String           @db.Text
+  audience       CampaignAudience
   audienceConfig Json?
-  status      CampaignStatus   @default(DRAFT)
-  sentAt      DateTime?
+  status         CampaignStatus   @default(DRAFT)
+  sentAt         DateTime?
   recipientCount Int?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([businessId, status])
   @@index([businessId, audience])
 }
 
+// ─── Website content and booking intake ────────────────────────────────────
+
+model WebsiteContent {
+  id                    String   @id @default(cuid())
+  businessId            String   @unique
+  business              Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  heroEyebrow           String?
+  heroTitle             String?
+  heroDescription       String?  @db.Text
+  heroImageUrl          String?
+  heroPrimaryCtaLabel   String?
+  heroPrimaryCtaHref    String?
+  heroSecondaryCtaLabel String?
+  heroSecondaryCtaHref  String?
+  showServices          Boolean  @default(true)
+  showTeam              Boolean  @default(true)
+  showReviews           Boolean  @default(true)
+  showVisit             Boolean  @default(true)
+  showFaq               Boolean  @default(true)
+  showFinalCta          Boolean  @default(true)
+  servicesTitle         String?
+  servicesDescription   String?  @db.Text
+  teamTitle             String?
+  teamDescription       String?  @db.Text
+  reviewsTitle          String?
+  reviewsDescription    String?  @db.Text
+  visitTitle            String?
+  visitDescription      String?  @db.Text
+  faqTitle              String?
+  faqDescription        String?  @db.Text
+  finalCtaTitle         String?
+  finalCtaDescription   String?  @db.Text
+  featuredReviewCount   Int      @default(3)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+enum BookingQuestionType {
+  SHORT_TEXT
+  LONG_TEXT
+  YES_NO
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  PHONE
+  EMAIL
+  DATE
+}
+
+model BookingQuestion {
+  id         String                      @id @default(cuid())
+  businessId String
+  business   Business                    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  label      String
+  key        String
+  type       BookingQuestionType
+  required   Boolean                     @default(false)
+  isActive   Boolean                     @default(true)
+  sortOrder  Int                         @default(0)
+  helpText   String?
+  options    Json?
+  createdAt  DateTime                    @default(now())
+  updatedAt  DateTime                    @updatedAt
+  responses  AppointmentIntakeResponse[]
+
+  @@unique([businessId, key])
+  @@index([businessId, isActive, sortOrder])
+}
+
+model AppointmentIntakeResponse {
+  id              String              @id @default(cuid())
+  appointmentId   String
+  appointment     Appointment         @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  questionId      String?
+  question        BookingQuestion?    @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  questionKey     String
+  questionLabel   String
+  questionType    BookingQuestionType
+  questionOptions Json?
+  answer          Json
+  createdAt       DateTime            @default(now())
+
+  @@index([appointmentId])
+}
+
+model RescheduleHistory {
+  id                String      @id @default(cuid())
+  businessId        String
+  business          Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointmentId     String
+  appointment       Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  previousStartTime DateTime
+  previousEndTime   DateTime
+  newStartTime      DateTime
+  newEndTime        DateTime
+  actor             String      @default("CUSTOMER")
+  createdAt         DateTime    @default(now())
+
+  @@index([businessId, createdAt])
+  @@index([appointmentId])
+}
+
 // ─── FAQ (Database-driven, owner-editable) ──────────────────────────────────
 
 model Faq {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  category    String
-  question    String
-  answer      String   @db.Text
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category   String
+  question   String
+  answer     String   @db.Text
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@index([businessId, isActive, sortOrder])
