@@ -73,8 +73,8 @@ export default async function HomePage() {
   return (
     <div className="space-y-16 lg:space-y-24 pb-12">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-zinc-900 via-zinc-950 to-zinc-950 pt-16 pb-20 lg:pt-24 lg:pb-28 border-b border-zinc-800/60">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/10 via-transparent to-transparent pointer-events-none" />
+      <section className="relative overflow-hidden bg-zinc-950 pt-16 pb-20 lg:pt-24 lg:pb-28 border-b border-zinc-800/60">
+        
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="mx-auto max-w-3xl text-center space-y-6">
             <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 px-3 py-1 text-xs sm:text-sm inline-flex items-center gap-1.5 font-medium">
@@ -379,14 +379,13 @@ export default async function HomePage() {
 
           {/* Map Placeholder */}
           <Card className="bg-zinc-900 border-zinc-800 relative overflow-hidden flex flex-col justify-center items-center text-center p-8 min-h-[320px]">
-            <div className="absolute inset-0 bg-[radial-gradient(#d4af37_1px,transparent_1px)] [background-size:16px_16px] opacity-10 pointer-events-none" />
             <div className="relative z-10 space-y-4 max-w-sm">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
                 <MapPin className="h-7 w-7 text-amber-400" />
               </div>
               <h3 className="text-xl font-bold text-white font-poppins">Interactive Shop Location</h3>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Located conveniently at {fullAddress}. Free parking available behind the building.
+                Located at {fullAddress}. Check the shop details for current parking and access information.
               </p>
               <Button
                 asChild
@@ -424,7 +423,7 @@ export default async function HomePage() {
               </span>
             </summary>
             <p className="mt-3 text-sm text-zinc-400 leading-relaxed">
-              No! We do not collect payment online. Your booking reserves your time slot, and you pay in person at the shop after your service via cash, card, or contactless payment.
+              Your booking reserves your time slot. Payment details are provided by the shop and handled in person.
             </p>
           </details>
 
@@ -460,7 +459,7 @@ export default async function HomePage() {
               </span>
             </summary>
             <p className="mt-3 text-sm text-zinc-400 leading-relaxed">
-              Yes, walk-ins are welcome based on availability! However, booking in advance guarantees your time slot without waiting.
+              Availability varies by shop. Booking in advance is the best way to reserve your preferred time.
             </p>
           </details>
         </div>
@@ -468,8 +467,7 @@ export default async function HomePage() {
 
       {/* Final Booking CTA Section */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative rounded-2xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 p-8 sm:p-12 text-center text-zinc-950 overflow-hidden shadow-2xl">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent pointer-events-none" />
+        <div className="relative rounded-2xl bg-amber-500 p-8 sm:p-12 text-center text-zinc-950 overflow-hidden shadow-2xl">
           <div className="relative z-10 max-w-2xl mx-auto space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight font-poppins">
               Ready for Your Next Haircut?

@@ -37,6 +37,7 @@ interface CustomerInfo {
   email: string
   notes?: string
   smsConsent?: boolean
+  answers?: Record<string, string | boolean | string[]>
 }
 
 const STEPS = ['Service', 'Barber', 'Date', 'Time', 'Info', 'Confirm']
@@ -204,6 +205,7 @@ function BookingFlow() {
             email: customerInfo.email,
             notes: customerInfo.notes || undefined,
             smsConsent: customerInfo.smsConsent,
+            answers: customerInfo.answers,
           },
         }),
       })
@@ -310,11 +312,11 @@ function BookingFlow() {
               )}
 
               {step === 5 && (
-                <CustomerInfoStep
-                  customerInfo={customerInfo}
-                  onChange={setCustomerInfo}
-                  onNext={() => setStep(6)}
-                />
+          <CustomerInfoStep
+            customerInfo={customerInfo}
+            onChange={setCustomerInfo}
+            onNext={() => setStep(6)}
+          />
               )}
 
               {step === 6 && (

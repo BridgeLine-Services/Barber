@@ -133,6 +133,12 @@ function createModelDelegate(modelName: string, data: any[]) {
       return clone(newItem)
     },
 
+    createMany: async (args?: any) => {
+      const items = Array.isArray(args?.data) ? args.data : []
+      for (const item of items) data.push({ id: `demo-${modelName}-${Date.now()}-${++mockIdSequence}`, ...item, createdAt: new Date(), updatedAt: new Date() })
+      return { count: items.length }
+    },
+
     update: async (args?: any) => {
       const idx = data.findIndex((item) => matchWhere(item, args?.where))
       if (idx === -1) return null
@@ -333,8 +339,11 @@ function createMockPrisma() {
     user: createModelDelegate('user', clone(DEMO_USERS)),
     barber: createModelDelegate('barber', clone(DEMO_BARBERS)),
     service: createModelDelegate('service', clone(DEMO_SERVICES)),
-    appointment: createModelDelegate('appointment', clone(DEMO_APPOINTMENTS)),
-    customer: createModelDelegate('customer', clone(DEMO_CUSTOMERS)),
+  appointment: createModelDelegate('appointment', clone(DEMO_APPOINTMENTS)),
+  appointmentIntakeResponse: createModelDelegate('appointmentIntakeResponse', []),
+  bookingQuestion: createModelDelegate('bookingQuestion', []),
+  rescheduleHistory: createModelDelegate('rescheduleHistory', []),
+  customer: createModelDelegate('customer', clone(DEMO_CUSTOMERS)),
     review: createModelDelegate('review', clone(DEMO_REVIEWS)),
     schedule: createModelDelegate('schedule', clone(DEMO_SCHEDULES)),
     barberService: createModelDelegate('barberService', clone(DEMO_BARBER_SERVICES)),
