@@ -243,6 +243,31 @@ export function AppointmentDetailsDialog({
             </div>
           )}
 
+          {/* Appointment Notes & Intake */}
+          {(appointment.customerNotes || appointment.intakeResponses?.length > 0) && (
+            <div className="space-y-3 rounded-lg border border-zinc-800 bg-zinc-900 p-3.5">
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-400">
+                <FileText className="h-3.5 w-3.5" /> Appointment Notes &amp; Intake
+              </div>
+              {appointment.customerNotes && (
+                <div>
+                  <div className="text-[11px] font-medium text-zinc-400">Customer notes</div>
+                  <p className="text-xs italic text-zinc-300">{appointment.customerNotes}</p>
+                </div>
+              )}
+              {appointment.intakeResponses?.map((response: any) => (
+                <div key={response.id || response.questionKey} className="border-t border-zinc-800 pt-2">
+                  <div className="text-[11px] font-medium text-zinc-400">
+                    {response.questionLabel}
+                  </div>
+                  <p className="whitespace-pre-wrap text-xs text-zinc-200">
+                    {Array.isArray(response.answer) ? response.answer.join(', ') : String(response.answer ?? '—')}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Payment info notice */}
           <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 text-xs text-amber-300">
             <CreditCard className="w-4 h-4 text-amber-400 shrink-0" />
