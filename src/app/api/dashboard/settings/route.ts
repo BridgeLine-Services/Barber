@@ -17,16 +17,18 @@ export async function GET(req: NextRequest) {
 
   try {
     const businessId = await getBusinessIdForUser(auth.user)
-    const [business, seo] = await Promise.all([
+    const [business, seo, websiteContent, bookingQuestions] = await Promise.all([
       prisma.business.findUnique({ where: { id: businessId } }),
       prisma.businessSEO.findUnique({ where: { businessId } }),
+      prisma.websiteContent.findUnique({ where: { businessId } }),
+      prisma.bookingQuestion.findMany({ where: { businessId }, orderBy: { sortOrder: 'asc' } }),
     ])
 
     if (!business) {
       return NextResponse.json({ error: 'Business not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ business, seo })
+    return NextResponse.json({ business, seo, websiteContent, bookingQuestions })
   } catch (error: any) {
     console.error('[settings] request failed', error)
     return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
@@ -52,7 +54,7 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json()
 
     // Extract SEO fields — they go to a separate table
-    const { seo, ...businessFields } = body
+    const { seo, websiteContent, ...businessFields } = body
 
     // Validate business fields
     const parseResult = updateBusinessSchema.safeParse(businessFields)
@@ -72,6 +74,16 @@ export async function PATCH(req: NextRequest) {
       where: { id: businessId },
       data: parseResult.data,
     })
+
+    let updatedWebsiteContent = null
+    if (websiteContent && typeof websiteContent === 'object') {
+      const allowedWebsiteFields = ['heroEyebrow', 'heroTitle', 'heroDescription', 'heroImageUrl', 'heroPrimaryCtaLabel', 'heroPrimaryCtaHref', 'heroSecondaryCtaLabel', 'heroSecondaryCtaHref', 'showServices', 'showTeam', 'showReviews', 'showVisit', 'showFaq', 'showFinalCta', 'servicesTitle', 'servicesDescription', 'teamTitle', 'teamDescription', 'reviewsTitle', 'reviewsDescription', 'visitTitle', 'visitDescription', 'faqTitle', 'faqDescription', 'finalCtaTitle', 'finalCtaDescription', 'featuredReviewCount']
+      const websiteData: Record<string, unknown> = {}
+      for (const field of allowedWebsiteFields) if (field in websiteContent) websiteData[field] = websiteContent[field]
+      if (Object.keys(websiteData).length > 0) {
+        updatedWebsiteContent = await prisma.websiteContent.upsert({ where: { businessId }, create: { businessId, ...websiteData }, update: websiteData })
+      }
+    }
 
     // Update SEO if provided
     let updatedSeo = null
@@ -106,7 +118,7 @@ export async function PATCH(req: NextRequest) {
       userAgent: req.headers.get('user-agent') || undefined,
     })
 
-    return NextResponse.json({ business: updated, seo: updatedSeo })
+    return NextResponse.json({ business: updated, seo: updatedSeo, websiteContent: updatedWebsiteContent })
   } catch (error: any) {
     console.error('[settings] request failed', error)
     return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })

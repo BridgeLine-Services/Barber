@@ -449,6 +449,7 @@ export async function createAppointmentSafely(params: {
     email: string
     notes?: string | null
     smsConsent?: boolean
+    answers?: Record<string, string | boolean | string[]>
   }
 }): Promise<{ success: boolean; appointment?: any; error?: string; customerAccessToken?: string }> {
   const { businessId, barberId, serviceId, startTime, idempotencyKey, customerData } = params
@@ -562,6 +563,25 @@ export async function createAppointmentSafely(params: {
           barber: true,
         },
       })
+
+      if (customerData.answers && Object.keys(customerData.answers).length > 0) {
+        const questions = await tx.bookingQuestion.findMany({
+          where: { businessId, isActive: true },
+          orderBy: { sortOrder: 'asc' },
+        })
+        const responses = questions
+          .filter((question: any) => customerData.answers?.[question.key] !== undefined)
+          .map((question: any) => ({
+            appointmentId: appointment.id,
+            questionId: question.id,
+            questionKey: question.key,
+            questionLabel: question.label,
+            questionType: question.type,
+            questionOptions: question.options ?? undefined,
+            answer: customerData.answers![question.key],
+          }))
+        if (responses.length > 0) await tx.appointmentIntakeResponse.createMany({ data: responses })
+      }
 
       return appointment
     }, { isolationLevel: 'Serializable' })

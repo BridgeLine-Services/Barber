@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -52,7 +53,7 @@ const DEFAULT_HOURS: Record<string, { open: string; close: string; isOff: boolea
   sunday: { open: '09:00', close: '16:00', isOff: true },
 }
 
-type Tab = 'business' | 'hours' | 'branding' | 'social' | 'policies' | 'seo' | 'faq'
+type Tab = 'business' | 'hours' | 'branding' | 'social' | 'policies' | 'seo' | 'faq' | 'website' | 'booking'
 
 export default function SettingsPage() {
   const { toast } = useToast()
@@ -60,6 +61,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [business, setBusiness] = useState<any>(null)
   const [seo, setSeo] = useState<any>(null)
+  const [websiteContent, setWebsiteContent] = useState<any>({})
+  const [bookingQuestions, setBookingQuestions] = useState<any[]>([])
+  const [newQuestion, setNewQuestion] = useState({ label: '', key: '', type: 'SHORT_TEXT', required: false })
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'business')
 
@@ -69,6 +73,8 @@ export default function SettingsPage() {
       .then(data => {
         setBusiness(data.business)
         setSeo(data.seo || {})
+        setWebsiteContent(data.websiteContent || {})
+        setBookingQuestions(data.bookingQuestions || [])
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -80,7 +86,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/dashboard/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...business, seo }),
+        body: JSON.stringify({ ...business, seo, websiteContent }),
       })
       const data = await res.json()
       if (data.business) {
@@ -146,7 +152,20 @@ export default function SettingsPage() {
     { id: 'policies', label: 'Policies', icon: FileText },
     { id: 'seo', label: 'SEO', icon: Search },
     { id: 'faq', label: 'FAQ', icon: HelpCircle },
+    { id: 'website', label: 'Website Content', icon: FileText },
+    { id: 'booking', label: 'Booking Questions', icon: HelpCircle },
   ]
+
+  const addBookingQuestion = async () => {
+    if (!newQuestion.label.trim() || !newQuestion.key.trim()) return
+    const response = await fetch('/api/dashboard/booking-questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newQuestion) })
+    const data = await response.json()
+    if (response.ok) {
+      setBookingQuestions((current) => [...current, data.question])
+      setNewQuestion({ label: '', key: '', type: 'SHORT_TEXT', required: false })
+      toast({ title: 'Booking question added' })
+    } else toast({ title: 'Could not add question', description: data.error, variant: 'destructive' })
+  }
 
   const hours = business.hours || DEFAULT_HOURS
 
@@ -780,7 +799,55 @@ export default function SettingsPage() {
         </>
       )}
 
-      {activeTab === 'faq' && <FaqManager />}
-    </div>
+  {activeTab === 'faq' && <FaqManager />}
+
+      {activeTab === 'website' && (
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardHeader><CardTitle>Website Content</CardTitle></CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <p className="text-sm text-zinc-400">Control the public homepage copy without changing the booking system.</p>
+            {[
+              ['heroEyebrow', 'Hero eyebrow'], ['heroTitle', 'Hero title'], ['heroDescription', 'Hero description'],
+              ['servicesTitle', 'Services heading'], ['teamTitle', 'Team heading'], ['reviewsTitle', 'Reviews heading'],
+              ['finalCtaTitle', 'Final call-to-action heading'],
+            ].map(([key, label]) => (
+              <div key={key} className="flex flex-col gap-1">
+                <Label className="text-zinc-400">{label}</Label>
+                {key.toLowerCase().includes('description') ? (
+                  <Textarea value={websiteContent[key] || ''} onChange={e => setWebsiteContent({ ...websiteContent, [key]: e.target.value })} className="bg-zinc-800 border-zinc-700" />
+                ) : (
+                  <Input value={websiteContent[key] || ''} onChange={e => setWebsiteContent({ ...websiteContent, [key]: e.target.value })} className="bg-zinc-800 border-zinc-700" />
+                )}
+              </div>
+            ))}
+            <div className="grid grid-cols-2 gap-3">
+              {(['showServices', 'showTeam', 'showReviews', 'showVisit', 'showFaq', 'showFinalCta'] as const).map(key => (
+                <label key={key} className="flex items-center gap-2 text-sm text-zinc-300">
+                  <Switch checked={websiteContent[key] !== false} onCheckedChange={checked => setWebsiteContent({ ...websiteContent, [key]: checked })} />
+                  {key.replace('show', 'Show ')}
+                </label>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab === 'booking' && (
+        <Card className="bg-zinc-900 border-zinc-800">
+          <CardHeader><CardTitle>Booking Questions</CardTitle></CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm text-zinc-400">Add the questions customers should answer before confirming a booking.</p>
+            <div className="grid gap-3 rounded-lg border border-zinc-800 p-4 sm:grid-cols-2">
+              <Input placeholder="Question label" value={newQuestion.label} onChange={(event) => setNewQuestion({ ...newQuestion, label: event.target.value })} />
+              <Input placeholder="Internal key, e.g. hair_goal" value={newQuestion.key} onChange={(event) => setNewQuestion({ ...newQuestion, key: event.target.value })} />
+              <select value={newQuestion.type} onChange={(event) => setNewQuestion({ ...newQuestion, type: event.target.value })} className="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100"><option value="SHORT_TEXT">Short text</option><option value="LONG_TEXT">Long text</option><option value="YES_NO">Yes / No</option><option value="SINGLE_CHOICE">Single choice</option><option value="MULTIPLE_CHOICE">Multiple choice</option><option value="PHONE">Phone</option><option value="EMAIL">Email</option><option value="DATE">Date</option></select>
+              <label className="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" checked={newQuestion.required} onChange={(event) => setNewQuestion({ ...newQuestion, required: event.target.checked })} /> Required</label>
+              <Button type="button" onClick={addBookingQuestion} className="sm:col-span-2">Add question</Button>
+            </div>
+            {bookingQuestions.length === 0 ? <p className="text-sm text-zinc-500">No custom questions yet.</p> : bookingQuestions.map(question => <div key={question.id} className="flex items-center justify-between rounded-lg border border-zinc-800 p-3"><div><p className="font-medium text-zinc-200">{question.label}</p><p className="text-xs text-zinc-500">{question.type}{question.required ? ' · Required' : ''}</p></div><Badge variant={question.isActive ? 'default' : 'secondary'}>{question.isActive ? 'Active' : 'Archived'}</Badge></div>)}
+          </CardContent>
+        </Card>
+      )}
+  </div>
   )
 }

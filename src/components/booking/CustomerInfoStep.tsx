@@ -16,6 +16,17 @@ export interface CustomerInfo {
   email: string
   notes?: string
   smsConsent?: boolean
+  answers?: Record<string, string | boolean | string[]>
+}
+
+interface BookingQuestion {
+  id: string
+  label: string
+  key: string
+  type: 'SHORT_TEXT' | 'LONG_TEXT' | 'YES_NO' | 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'PHONE' | 'EMAIL' | 'DATE'
+  required: boolean
+  helpText?: string | null
+  options?: string[] | null
 }
 
 interface CustomerInfoStepProps {
@@ -31,6 +42,12 @@ export function CustomerInfoStep({
   onNext,
   shopName = 'the Barbershop',
 }: CustomerInfoStepProps) {
+  const [questions, setQuestions] = React.useState<BookingQuestion[]>([])
+
+  React.useEffect(() => {
+    fetch('/api/public/booking-questions').then((response) => response.ok ? response.json() : { questions: [] }).then((data) => setQuestions(data.questions || [])).catch(() => setQuestions([]))
+  }, [])
+
   const handleChange = (field: keyof CustomerInfo, value: any) => {
     onChange({
       ...customerInfo,
@@ -43,7 +60,11 @@ export function CustomerInfoStep({
   const isEmailValid = isValidEmail(customerInfo.email.trim())
   const isPhoneValid = isValidPhone(customerInfo.phone.trim())
 
-  const isValid = isFirstNameValid && isLastNameValid && isEmailValid && isPhoneValid
+  const requiredQuestionsValid = questions.filter((question) => question.required).every((question) => {
+    const value = customerInfo.answers?.[question.key]
+    return Array.isArray(value) ? value.length > 0 : value !== undefined && value !== ''
+  })
+  const isValid = isFirstNameValid && isLastNameValid && isEmailValid && isPhoneValid && requiredQuestionsValid
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -164,6 +185,21 @@ export function CustomerInfoStep({
               />
             </div>
           </div>
+
+          {questions.length > 0 && (
+            <fieldset className="flex flex-col gap-4 border-t border-zinc-800 pt-5">
+              <legend className="text-sm font-semibold text-zinc-200">A few questions for your barber</legend>
+              {questions.map((question) => {
+                const value = customerInfo.answers?.[question.key] ?? (question.type === 'MULTIPLE_CHOICE' ? [] : '')
+                const update = (next: string | boolean | string[]) => handleChange('answers', { ...customerInfo.answers, [question.key]: next })
+                return <div key={question.id} className="flex flex-col gap-2">
+                  <Label htmlFor={`question-${question.key}`} className="text-zinc-200 text-xs font-semibold">{question.label} {question.required && <span className="text-amber-500">*</span>}</Label>
+                  {question.type === 'LONG_TEXT' ? <Textarea id={`question-${question.key}`} value={String(value)} onChange={(event) => update(event.target.value)} className="bg-zinc-950 border-zinc-800 text-zinc-100" /> : question.type === 'YES_NO' ? <select id={`question-${question.key}`} value={String(value)} onChange={(event) => update(event.target.value === 'true')} className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100"><option value="">Choose one</option><option value="true">Yes</option><option value="false">No</option></select> : question.type === 'SINGLE_CHOICE' ? <select id={`question-${question.key}`} value={String(value)} onChange={(event) => update(event.target.value)} className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100"><option value="">Choose one</option>{(question.options || []).map(option => <option key={option} value={option}>{option}</option>)}</select> : question.type === 'MULTIPLE_CHOICE' ? <div className="flex flex-wrap gap-2">{(question.options || []).map(option => <label key={option} className="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" checked={Array.isArray(value) && value.includes(option)} onChange={(event) => update(event.target.checked ? [...(Array.isArray(value) ? value : []), option] : (Array.isArray(value) ? value.filter(item => item !== option) : []))} />{option}</label>)}</div> : <Input id={`question-${question.key}`} type={question.type === 'EMAIL' ? 'email' : question.type === 'PHONE' ? 'tel' : question.type === 'DATE' ? 'date' : 'text'} value={String(value)} onChange={(event) => update(event.target.value)} className="bg-zinc-950 border-zinc-800 text-zinc-100" />}
+                  {question.helpText && <p className="text-xs text-zinc-500">{question.helpText}</p>}
+                </div>
+              })}
+            </fieldset>
+          )}
 
           {/* SMS Consent Checkbox */}
           <div className="flex items-start space-x-3 pt-2">

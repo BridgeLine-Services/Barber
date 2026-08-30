@@ -10,6 +10,7 @@ import { CheckCircle, Calendar, Clock, User, Scissors, ArrowLeft } from 'lucide-
 import { STATUS_LABELS, STATUS_COLORS, PAYMENT_DISCLAIMER } from '@/lib/constants'
 import Link from 'next/link'
 import CancelButton from './CancelButton'
+import RescheduleButton from './RescheduleButton'
 import { AddToCalendar } from '@/components/booking/AddToCalendar'
 
 export default async function ConfirmationPage({
@@ -247,7 +248,13 @@ export default async function ConfirmationPage({
 
         {/* Actions */}
         {!isCancelled && (
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col items-stretch justify-center gap-3 sm:flex-row">
+            <RescheduleButton
+              token={searchParams.token!}
+              serviceId={appointment.serviceId}
+              barberId={appointment.barberId}
+              currentStartTime={appointment.startTime.toISOString()}
+            />
             <CancelButton
               confirmationNumber={appointment.confirmationNumber}
               token={searchParams.token!}

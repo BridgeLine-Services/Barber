@@ -138,7 +138,7 @@ export default async function AboutPage() {
       )}
 
       {/* CTA */}
-      <section className="rounded-2xl bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-900 border border-zinc-800 p-8 sm:p-12 text-center space-y-6">
+      <section className="rounded-2xl bg-zinc-900 border border-zinc-800 p-8 sm:p-12 text-center space-y-6">
         <h2 className="text-3xl font-bold text-white font-poppins">Experience the Difference</h2>
         <p className="text-zinc-400 max-w-xl mx-auto text-sm">
           Join hundreds of satisfied clients who trust us for their grooming needs. Reserve your appointment today.

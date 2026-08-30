@@ -98,7 +98,7 @@ export function BarberStep({ barbers, selectedId, onSelect, onSelectFirstAvailab
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleFirstAvailable() } }}
           aria-pressed={selectedId === 'first-available'}
           className={cn(
-            'relative cursor-pointer transition-all duration-200 p-5 bg-gradient-to-r from-amber-500/10 via-zinc-900 to-zinc-900 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/15 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none md:col-span-2',
+            'relative cursor-pointer transition-all duration-200 p-5 bg-zinc-900 border-amber-500/40 hover:border-amber-500 hover:bg-amber-500/15 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none md:col-span-2',
             selectedId === 'first-available' &&
               'border-amber-500 bg-amber-500/15 ring-1 ring-amber-500/50 shadow-lg shadow-amber-500/20'
           )}
@@ -152,7 +152,7 @@ export function BarberStep({ barbers, selectedId, onSelect, onSelectFirstAvailab
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect('any') } }}
           aria-pressed={selectedId === 'any'}
           className={cn(
-            'relative cursor-pointer transition-all duration-200 p-5 bg-gradient-to-r from-amber-950/30 via-zinc-900 to-zinc-900 border-amber-500/30 hover:border-amber-500 hover:bg-zinc-900 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none md:col-span-2',
+            'relative cursor-pointer transition-all duration-200 p-5 bg-zinc-900 border-amber-500/30 hover:border-amber-500 hover:bg-zinc-900 focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none md:col-span-2',
             selectedId === 'any' &&
               'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/40 shadow-lg shadow-amber-500/10'
           )}

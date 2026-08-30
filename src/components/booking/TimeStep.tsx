@@ -179,7 +179,7 @@ export function TimeStep({
             </div>
             <Card
               className={cn(
-                'p-6 bg-gradient-to-r from-amber-500/15 via-zinc-900 to-zinc-900 border-amber-500/50 cursor-pointer transition-all duration-200 hover:border-amber-500 hover:bg-amber-500/20',
+                'p-6 bg-zinc-900 border-amber-500/50 cursor-pointer transition-all duration-200 hover:border-amber-500 hover:bg-amber-500/20',
                 selectedTime === prominentSlot.time &&
                   'border-amber-500 bg-amber-500/20 ring-1 ring-amber-500/50 shadow-lg shadow-amber-500/20'
               )}

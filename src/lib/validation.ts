@@ -19,6 +19,7 @@ export const createBookingSchema = z.object({
     email: z.string().email().max(100),
     notes: z.string().max(1000).optional(),
     smsConsent: z.boolean().optional(),
+    answers: z.record(z.string(), z.union([z.string(), z.boolean(), z.array(z.string())])).optional(),
   }),
 })
 
@@ -191,6 +192,27 @@ export const updateBusinessSchema = z.object({
   paymentPolicy: z.string().max(5000).optional(),
   privacyPolicy: z.string().max(10000).optional(),
   termsPolicy: z.string().max(10000).optional(),
+  walkInsWelcome: z.boolean().optional(),
+  parkingAvailable: z.boolean().optional(),
+  paymentInPerson: z.boolean().optional(),
+  customerRescheduleEnabled: z.boolean().optional(),
+  customerRescheduleMinNoticeHours: z.number().int().min(0).max(720).optional(),
+  customerRescheduleWindowDays: z.number().int().min(1).max(3650).nullable().optional(),
+})
+
+export const bookingQuestionSchema = z.object({
+  label: z.string().min(1).max(160),
+  key: z.string().regex(/^[a-z][a-z0-9_]*$/, 'Use lowercase letters, numbers, and underscores'),
+  type: z.enum(['SHORT_TEXT', 'LONG_TEXT', 'YES_NO', 'SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'PHONE', 'EMAIL', 'DATE']),
+  required: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(1000).optional(),
+  helpText: z.string().max(500).nullable().optional(),
+  options: z.array(z.string().min(1).max(100)).max(20).nullable().optional(),
+})
+
+export const rescheduleByTokenSchema = z.object({
+  startTime: z.string().datetime(),
 })
 
 // ─── SEO Settings ───────────────────────────────���───────────────────────────
