@@ -69,6 +69,9 @@ export async function GET(req: NextRequest) {
         customer: true,
         barber: true,
         service: true,
+        intakeResponses: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
       orderBy: { startTime: 'asc' },
     })
