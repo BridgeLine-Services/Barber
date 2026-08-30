@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Failed to create shop', detail: error.message },
+      { error: 'Failed to create shop. Please try again.' },
       { status: 500 }
     )
   }

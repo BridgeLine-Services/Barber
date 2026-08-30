@@ -28,7 +28,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ business, seo })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 })
+    console.error('[settings] request failed', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }
 
@@ -107,6 +108,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ business: updated, seo: updatedSeo })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Server error' }, { status: 500 })
+    console.error('[settings] request failed', error)
+    return NextResponse.json({ error: 'Something went wrong. Please try again.' }, { status: 500 })
   }
 }

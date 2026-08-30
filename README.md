@@ -249,8 +249,10 @@ To prevent race conditions when two clients attempt to select the same slot simu
 4. **Run Database Migrations during build**:
    Set your Vercel Build Command to:
    ```bash
-   npx prisma generate && npx prisma db push && next build
+   npx prisma generate && next build
    ```
+
+For production database changes, run reviewed migrations separately with `npx prisma migrate deploy`. Do not run `prisma db push` against a client production database.
 
 ---
 

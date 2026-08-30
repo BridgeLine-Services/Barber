@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error('Earliest availability error:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch earliest availability' },
+      { error: 'Availability is temporarily unavailable. Please try again.' },
       { status: 500 }
     )
   }
