@@ -23,7 +23,6 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 interface PortalAppointment {
-  id: string
   confirmationNumber: string
   customerAccessToken: string
   status: string
@@ -35,7 +34,6 @@ interface PortalAppointment {
 
 interface PortalData {
   customer: {
-    id: string
     firstName: string
     lastName: string
     email: string
@@ -53,6 +51,8 @@ export function CustomerPortal({ businessId, businessName }: { businessId: strin
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<PortalData | null>(null)
+  const [code, setCode] = useState('')
+  const [codeRequested, setCodeRequested] = useState(false)
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,22 +61,36 @@ export function CustomerPortal({ businessId, businessName }: { businessId: strin
     setData(null)
 
     try {
-      const res = await fetch('/api/public/portal/lookup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email || undefined, phone: phone || undefined, businessId }),
-      })
-      const result = await res.json()
-      if (!res.ok) {
-        setError(result.error || 'Lookup failed')
-      } else {
-        setData(result)
-      }
+      const res = await fetch('/api/public/portal/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email || undefined, phone: phone || undefined, businessId }) })
+      if (!res.ok) setError('Please try again.')
+      else setCodeRequested(true)
     } catch {
       setError('Network error. Please try again.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleLogout = async () => {
+    await fetch('/api/public/portal/logout', { method: 'POST' })
+    setData(null)
+    setCodeRequested(false)
+    setCode('')
+  }
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/public/portal/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email || undefined, phone: phone || undefined, code }) })
+      if (!res.ok) { const result = await res.json(); setError(result.error || 'The verification code is invalid or expired.') }
+      else {
+        const lookup = await fetch('/api/public/portal/lookup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, phone, businessId }) })
+        const result = await lookup.json()
+        if (lookup.ok) setData(result); else setError('Your session expired. Please request a new code.')
+      }
+    } catch { setError('Please try again.') } finally { setLoading(false) }
   }
 
   // ── Lookup Form ─────────────────────────────────────────────────────
@@ -91,8 +105,14 @@ export function CustomerPortal({ businessId, businessName }: { businessId: strin
           <p className="text-sm text-zinc-400 mt-1">Look up your appointments and loyalty status at {businessName}</p>
         </div>
 
-        <form onSubmit={handleLookup} className="space-y-4 bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-          <div>
+        <form onSubmit={codeRequested ? handleVerify : handleLookup} className="space-y-4 bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+          {codeRequested ? (
+            <div>
+              <p className="mb-3 text-sm text-zinc-400">Check your email or phone for your verification code.</p>
+              <label className="block text-sm text-zinc-400 mb-1.5">Verification code</label>
+              <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} className="w-full px-3 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-amber-500/50" />
+            </div>
+          ) : <><div>
             <label className="block text-sm text-zinc-400 mb-1.5 flex items-center gap-1.5">
               <Mail className="w-3.5 h-3.5" /> Email
             </label>
@@ -116,7 +136,7 @@ export function CustomerPortal({ businessId, businessName }: { businessId: strin
               placeholder="(555) 555-0100"
               className="w-full px-3 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 text-sm focus:outline-none focus:border-amber-500/50"
             />
-          </div>
+          </div></>}
 
           {error && (
             <p className="text-sm text-red-400 text-center">{error}</p>
@@ -128,7 +148,7 @@ export function CustomerPortal({ businessId, businessName }: { businessId: strin
             className="w-full px-4 py-2.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
           >
             <Search className="w-4 h-4" />
-            {loading ? 'Searching...' : 'Find My Appointments'}
+            {loading ? 'Please wait...' : codeRequested ? 'Verify Code' : 'Send Verification Code'}
           </button>
         </form>
       </div>
@@ -138,12 +158,10 @@ export function CustomerPortal({ businessId, businessName }: { businessId: strin
   // ── Results Dashboard ─────────────────────────────────────────────────
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <button
-        onClick={() => setData(null)}
-        className="inline-flex items-center gap-2 text-xs text-zinc-400 hover:text-amber-400 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> New Lookup
-      </button>
+      <div className="flex items-center justify-between">
+        <button onClick={handleLogout} className="inline-flex items-center gap-2 text-xs text-zinc-400 hover:text-amber-400 transition-colors"><ArrowLeft className="w-4 h-4" /> New Lookup</button>
+        <button onClick={handleLogout} className="text-xs text-zinc-500 hover:text-red-400">Log out</button>
+      </div>
 
       {/* Customer Header */}
       <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-5">
@@ -180,7 +198,7 @@ export function CustomerPortal({ businessId, businessName }: { businessId: strin
           </p>
         ) : (
           <div className="space-y-3">
-            {data.upcoming.map(a => <AppointmentCard key={a.id} appt={a} />)}
+            {data.upcoming.map(a => <AppointmentCard key={a.confirmationNumber} appt={a} />)}
           </div>
         )}
       </div>
@@ -196,7 +214,7 @@ export function CustomerPortal({ businessId, businessName }: { businessId: strin
           </p>
         ) : (
           <div className="space-y-3">
-            {data.past.slice(0, 20).map(a => <AppointmentCard key={a.id} appt={a} />)}
+            {data.past.slice(0, 20).map(a => <AppointmentCard key={a.confirmationNumber} appt={a} />)}
           </div>
         )}
       </div>

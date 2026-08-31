@@ -77,7 +77,7 @@ cp .env.example .env
 ```
 Fill in your database URL and NextAuth secret in `.env`:
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/barber_booking?schema=public"
+# DATABASE_URL must be configured in your environment; do not commit a connection string.
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-generated-secret-key"
 
