@@ -54,8 +54,8 @@ cd Barber
 npm install
 
 # Use your production DATABASE_URL
-DATABASE_URL="your-production-connection-string" npx prisma db push
-DATABASE_URL="your-production-connection-string" npm run db:seed
+npx prisma db push  # reads DATABASE_URL from your configured environment
+npm run db:seed    # reads DATABASE_URL from your configured environment
 ```
 
 ### Option B: Vercel Postgres CLI

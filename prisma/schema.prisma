@@ -80,6 +80,8 @@ model Business {
   websiteContent        WebsiteContent?
   bookingQuestions      BookingQuestion[]
   rescheduleHistory     RescheduleHistory[]
+  portalVerificationChallenges PortalVerificationChallenge[]
+  portalSessions         PortalSession[]
 
   walkInsWelcome                   Boolean @default(true)
   parkingAvailable                 Boolean @default(false)
@@ -346,6 +348,7 @@ model Customer {
   tagAssignments      CustomerTagAssignment[]
   cancellationRecords CancellationRecord[]
   notificationHistory NotificationLog[]       @relation("CustomerNotificationLogs")
+  portalSessions     PortalSession[]
 
   @@unique([businessId, email])
   @@index([businessId])
@@ -902,6 +905,35 @@ model RescheduleHistory {
 
   @@index([businessId, createdAt])
   @@index([appointmentId])
+}
+
+model PortalVerificationChallenge {
+  id           String   @id @default(cuid())
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  contactHash  String
+  channel      String
+  codeHash     String
+  expiresAt    DateTime
+  attempts     Int      @default(0)
+  consumedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([businessId, contactHash, createdAt])
+}
+
+model PortalSession {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, customerId, expiresAt])
 }
 
 // ─── FAQ (Database-driven, owner-editable) ──────────────────────────────────

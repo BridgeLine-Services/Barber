@@ -153,6 +153,14 @@ function createModelDelegate(modelName: string, data: any[]) {
       return clone(deleted)
     },
 
+    updateMany: async (args?: any) => {
+      let count = 0
+      for (const item of data) {
+        if (matchWhere(item, args?.where)) { Object.assign(item, args?.data, { updatedAt: new Date() }); count++ }
+      }
+      return { count }
+    },
+
     deleteMany: async (args?: any) => {
       const before = data.length
       const indices = data.map((item, i) => matchWhere(item, args?.where) ? i : -1).filter(i => i !== -1)
@@ -343,6 +351,8 @@ function createMockPrisma() {
   appointmentIntakeResponse: createModelDelegate('appointmentIntakeResponse', []),
   bookingQuestion: createModelDelegate('bookingQuestion', []),
   rescheduleHistory: createModelDelegate('rescheduleHistory', []),
+  portalVerificationChallenge: createModelDelegate('portalVerificationChallenge', []),
+  portalSession: createModelDelegate('portalSession', []),
   customer: createModelDelegate('customer', clone(DEMO_CUSTOMERS)),
     review: createModelDelegate('review', clone(DEMO_REVIEWS)),
     schedule: createModelDelegate('schedule', clone(DEMO_SCHEDULES)),
