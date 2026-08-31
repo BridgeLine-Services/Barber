@@ -20,6 +20,10 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: UNAUTHORIZED }, { status: 401 })
     const customer = await prisma.customer.findFirst({ where: { id: session.customerId, businessId: business.id } })
     if (!customer) return NextResponse.json({ error: UNAUTHORIZED }, { status: 401 })
+    const contactMatches = contact.channel === 'EMAIL'
+      ? customer.email.toLowerCase() === contact.value
+      : customer.phone.replace(/\D/g, '') === contact.value
+    if (!contactMatches) return NextResponse.json({ error: UNAUTHORIZED }, { status: 401 })
     const appointments = await prisma.appointment.findMany({ where: { customerId: customer.id, businessId: business.id }, include: { barber: { select: { name: true, photo: true } }, service: { select: { name: true, price: true, duration: true } } }, orderBy: { startTime: 'desc' }, take: 50 })
     const now = new Date()
     const safe = appointments.map((a: any) => ({ confirmationNumber: a.confirmationNumber, customerAccessToken: a.customerAccessToken, status: a.status, startTime: a.startTime.toISOString(), endTime: a.endTime.toISOString(), barber: a.barber, service: a.service }))

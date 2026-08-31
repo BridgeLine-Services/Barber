@@ -34,7 +34,6 @@ interface PortalAppointment {
 
 interface PortalData {
   customer: {
-    id: string
     firstName: string
     lastName: string
     email: string
@@ -63,7 +62,6 @@ export function CustomerPortal({ businessId, businessName }: { businessId: strin
 
     try {
       const res = await fetch('/api/public/portal/request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email || undefined, phone: phone || undefined, businessId }) })
-      const result = await res.json()
       if (!res.ok) setError('Please try again.')
       else setCodeRequested(true)
     } catch {

@@ -16,12 +16,15 @@ export async function POST(req: NextRequest) {
     const code = typeof body.code === 'string' ? body.code.trim() : ''
     if (!contact || !/^\d{6}$/.test(code)) return NextResponse.json({ error: INVALID }, { status: 400 })
     const business = await resolveBusiness()
+    if (!business) return NextResponse.json({ error: INVALID }, { status: 400 })
     const challenge = await prisma.portalVerificationChallenge.findFirst({ where: { businessId: business.id, contactHash: hashValue(contact.value), channel: contact.channel, consumedAt: null, expiresAt: { gt: new Date() }, attempts: { lt: PORTAL_MAX_ATTEMPTS } }, orderBy: { createdAt: 'desc' } })
     if (!challenge || hashValue(code) !== challenge.codeHash) {
       if (challenge) await prisma.portalVerificationChallenge.update({ where: { id: challenge.id }, data: { attempts: { increment: 1 } } })
       return NextResponse.json({ error: INVALID }, { status: 400 })
     }
-    const customer = await prisma.customer.findFirst({ where: { businessId: business.id, ...(contact.channel === 'EMAIL' ? { email: contact.value } : { phone: body.phone.trim() }) } })
+    const customer = contact.channel === 'EMAIL'
+      ? await prisma.customer.findFirst({ where: { businessId: business.id, email: contact.value } })
+      : (await prisma.customer.findMany({ where: { businessId: business.id } })).find((candidate: { phone: string }) => candidate.phone.replace(/\D/g, '') === contact.value)
     if (!customer) return NextResponse.json({ error: INVALID }, { status: 400 })
     await prisma.portalVerificationChallenge.update({ where: { id: challenge.id }, data: { consumedAt: new Date() } })
     const token = createToken()

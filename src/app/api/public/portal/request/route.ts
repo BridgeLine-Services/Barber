@@ -15,7 +15,9 @@ export async function POST(req: NextRequest) {
     const contact = normalizeContact(body.email, body.phone)
     if (!contact || contact.value.length < 6) return NextResponse.json({ message: NEUTRAL }, { status: 200 })
     const business = await resolveBusiness()
-    const customer = await prisma.customer.findFirst({ where: { businessId: business.id, ...(contact.channel === 'EMAIL' ? { email: contact.value } : { phone: body.phone.trim() }) } })
+    const customer = contact.channel === 'EMAIL'
+      ? await prisma.customer.findFirst({ where: { businessId: business.id, email: contact.value } })
+      : (await prisma.customer.findMany({ where: { businessId: business.id } })).find((candidate: { phone: string }) => candidate.phone.replace(/\D/g, '') === contact.value)
     if (customer) {
       const code = createCode()
       await prisma.portalVerificationChallenge.create({ data: { businessId: business.id, contactHash: hashValue(contact.value), channel: contact.channel, codeHash: hashValue(code), expiresAt: new Date(Date.now() + PORTAL_CODE_TTL_MS) } })

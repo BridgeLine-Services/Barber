@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { resolveBusiness } from '@/lib/tenant'
+import { CustomerPortal } from '@/components/customer/CustomerPortal'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +36,9 @@ export default async function PortalPage({ searchParams }: { searchParams: { sho
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
+    <>
+      <CustomerPortal businessId={business.id} businessName={business.name} />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
       <div className="text-center mb-12">
         <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-poppins mb-4">
           {business.name}
@@ -95,6 +98,7 @@ export default async function PortalPage({ searchParams }: { searchParams: { sho
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
