@@ -2,6 +2,7 @@ import { getDemoSession } from '@/lib/demo-auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { ServicesClient } from '@/components/dashboard/ServicesClient'
+import { BarberServicesClient } from '@/components/dashboard/BarberServicesClient'
 
 export default async function ServicesPage() {
   const session = await getDemoSession()
@@ -11,7 +12,7 @@ export default async function ServicesPage() {
 
   const user = session.user as any
   if (user.role !== 'OWNER') {
-    redirect('/dashboard')
+    return <BarberServicesClient />
   }
 
   const businessId = user.businessId

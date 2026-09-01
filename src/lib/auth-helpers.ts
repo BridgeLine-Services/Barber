@@ -18,8 +18,9 @@ export interface AuthResult {
     name: string
     role: 'OWNER' | 'BARBER'
     businessId: string | null
-    barberId?: string | null
+      barberId?: string | null
   }
+  response?: never
 }
 
 export interface AuthError {

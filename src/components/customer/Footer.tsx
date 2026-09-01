@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Scissors, MapPin, Phone, Mail, Clock, Instagram, Facebook, Video, Youtube, Twitter, Lock } from 'lucide-react'
+import { Scissors, MapPin, Phone, Mail, Instagram, Facebook, Video, Youtube, Twitter, Lock } from 'lucide-react'
 
 interface FooterProps {
   business?: {
@@ -15,6 +15,7 @@ interface FooterProps {
     tiktok?: string | null
     youtube?: string | null
     xTwitter?: string | null
+    twitter?: string | null
     hours?: any
     aboutText?: string | null
     bookingPolicy?: string | null
@@ -42,7 +43,7 @@ export function Footer({ business }: FooterProps) {
               <span className="text-lg font-bold text-white font-poppins">{shopName}</span>
             </div>
             {business?.aboutText && (
-              <p className="text-zinc-400 text-sm leading-relaxed line-clamp-3">
+              <p className="text-zinc-400 text-sm leading-relaxed">
                 {business.aboutText}
               </p>
             )}
@@ -92,9 +93,13 @@ export function Footer({ business }: FooterProps) {
                   <Youtube className="h-4 w-4" />
                 </a>
               )}
-              {business?.xTwitter && (
+              {(() => {
+                const twitter = business?.xTwitter || business?.twitter
+                if (!twitter) return null
+                const twitterHref = twitter.startsWith('http') ? twitter : `https://x.com/${twitter.replace('@', '')}`
+                return (
                 <a
-                  href={business.xTwitter.startsWith('http') ? business.xTwitter : `https://x.com/${business.xTwitter.replace('@', '')}`}
+                  href={twitterHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 rounded-md bg-zinc-900 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition"
@@ -102,7 +107,8 @@ export function Footer({ business }: FooterProps) {
                 >
                   <Twitter className="h-4 w-4" />
                 </a>
-              )}
+                )
+              })()}
             </div>
           </div>
 
@@ -149,6 +155,9 @@ export function Footer({ business }: FooterProps) {
                 <Link href="/barbers" className="hover:text-amber-400 transition">Meet Our Barbers</Link>
               </li>
               <li>
+                <Link href="/gallery" className="hover:text-amber-400 transition">Gallery</Link>
+              </li>
+              <li>
                 <Link href="/book" className="text-amber-400 hover:underline font-medium">Book Appointment</Link>
               </li>
               <li>
@@ -177,12 +186,6 @@ export function Footer({ business }: FooterProps) {
                 </li>
               )}
             </ul>
-            <div className="pt-2">
-              <p className="text-xs text-amber-400/90 font-medium flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                Pay in Person — No upfront online payment required
-              </p>
-            </div>
           </div>
         </div>
 

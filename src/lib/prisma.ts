@@ -21,10 +21,10 @@ import {
 
 // ─── Deep clone helper (so callers can't mutate the source data) ──────────
 function clone<T>(val: T): T {
-  return JSON.parse(JSON.stringify(val, (key, value) => {
+  return JSON.parse(JSON.stringify(val, (key, value: any) => {
     if (value instanceof Date) return value.toISOString()
     return value
-  }), (key, value) => {
+  }), (key, value: any) => {
     if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
       return new Date(value)
     }
@@ -193,7 +193,7 @@ function createModelDelegate(modelName: string, data: any[]) {
 
 // ─── Where clause matcher ─────────────────────────────────────────────────
 function matchWhere(item: any, where: any): boolean {
-  for (const [key, value] of Object.entries(where)) {
+  for (const [key, value] of Object.entries(where) as [string, any][]) {
     // Handle Prisma operators
     if (key === 'AND') {
       if (!value.every((cond: any) => matchWhere(item, cond))) return false
@@ -228,7 +228,7 @@ function matchWhere(item: any, where: any): boolean {
     if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
       // gte, lte, gt, lt, in, not_in, contains, etc.
       const itemVal = item[key]
-      for (const [op, opVal] of Object.entries(value)) {
+      for (const [op, opVal] of Object.entries(value) as [string, any][]) {
         switch (op) {
           case 'gte': if (!(itemVal >= opVal)) return false; break
           case 'lte': if (!(itemVal <= opVal)) return false; break
@@ -267,10 +267,16 @@ function matchWhere(item: any, where: any): boolean {
 
 // ─── Include relations ────────────────────────────────────────────────────
 function includeRelations(modelName: string, item: any, include: any): any {
-  const result = { ...item }
+  const result: any = { ...item }
 
   for (const [relation, opts] of Object.entries(include)) {
-    if (relation === 'services' && modelName === 'barber') {
+    if (relation === 'service' && modelName === 'barberService') {
+      result.service = clone(DEMO_SERVICES.find((service) => service.id === item.serviceId)) || null
+    } else if (relation === 'business' && modelName === 'barber') {
+      result.business = clone(DEMO_BUSINESS)
+    } else if (relation === 'mediaAssets' && modelName === 'barber') {
+      result.mediaAssets = []
+    } else if (relation === 'services' && modelName === 'barber') {
       // barber.services is a relation through BarberService
       const barberServices = DEMO_BARBER_SERVICES.filter(
         (bs) => bs.barberId === item.id && (bs.isActive !== false)
@@ -284,8 +290,8 @@ function includeRelations(modelName: string, item: any, include: any): any {
       })
     } else if (relation === 'reviews' && modelName === 'barber') {
       result.reviews = clone(DEMO_REVIEWS.filter((r) => r.barberId === item.id)).map((r) => {
-        if (opts === true || opts?.select) {
-          if (opts?.select?.rating) return { rating: r.rating }
+        if (opts === true || (opts as any)?.select) {
+          if ((opts as any)?.select?.rating) return { rating: r.rating }
         }
         return r
       })
@@ -306,7 +312,7 @@ function includeRelations(modelName: string, item: any, include: any): any {
 // ─── Apply select ──────────────────────────────────────────────────────────
 function applySelect(item: any, select: any): any {
   const result: any = {}
-  for (const [key, value] of Object.entries(select)) {
+  for (const [key, value] of Object.entries(select) as [string, any][]) {
     if (value === true && item[key] !== undefined) {
       result[key] = item[key]
     }
@@ -360,6 +366,8 @@ function createMockPrisma() {
     blockedTime: createModelDelegate('blockedTime', []),
     availabilityOverride: createModelDelegate('availabilityOverride', []),
     faq: createModelDelegate('faq', clone(DEMO_FAQS)),
+    websiteContent: createModelDelegate('websiteContent', []),
+    retentionSettings: createModelDelegate('retentionSettings', []),
     businessSEO: createModelDelegate('businessSEO', [{
       id: 'demo-seo-1',
       businessId: DEMO_BUSINESS_ID,
@@ -421,9 +429,10 @@ function createMockPrisma() {
     }))),
 
     // Transaction support
-    $transaction: async (fn: any) => {
-      // Just run the callback with the mock client
-      return fn(prismaMock)
+    $transaction: async (fnOrOperations: any, options?: any) => {
+      // Support both Prisma callback and batch transaction forms in demo mode.
+      if (Array.isArray(fnOrOperations)) return Promise.all(fnOrOperations)
+      return fnOrOperations(prismaMock, options)
     },
 
     $disconnect: async () => {},
@@ -432,5 +441,7 @@ function createMockPrisma() {
 }
 
 const prismaMock = createMockPrisma()
-export const prisma = prismaMock
+// Demo mode intentionally exposes a flexible Prisma-shaped surface because the
+// production schema includes optional models that are not persisted in the fixture.
+export const prisma = prismaMock as any
 

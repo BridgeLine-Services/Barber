@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -35,20 +35,16 @@ const MEDIA_TYPES = [
   { value: 'FAVICON', label: 'Favicon', icon: ImageIcon },
 ]
 
-export default function MediaPage() {
+export default function MediaPage({ initialType = 'GALLERY', title = 'Media Gallery', description = 'Upload and manage images for your shop.' }: { initialType?: string; title?: string; description?: string }) {
   const { toast } = useToast()
   const [media, setMedia] = useState<MediaAsset[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeType, setActiveType] = useState('GALLERY')
+  const [activeType, setActiveType] = useState(initialType)
   const [uploading, setUploading] = useState(false)
   const [editing, setEditing] = useState<MediaAsset | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    fetchMedia(activeType)
-  }, [activeType])
-
-  const fetchMedia = async (type: string) => {
+  const fetchMedia = useCallback(async (type: string) => {
     setLoading(true)
     try {
       const res = await fetch(`/api/dashboard/media?type=${type}`)
@@ -59,7 +55,11 @@ export default function MediaPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
+
+  useEffect(() => {
+    void fetchMedia(activeType)
+  }, [activeType, fetchMedia])
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -153,8 +153,8 @@ export default function MediaPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Media Gallery</h1>
-          <p className="text-sm text-zinc-400 mt-1">Upload and manage images for your shop.</p>
+          <h1 className="text-2xl font-bold text-white">{title}</h1>
+          <p className="text-sm text-zinc-400 mt-1">{description}</p>
         </div>
         <Button
           onClick={() => fileRef.current?.click()}

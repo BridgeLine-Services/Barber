@@ -10,7 +10,10 @@ export const metadata: Metadata = {
   description: 'Terms of service and user agreements for using our website and booking appointments.',
 }
 
-export default function TermsOfServicePage() {
+export default async function TermsOfServicePage() {
+  const business = await resolveBusiness().catch(() => null)
+  const customPolicy = business?.termsPolicy
+
   return (
     <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12 lg:py-16 space-y-8">
       <div className="space-y-3">
@@ -21,6 +24,11 @@ export default function TermsOfServicePage() {
         <p className="text-xs text-zinc-500">Last updated: August 2026</p>
       </div>
 
+      {customPolicy ? (
+        <Card className="bg-zinc-900 border-zinc-800 p-8 text-zinc-300 text-sm leading-relaxed">
+          <div className="whitespace-pre-wrap">{customPolicy}</div>
+        </Card>
+      ) : (
       <Card className="bg-zinc-900 border-zinc-800 p-8 text-zinc-300 space-y-6 text-sm leading-relaxed">
         <section className="space-y-2">
           <h2 className="text-lg font-bold text-white font-poppins">1. Acceptance of Terms</h2>
@@ -91,6 +99,7 @@ export default function TermsOfServicePage() {
           </p>
         </section>
       </Card>
+      )}
     </div>
   )
 }

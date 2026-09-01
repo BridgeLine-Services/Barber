@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { getDemoSessionFromRequest } from '@/lib/demo-auth'
 
 export async function GET(req: NextRequest) {
-  const session = getDemoSessionFromRequest(req)
+  const session = await getDemoSessionFromRequest(req)
   const isAdmin = session?.user?.role === 'OWNER'
 
   if (!isAdmin) {

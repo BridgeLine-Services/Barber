@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
     userAgent: req.headers.get('user-agent') || undefined,
   })
 
-  return NextResponse.json(media, { status: 201 })
+  return NextResponse.json({ media }, { status: 201 })
 }
 
 /**
@@ -188,7 +188,7 @@ export async function PATCH(req: NextRequest) {
     userAgent: req.headers.get('user-agent') || undefined,
   })
 
-  return NextResponse.json(updated)
+  return NextResponse.json({ media: updated })
 }
 
 /**
@@ -206,7 +206,8 @@ export async function DELETE(req: NextRequest) {
   const userId = (session.user as any)?.id
   const sessionBarberId = (session.user as any)?.barberId
   const { searchParams } = new URL(req.url)
-  const id = searchParams.get('id')
+  const body = await req.json().catch(() => ({}))
+  const id = searchParams.get('id') || (typeof body.id === 'string' ? body.id : null)
 
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
