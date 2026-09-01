@@ -272,6 +272,10 @@ function includeRelations(modelName: string, item: any, include: any): any {
   for (const [relation, opts] of Object.entries(include)) {
     if (relation === 'service' && modelName === 'barberService') {
       result.service = clone(DEMO_SERVICES.find((service) => service.id === item.serviceId)) || null
+    } else if (relation === 'business' && modelName === 'barber') {
+      result.business = clone(DEMO_BUSINESS)
+    } else if (relation === 'mediaAssets' && modelName === 'barber') {
+      result.mediaAssets = []
     } else if (relation === 'services' && modelName === 'barber') {
       // barber.services is a relation through BarberService
       const barberServices = DEMO_BARBER_SERVICES.filter(
