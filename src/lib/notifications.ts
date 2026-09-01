@@ -131,7 +131,7 @@ export async function scheduleAppointmentReminders(appointment: AppointmentWithR
 
   await Promise.all(reminders.map((reminder) => logNotification({
   businessId: appointment.business.id,
-  customerId: appointment.customer.id,
+  customerId: (appointment.customer as { id?: string }).id,
   appointmentId: appointment.id,
   recipient: appointment.customer.email,
     channel: 'EMAIL',

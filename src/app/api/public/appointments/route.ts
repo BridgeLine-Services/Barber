@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
 
     const result = await createAppointmentSafely({
       businessId,
-      barberId: targetBarberId,
+      barberId: targetBarberId!,
       serviceId,
       startTime,
       idempotencyKey,

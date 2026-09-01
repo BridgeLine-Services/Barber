@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -44,11 +44,7 @@ export default function MediaPage({ initialType = 'GALLERY', title = 'Media Gall
   const [editing, setEditing] = useState<MediaAsset | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    fetchMedia(activeType)
-  }, [activeType])
-
-  const fetchMedia = async (type: string) => {
+  const fetchMedia = useCallback(async (type: string) => {
     setLoading(true)
     try {
       const res = await fetch(`/api/dashboard/media?type=${type}`)
@@ -59,7 +55,11 @@ export default function MediaPage({ initialType = 'GALLERY', title = 'Media Gall
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
+
+  useEffect(() => {
+    void fetchMedia(activeType)
+  }, [activeType, fetchMedia])
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

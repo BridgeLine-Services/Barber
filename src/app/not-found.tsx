@@ -14,7 +14,7 @@ export default function NotFound() {
           <span className="text-amber-400 font-mono text-sm tracking-wider uppercase">404 Error</span>
           <h1 className="text-3xl font-bold text-white font-poppins">Page Not Found</h1>
           <p className="text-zinc-400 text-sm leading-relaxed">
-            Looks like this cut went off the lines. The page you are looking for doesn't exist or has been moved.
+            {"Looks like this cut went off the lines. The page you are looking for doesn't exist or has been moved."}
           </p>
         </div>
 

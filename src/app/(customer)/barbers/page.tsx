@@ -70,10 +70,10 @@ export default async function BarbersPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {barbers.map((barber) => {
             // Calculate barber's review stats from actual records
-            const barberReviews = barber.reviews || []
+            const barberReviews: Array<{ rating: number }> = barber.reviews || []
             const reviewCount = barberReviews.length
             const avgRating = reviewCount > 0
-              ? (barberReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount).toFixed(1)
+              ? (barberReviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / reviewCount).toFixed(1)
               : null
 
             return (

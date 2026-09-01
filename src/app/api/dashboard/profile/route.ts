@@ -146,13 +146,13 @@ export async function PATCH(req: NextRequest) {
 
     await logAudit({
       userId: auth.user.id,
-      businessId: auth.user.businessId,
+      businessId: auth.user.businessId || undefined,
       action: 'BARBER_PROFILE_UPDATED',
       entityType: 'Barber',
       entityId: barberId,
       oldValues: oldBarber,
       newValues: updateData,
-      ipAddress: getClientIP(req),
+      ipAddress: getClientIP(req) || undefined,
       userAgent: req.headers.get('user-agent') || undefined,
     })
 

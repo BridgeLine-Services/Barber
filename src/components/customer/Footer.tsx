@@ -93,9 +93,13 @@ export function Footer({ business }: FooterProps) {
                   <Youtube className="h-4 w-4" />
                 </a>
               )}
-              {(business?.xTwitter || business?.twitter) && (
+              {(() => {
+                const twitter = business?.xTwitter || business?.twitter
+                if (!twitter) return null
+                const twitterHref = twitter.startsWith('http') ? twitter : `https://x.com/${twitter.replace('@', '')}`
+                return (
                 <a
-                  href={(business.xTwitter || business.twitter)!.startsWith('http') ? (business.xTwitter || business.twitter)! : `https://x.com/${(business.xTwitter || business.twitter)!.replace('@', '')}`}
+                  href={twitterHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 rounded-md bg-zinc-900 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition"
@@ -103,7 +107,8 @@ export function Footer({ business }: FooterProps) {
                 >
                   <Twitter className="h-4 w-4" />
                 </a>
-              )}
+                )
+              })()}
             </div>
           </div>
 

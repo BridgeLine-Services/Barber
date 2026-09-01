@@ -298,7 +298,7 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
 
           <Button
             variant="outline"
-            onClick={() => { window.location.href = "/login"; fetch("/api/auth/demo-logout", { method: "POST" }); }}
+            onClick={async () => { await fetch('/api/auth/demo-logout', { method: 'POST' }); window.location.href = '/login' }}
             className="w-full bg-zinc-900 hover:bg-red-950/30 text-zinc-300 hover:text-red-400 border-zinc-800 hover:border-red-900/50 justify-start gap-2 h-9 text-xs transition-colors"
           >
             <LogOut className="w-3.5 h-3.5 text-zinc-500 hover:text-red-400" />
