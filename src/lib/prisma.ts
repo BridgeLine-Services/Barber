@@ -270,7 +270,9 @@ function includeRelations(modelName: string, item: any, include: any): any {
   const result = { ...item }
 
   for (const [relation, opts] of Object.entries(include)) {
-    if (relation === 'services' && modelName === 'barber') {
+    if (relation === 'service' && modelName === 'barberService') {
+      result.service = clone(DEMO_SERVICES.find((service) => service.id === item.serviceId)) || null
+    } else if (relation === 'services' && modelName === 'barber') {
       // barber.services is a relation through BarberService
       const barberServices = DEMO_BARBER_SERVICES.filter(
         (bs) => bs.barberId === item.id && (bs.isActive !== false)

@@ -8,16 +8,18 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { DEMO_USERS, findDemoUser, findDemoUserById, DEMO_BUSINESS } from './demo-data'
+import { isDemoMode } from './app-config'
 
 const SESSION_COOKIE = 'demo-session'
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+// Demo mode is intentionally self-contained so a template deployment can run
+// without production auth configuration. This fallback is never used by the
+// production auth path; deployments should still provide NEXTAUTH_SECRET there.
+const DEMO_FALLBACK_SECRET = 'barber-template-demo-session-v1'
+
 function getSessionSecret(): string {
-  const secret = process.env.NEXTAUTH_SECRET
-  if (secret) return secret
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Session secret is not configured')
-  }
-  return 'development-only-session-secret'
+  if (!isDemoMode()) throw new Error('Demo session helper used outside demo mode')
+  return process.env.NEXTAUTH_SECRET || DEMO_FALLBACK_SECRET
 }
 
 function toBase64Url(bytes: Uint8Array): string {
@@ -44,10 +46,22 @@ async function encodeSession(userId: string): Promise<string> {
   return `${payload}.${await sign(payload)}`
 }
 
+function constantTimeEqual(left: string, right: string): boolean {
+  const leftBytes = new TextEncoder().encode(left)
+  const rightBytes = new TextEncoder().encode(right)
+  let difference = leftBytes.length ^ rightBytes.length
+  const length = Math.max(leftBytes.length, rightBytes.length)
+  for (let index = 0; index < length; index += 1) {
+    difference |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0)
+  }
+  return difference === 0
+}
+
 async function decodeSession(token: string): Promise<{ userId: string; exp: number } | null> {
   try {
     const [payload, signature] = token.split('.')
-    if (!payload || !signature || signature !== await sign(payload)) return null
+    const expectedSignature = payload ? await sign(payload) : ''
+    if (!payload || !signature || !constantTimeEqual(signature, expectedSignature)) return null
     const decoded = JSON.parse(new TextDecoder().decode(fromBase64Url(payload)))
     if (!decoded.userId || typeof decoded.exp !== 'number' || decoded.exp <= Date.now()) return null
     return decoded
