@@ -97,6 +97,7 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
         { name: 'Branding', href: '/dashboard/settings?tab=branding', icon: Palette },
         { name: 'Business Info', href: '/dashboard/settings?tab=business', icon: Store },
         { name: 'Hours', href: '/dashboard/settings?tab=hours', icon: Clock },
+        { name: 'Shop Gallery', href: '/dashboard/gallery', icon: ImageIcon },
         { name: 'Photos', href: '/dashboard/media', icon: ImageIcon },
         { name: 'Policies', href: '/dashboard/settings?tab=policies', icon: FileText },
         { name: 'Social Media', href: '/dashboard/settings?tab=social', icon: Globe },
@@ -138,6 +139,7 @@ export function Sidebar({ userName, userRole, businessName }: SidebarProps) {
         { name: 'Schedule', href: '/dashboard/schedule', icon: Clock },
         { name: 'Closures', href: '/dashboard/closures', icon: CalendarOff },
         { name: 'Services', href: '/dashboard/services', icon: Scissors },
+        { name: 'Portfolio / My Work', href: '/dashboard/portfolio', icon: ImageIcon },
       ],
     },
   ]

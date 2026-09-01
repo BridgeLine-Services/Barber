@@ -15,7 +15,6 @@ import {
   MapPin,
   Clock,
   ArrowRight,
-  ShieldCheck,
   CheckCircle2,
   Sparkles,
 } from 'lucide-react'
@@ -79,14 +78,14 @@ export default async function HomePage() {
           <div className="mx-auto max-w-3xl text-center space-y-6">
             <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30 px-3 py-1 text-xs sm:text-sm inline-flex items-center gap-1.5 font-medium">
               <Sparkles className="h-3.5 w-3.5" />
-              Pay in Person • Easy Online Booking
+              Easy Online Booking
             </Badge>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white font-poppins leading-tight">
               Precision Cuts & <span className="text-amber-400">Master Grooming</span>
             </h1>
 
-            <p className="text-base sm:text-lg text-zinc-300 leading-relaxed font-normal line-clamp-3">
+            <p className="text-base sm:text-lg text-zinc-300 leading-relaxed font-normal">
               {business?.aboutText ||
                 `Experience top-tier craftsmanship at ${shopName}. From classic razor fades to precision beard styling, walk out looking and feeling sharp.`}
             </p>
@@ -133,17 +132,9 @@ export default async function HomePage() {
 
             {/* Guarantees */}
             <div className="pt-8 grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs sm:text-sm text-zinc-400 border-t border-zinc-800/80 max-w-xl mx-auto">
-              <div className="flex items-center justify-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-amber-400 shrink-0" />
-                <span>No Credit Card Required</span>
-              </div>
-              <div className="flex items-center justify-center gap-2">
+              <div className="flex items-center justify-center gap-2 col-span-2 sm:col-span-1">
                 <CheckCircle2 className="h-4 w-4 text-amber-400 shrink-0" />
                 <span>Instant Confirmation</span>
-              </div>
-              <div className="flex items-center justify-center gap-2 col-span-2 sm:col-span-1">
-                <Clock className="h-4 w-4 text-amber-400 shrink-0" />
-                <span>Walk-Ins Available</span>
               </div>
             </div>
           </div>
