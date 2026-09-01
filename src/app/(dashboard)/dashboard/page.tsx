@@ -89,7 +89,7 @@ export default async function DashboardHomePage() {
       todayDateStr={todayDateStr}
       userName={user.name || 'User'}
       userRole={userRole}
-      barberId={barberId}
+      barberId={barberId ?? undefined}
     />
   )
 }

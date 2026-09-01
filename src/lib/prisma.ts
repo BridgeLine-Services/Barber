@@ -21,10 +21,10 @@ import {
 
 // ─── Deep clone helper (so callers can't mutate the source data) ──────────
 function clone<T>(val: T): T {
-  return JSON.parse(JSON.stringify(val, (key, value) => {
+  return JSON.parse(JSON.stringify(val, (key, value: any) => {
     if (value instanceof Date) return value.toISOString()
     return value
-  }), (key, value) => {
+  }), (key, value: any) => {
     if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
       return new Date(value)
     }
@@ -267,7 +267,7 @@ function matchWhere(item: any, where: any): boolean {
 
 // ─── Include relations ────────────────────────────────────────────────────
 function includeRelations(modelName: string, item: any, include: any): any {
-  const result = { ...item }
+  const result: any = { ...item }
 
   for (const [relation, opts] of Object.entries(include)) {
     if (relation === 'service' && modelName === 'barberService') {
