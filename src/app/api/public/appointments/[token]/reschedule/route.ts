@@ -5,10 +5,10 @@ import { validateSlot } from '@/lib/availability'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { isTerminalStatus } from '@/lib/validation'
 
-export async function POST(req: NextRequest, { params }: { params: { token: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const limited = checkRateLimit(req, 'public-reschedule', RATE_LIMITS.CUSTOMER_ACTION)
   if (limited) return NextResponse.json({ error: limited.body.error }, { status: limited.status })
-  const token = params.token
+  const { token } = await params
   if (!token || token.length < 32) return NextResponse.json({ error: 'Invalid token' }, { status: 400 })
   const parsed = rescheduleByTokenSchema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'A valid start time is required' }, { status: 400 })
