@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { resolveBusinessId } from '@/lib/business'
+import { resolveBusinessId } from '@/lib/tenant'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { prisma } from '@/lib/prisma'
 import { dayBoundsFromYMD, dayOfWeekFromYMD } from '@/lib/timezone'
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid month format. Use YYYY-MM' }, { status: 400 })
     }
 
-    const businessId = await resolveBusinessId(req)
+    const businessId = await resolveBusinessId()
 
     // Get the business timezone
     const business = await prisma.business.findUnique({
@@ -51,7 +51,15 @@ export async function GET(req: NextRequest) {
     // Get all barbers to check (or specific barber)
     let barberIds: string[] = []
     if (barberId && barberId !== 'any' && barberId !== 'first-available') {
-      barberIds = [barberId]
+      // Verify the requested barber belongs to this business (tenant isolation)
+      const verifiedBarber = await prisma.barber.findFirst({
+        where: { id: barberId, businessId, isActive: true },
+        select: { id: true },
+      })
+      if (!verifiedBarber) {
+        return NextResponse.json({ dates: {} })
+      }
+      barberIds = [verifiedBarber.id]
     } else {
       const barbers = await prisma.barber.findMany({
         where: { businessId, isActive: true },

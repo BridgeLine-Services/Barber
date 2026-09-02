@@ -5,6 +5,7 @@ import { resolveBusinessId } from '@/lib/tenant'
 import { getAvailableSlots, getEarliestAvailableSlot } from '@/lib/availability'
 import { isValid } from 'date-fns'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { prisma } from '@/lib/prisma'
 
 /**
  * GET /api/availability?serviceId=<id>&date=<YYYY-MM-DD>&barberId=<id>&any=true
@@ -61,9 +62,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ earliest, slots })
     }
 
+    // Verify the requested barber belongs to this business (tenant isolation)
+    const verifiedBarber = await prisma.barber.findFirst({
+      where: { id: barberId, businessId, isActive: true },
+      select: { id: true },
+    })
+    if (!verifiedBarber) {
+      return NextResponse.json({ slots: [] })
+    }
+
     const slots = await getAvailableSlots({
       businessId,
-      barberId,
+      barberId: verifiedBarber.id,
       serviceId,
       date,
       dateStr,

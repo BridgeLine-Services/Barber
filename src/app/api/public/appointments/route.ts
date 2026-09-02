@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { resolveBusinessId } from '@/lib/business'
+import { resolveBusinessId } from '@/lib/tenant'
 import { createAppointmentSafely, getAvailableSlots } from '@/lib/availability'
 import { sendBookingConfirmation, scheduleAppointmentReminders } from '@/lib/notifications'
 import { createBookingSchema } from '@/lib/validation'
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 
     const { barberId: reqBarberId, serviceId, date, time, customer } = parseResult.data
 
-    const businessId = await resolveBusinessId(req)
+    const businessId = await resolveBusinessId()
     const startTime = await parseStartTime(date, time, businessId)
 
     // Cannot book in the past
