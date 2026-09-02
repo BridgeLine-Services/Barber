@@ -50,16 +50,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Guard: refuse if any user already exists
-    const existing = await prisma.user.count()
-    if (existing > 0) {
-      return NextResponse.json(
-        { error: 'Setup already completed. An owner account exists. Use the login page.' },
-        { status: 409 }
-      )
-    }
-
-    const body = await req.json()
+    const body = await req.json().catch(() => null)
+    if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
     const parsed = setupSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
@@ -71,17 +63,21 @@ export async function POST(req: NextRequest) {
     const d = parsed.data
     const passwordHash = await bcrypt.hash(d.ownerPassword, 10)
 
-    // Create owner user with no business linked yet.
-    // businessId is nullable — the owner will create their shop from the dashboard.
-    const owner = await prisma.user.create({
-      data: {
-        email: d.ownerEmail,
-        name: d.ownerName,
-        passwordHash,
-        role: 'OWNER',
-        businessId: null,
-      },
-    })
+    // Serialize the empty-database check and insert so concurrent setup
+    // requests cannot create multiple initial owners.
+    const owner = await prisma.$transaction(async (tx) => {
+      const existing = await tx.user.count()
+      if (existing > 0) throw new Error('SETUP_ALREADY_COMPLETED')
+      return tx.user.create({
+        data: {
+          email: d.ownerEmail,
+          name: d.ownerName,
+          passwordHash,
+          role: 'OWNER',
+          businessId: null,
+        },
+      })
+    }, { isolationLevel: 'Serializable' })
 
     return NextResponse.json({
       success: true,

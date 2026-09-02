@@ -31,7 +31,7 @@ export interface BreadcrumbItem {
   url: string
 }
 
-const getBaseUrl = () => process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com'
+const getBaseUrl = () => process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || 'https://barber-template.invalid'
 
 /**
  * Generate Schema.org LocalBusiness / BarberShop JSON-LD structure

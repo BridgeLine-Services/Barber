@@ -56,7 +56,8 @@ export async function PATCH(req: NextRequest) {
   const businessId = (session.user as any)?.businessId
   const userId = (session.user as any)?.id
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   const parseResult = updateBarberServiceSchema.safeParse(body)
   if (!parseResult.success) {
     return NextResponse.json(
@@ -128,8 +129,9 @@ export async function POST(req: NextRequest) {
   const sessionBarberId = (session.user as any)?.barberId
   const businessId = (session.user as any)?.businessId
 
-  const body = await req.json()
-  const { serviceId, barberId: bodyBarberId } = body
+  const body = await req.json().catch(() => null)
+  if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  const { serviceId, barberId: bodyBarberId } = body as { serviceId?: string; barberId?: string }
 
   if (!serviceId) return NextResponse.json({ error: 'serviceId required' }, { status: 400 })
 
@@ -198,6 +200,11 @@ export async function DELETE(req: NextRequest) {
     where: { id: barberId, businessId },
   })
   if (!barber) return NextResponse.json({ error: 'Barber not found' }, { status: 404 })
+
+  const link = await prisma.barberService.findFirst({
+    where: { barberId, serviceId },
+  })
+  if (!link) return NextResponse.json({ error: 'Service is not assigned to this barber' }, { status: 404 })
 
   await prisma.barberService.delete({
     where: { barberId_serviceId: { barberId, serviceId } },
