@@ -3,8 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-// In demo mode, the shop already exists (demo business).
-// This page just redirects to the dashboard.
+// Redirects to the dashboard — shop creation is handled via onboarding.
 export default function CreateShopPage() {
   const router = useRouter()
 
