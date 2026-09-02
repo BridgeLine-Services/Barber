@@ -36,7 +36,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const data: { notes?: string; tags?: string[]; preferences?: object } = {}
     if (typeof body.notes === 'string') data.notes = body.notes.trim().slice(0, 5000)
     if (Array.isArray(body.tags)) {
-      data.tags = [...new Set(body.tags.filter((tag: unknown): tag is string => typeof tag === 'string').map((tag: string) => tag.trim()).filter(Boolean))].slice(0, 30)
+      const tags = body.tags.filter((tag: unknown): tag is string => typeof tag === 'string').map((tag: string) => tag.trim()).filter(Boolean)
+      data.tags = [...new Set(tags)] as string[]
+
     }
     if (body.preferences && typeof body.preferences === 'object' && !Array.isArray(body.preferences)) data.preferences = body.preferences
     if (!Object.keys(data).length) return NextResponse.json({ error: 'No valid fields supplied' }, { status: 400 })
