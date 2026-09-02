@@ -1,7 +1,10 @@
 import { MetadataRoute } from 'next'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL
+  const configuredUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL
+  const baseUrl = configuredUrl && (configuredUrl.startsWith('http://') || configuredUrl.startsWith('https://'))
+    ? configuredUrl
+    : configuredUrl ? `https://${configuredUrl}` : undefined
   if (!baseUrl) return []
   const lastModified = new Date()
 

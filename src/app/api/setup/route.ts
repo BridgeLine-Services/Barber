@@ -96,6 +96,13 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (error.message === 'SETUP_ALREADY_COMPLETED' || error.code === 'P2034') {
+      return NextResponse.json(
+        { error: 'Setup already completed. Use the login page.' },
+        { status: 409 }
+      )
+    }
+
     // Handle duplicate email
     if (error.code === 'P2002') {
       return NextResponse.json(
