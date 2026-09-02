@@ -1,4 +1,5 @@
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
@@ -30,7 +31,7 @@ interface CustomerDetailPageProps {
 }
 
 export default async function CustomerDetailPage({ params }: CustomerDetailPageProps) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session?.user) {
     redirect('/login')
   }

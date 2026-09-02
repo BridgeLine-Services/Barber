@@ -146,7 +146,7 @@ export default async function BarberProfilePage({ params }: PageProps) {
               </a>
             )}
             {barber.phone && (
-              <a href={`tel:${barber.phone}`} className="text-muted-foreground hover:text-foreground">
+              <a href={`tel:${barber.phone.replace(/\D/g, "")}`} className="text-muted-foreground hover:text-foreground">
                 <Phone className="h-5 w-5" />
               </a>
             )}

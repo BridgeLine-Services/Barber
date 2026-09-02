@@ -1,24 +1,46 @@
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { DEMO_BUSINESS } from '@/lib/demo-data'
+import { prisma } from '@/lib/prisma'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { MobileBottomNav } from '@/components/dashboard/MobileBottomNav'
+
+export const dynamic = 'force-dynamic'
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
 
   if (!session?.user) {
     redirect('/login')
   }
 
-  const user = session.user
-  const businessName = DEMO_BUSINESS.name
+  const user = session.user as any
+  const businessId = user.businessId
+  const userRole = user.role || 'BARBER'
+
+  let business = null
+  try {
+    if (businessId) {
+      business = await prisma.business.findUnique({
+        where: { id: businessId },
+        select: { name: true, logo: true, primaryColor: true, accentColor: true },
+      })
+    }
+  } catch (error) {
+    console.error('Failed to load business data:', error)
+  }
+
+  const businessName = business?.name || user.businessName || 'Barber Shop'
   const userName = user.name || user.email || 'User'
-  const userRole = user.role
+
+  // If owner has no business, redirect to onboarding
+  if (userRole === 'OWNER' && !businessId) {
+    redirect('/dashboard/onboarding')
+  }
 
   return (
     <div className="min-h-screen bg-zinc-900 text-zinc-100 flex flex-col lg:flex-row">

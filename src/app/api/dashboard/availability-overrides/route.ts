@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/auth-helpers'
 import { createAvailabilityOverrideSchema } from '@/lib/validation'
@@ -15,7 +16,7 @@ import { AuditAction } from '@prisma/client'
  * - OWNER: can view any barber's overrides
  */
 export async function GET(req: NextRequest) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = (session.user as any)?.role
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
  * - OWNER: can create overrides for any barber
  */
 export async function POST(req: NextRequest) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = (session.user as any)?.role
@@ -139,7 +140,7 @@ export async function POST(req: NextRequest) {
  * - OWNER: can delete any barber's overrides
  */
 export async function DELETE(req: NextRequest) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = (session.user as any)?.role

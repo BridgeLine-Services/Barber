@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { validateSlot, createAppointmentSafely } from '@/lib/availability'
 import { getRebookingSuggestion } from '@/lib/customer-intelligence'
@@ -12,7 +13,7 @@ import { getRebookingSuggestion } from '@/lib/customer-intelligence'
 // - Uses suggested date (average interval from last visit)
 // - Finds closest available time slot on that date
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const businessId = (session.user as any)?.businessId
   const userId = (session.user as any)?.id
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 // GET /api/dashboard/customers/[id]/rebook
 // Returns the rebooking suggestion without creating an appointment
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const businessId = (session.user as any)?.businessId
 

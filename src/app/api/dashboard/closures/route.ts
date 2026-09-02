@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getCurrentBusinessId } from '@/lib/business'
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { z } from 'zod'
 
 const createClosureSchema = z.object({
@@ -27,7 +28,7 @@ const createClosureSchema = z.object({
  * List all business closures (owner/barber only)
  */
 export async function GET() {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -55,7 +56,7 @@ export async function GET() {
  * Create a new business closure (owner only)
  */
 export async function POST(req: NextRequest) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

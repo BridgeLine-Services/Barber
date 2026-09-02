@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/auth-helpers'
 import { getClientIP } from '@/lib/rate-limit'
@@ -32,7 +33,7 @@ const updateMediaSchema = z.object({
  * BARBER: list only their own media (barberId forced from session)
  */
 export async function GET(req: NextRequest) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = (session.user as any)?.role
@@ -65,7 +66,7 @@ export async function GET(req: NextRequest) {
  * BARBER: can only create BARBER_PHOTO or BARBER_PORTFOLIO for themselves
  */
 export async function POST(req: NextRequest) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = (session.user as any)?.role
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest) {
  * Update a media asset (alt text, caption, sort order, published status)
  */
 export async function PATCH(req: NextRequest) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = (session.user as any)?.role
@@ -201,7 +202,7 @@ export async function PATCH(req: NextRequest) {
  * OWNER: can delete any media in their business
  */
 export async function DELETE(req: NextRequest) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = (session.user as any)?.role

@@ -1,10 +1,11 @@
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getAnalytics } from '@/lib/analytics'
 import { AnalyticsClient } from './AnalyticsClient'
 
 export default async function AnalyticsPage() {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
 
   if (!session?.user) {
     redirect('/login')

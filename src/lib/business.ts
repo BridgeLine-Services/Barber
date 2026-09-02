@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { resolveBusinessId as resolveTenantBusinessId, resolveBusiness } from '@/lib/tenant'
 
 // ============================================================================
@@ -14,7 +15,7 @@ import { resolveBusinessId as resolveTenantBusinessId, resolveBusiness } from '@
  */
 export async function getCurrentBusiness() {
   // Try authenticated user first (for dashboard routes)
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (session?.user) {
     const businessId = (session.user as any).businessId
     if (businessId) {
@@ -31,7 +32,7 @@ export async function getCurrentBusiness() {
  * @deprecated Use resolveBusinessId from @/lib/tenant instead.
  */
 export async function getCurrentBusinessId(): Promise<string> {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (session?.user) {
     const businessId = (session.user as any).businessId
     if (businessId) return businessId
@@ -47,7 +48,7 @@ export async function getCurrentBusinessId(): Promise<string> {
  * @deprecated Use resolveBusinessId from @/lib/tenant for public routes.
  */
 export async function resolveBusinessIdFromRequest(req?: Request): Promise<string> {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (session?.user) {
     const businessId = (session.user as any).businessId
     if (businessId) return businessId

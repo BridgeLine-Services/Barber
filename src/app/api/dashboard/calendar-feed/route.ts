@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { generateICalFeed } from '@/lib/calendar-sync'
 
 // GET /api/dashboard/calendar-feed.ics — iCal feed for owner/barber
 export async function GET(request: Request) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
