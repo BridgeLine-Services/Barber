@@ -5,13 +5,14 @@ import { getDemoSession } from '@/lib/demo-auth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/auth-helpers'
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getDemoSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const businessId = (session.user as any)?.businessId
+  const { id } = await params
 
   const customer = await prisma.customer.findFirst({
-    where: { id: params.id, businessId },
+    where: { id, businessId },
     include: {
       appointments: {
         include: { service: true, barber: true },
@@ -24,11 +25,12 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   return NextResponse.json(customer)
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getDemoSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const businessId = (session.user as any)?.businessId
-  const existing = await prisma.customer.findFirst({ where: { id: params.id, businessId } })
+  const { id } = await params
+  const existing = await prisma.customer.findFirst({ where: { id, businessId } })
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   try {

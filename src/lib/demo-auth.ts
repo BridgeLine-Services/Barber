@@ -12,14 +12,15 @@ import { isDemoMode } from './app-config'
 
 const SESSION_COOKIE = 'demo-session'
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
-// Demo mode is intentionally self-contained so a template deployment can run
-// without production auth configuration. This fallback is never used by the
-// production auth path; deployments should still provide NEXTAUTH_SECRET there.
-const DEMO_FALLBACK_SECRET = 'barber-template-demo-session-v1'
+// Demo sessions use NEXTAUTH_SECRET when present. For a demo-only deployment
+// without auth configuration, generate a cryptographically random process secret
+// rather than shipping a forgeable constant. The cookie is intentionally scoped
+// to this runtime instance and is rejected after a cold start.
+const DEMO_RUNTIME_SECRET = toBase64Url(crypto.getRandomValues(new Uint8Array(32)))
 
 function getSessionSecret(): string {
   if (!isDemoMode()) throw new Error('Demo session helper used outside demo mode')
-  return process.env.NEXTAUTH_SECRET || DEMO_FALLBACK_SECRET
+  return process.env.NEXTAUTH_SECRET || DEMO_RUNTIME_SECRET
 }
 
 function toBase64Url(bytes: Uint8Array): string {

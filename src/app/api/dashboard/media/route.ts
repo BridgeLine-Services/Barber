@@ -73,7 +73,8 @@ export async function POST(req: NextRequest) {
   const userId = (session.user as any)?.id
   const sessionBarberId = (session.user as any)?.barberId
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   const parseResult = createMediaSchema.safeParse(body)
   if (!parseResult.success) {
     return NextResponse.json(
@@ -149,7 +150,8 @@ export async function PATCH(req: NextRequest) {
   const userId = (session.user as any)?.id
   const sessionBarberId = (session.user as any)?.barberId
 
-  const body = await req.json()
+  const body = await req.json().catch(() => null)
+  if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   const parseResult = updateMediaSchema.safeParse(body)
   if (!parseResult.success) {
     return NextResponse.json(
@@ -166,9 +168,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  // BARBER can only update their own media
-  if (role === 'BARBER' && media.barberId !== sessionBarberId) {
-    return NextResponse.json({ error: 'You can only update your own media' }, { status: 403 })
+  // BARBER can only manage their own portfolio assets. Profile photos are
+  // intentionally owner-managed through the existing profile flow.
+  if (role === 'BARBER' && (media.barberId !== sessionBarberId || media.type !== MediaType.BARBER_PORTFOLIO)) {
+    return NextResponse.json({ error: 'You can only update your own portfolio media' }, { status: 403 })
   }
 
   const updated = await prisma.mediaAsset.update({
@@ -217,8 +220,8 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  if (role === 'BARBER' && media.barberId !== sessionBarberId) {
-    return NextResponse.json({ error: 'You can only delete your own media' }, { status: 403 })
+  if (role === 'BARBER' && (media.barberId !== sessionBarberId || media.type !== MediaType.BARBER_PORTFOLIO)) {
+    return NextResponse.json({ error: 'You can only delete your own portfolio media' }, { status: 403 })
   }
 
   await prisma.mediaAsset.delete({ where: { id } })
