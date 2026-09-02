@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
+import { generatePageMetadata } from '@/lib/generate-page-metadata'
 
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { resolveBusiness } from '@/lib/tenant'
@@ -9,9 +10,12 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { HelpCircle } from 'lucide-react'
 
-export const metadata: Metadata = {
-  title: 'Frequently Asked Questions',
-  description: 'Find answers to common questions about booking, payments, cancellations, parking, and shop policies.',
+export async function generateMetadata(): Promise<Metadata> {
+  return generatePageMetadata({
+    titleSuffix: "Frequently Asked Questions",
+    description: "Find answers to common questions about booking, payments, cancellations, parking, and shop policies.",
+    path: "/faq",
+  })
 }
 
 // Fallback FAQs shown only if the owner hasn't added any yet via the dashboard.

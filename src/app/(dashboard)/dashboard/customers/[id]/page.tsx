@@ -140,7 +140,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
               <Phone className="w-3.5 h-3.5" /> Phone Number
             </span>
             <p className="text-sm font-mono text-zinc-200">
-              <a href={`tel:${customer.phone}`} className="hover:text-amber-400 transition-colors">
+              <a href={`tel:${customer.phone?.replace(/\D/g, "")}`} className="hover:text-amber-400 transition-colors">
                 {customer.phone}
               </a>
             </p>
