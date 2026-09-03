@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
+import { generatePageMetadata } from '@/lib/generate-page-metadata'
 
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { resolveBusiness } from '@/lib/tenant'
@@ -10,9 +11,12 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Star, Calendar } from 'lucide-react'
 
-export const metadata: Metadata = {
-  title: 'Client Reviews',
-  description: 'Read authentic client reviews and testimonials about our barbering services.',
+export async function generateMetadata(): Promise<Metadata> {
+  return generatePageMetadata({
+    titleSuffix: "Client Reviews",
+    description: "Read authentic client reviews and testimonials about our barbering services.",
+    path: "/reviews",
+  })
 }
 
 export const revalidate = 60

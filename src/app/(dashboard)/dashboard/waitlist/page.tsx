@@ -153,7 +153,7 @@ export default function WaitlistPage() {
                     </div>
 
                     <div className="flex flex-wrap gap-4 text-sm text-zinc-400">
-                      <a href={`tel:${entry.phone}`} className="flex items-center gap-1 hover:text-amber-400">
+                      <a href={`tel:${entry.phone?.replace(/\D/g, "")}`} className="flex items-center gap-1 hover:text-amber-400">
                         <Phone className="w-3.5 h-3.5" /> {entry.phone}
                       </a>
                       <a href={`mailto:${entry.email}`} className="flex items-center gap-1 hover:text-amber-400">

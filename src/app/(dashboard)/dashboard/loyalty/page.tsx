@@ -1,10 +1,11 @@
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { LoyaltyClient } from './LoyaltyClient'
 
 export default async function LoyaltyPage() {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
 
   if (!session?.user) {
     redirect('/login')

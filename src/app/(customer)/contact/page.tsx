@@ -1,15 +1,19 @@
 export const dynamic = 'force-dynamic'
+import { generatePageMetadata } from '@/lib/generate-page-metadata'
 
-import { Metadata } from 'next'
+import type { Metadata } from 'next'
 import { resolveBusiness } from '@/lib/tenant'
 import { ContactForm } from '@/components/customer/ContactForm'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { MapPin, Phone, Mail, Clock } from 'lucide-react'
 
-export const metadata: Metadata = {
-  title: 'Contact Us',
-  description: 'Get in touch with us, find our location, view shop hours, or send us a message.',
+export async function generateMetadata(): Promise<Metadata> {
+  return generatePageMetadata({
+    titleSuffix: "Contact Us",
+    description: "Get in touch with us, find our location, view shop hours, or send us a message.",
+    path: "/contact",
+  })
 }
 
 export const revalidate = 60

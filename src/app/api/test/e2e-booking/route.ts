@@ -14,16 +14,45 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { getCurrentBusinessId } from '@/lib/business'
 import { createAppointmentSafely, getAvailableSlots } from '@/lib/availability'
 import { format } from 'date-fns'
+import { localTimeToUTCFromYMD } from '@/lib/timezone'
+
+// Parse a time string (AM/PM or 24h) into 24h HH:mm
+function parseTimeTo24h(timeStr: string): string {
+  const ampmMatch = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i)
+  if (ampmMatch) {
+    let hours = parseInt(ampmMatch[1])
+    const minutes = parseInt(ampmMatch[2])
+    if (ampmMatch[3].toUpperCase() === 'PM' && hours < 12) hours += 12
+    if (ampmMatch[3].toUpperCase() === 'AM' && hours === 12) hours = 0
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+  }
+  return timeStr
+}
+
+// Build a UTC Date from YYYY-MM-DD + time string using the business timezone
+async function buildStartTime(dateStr: string, timeStr: string, businessId: string): Promise<Date> {
+  const [yr, mo, dy] = dateStr.split('-').map(Number)
+  const time24h = parseTimeTo24h(timeStr)
+  const business = await prisma.business.findUnique({ where: { id: businessId }, select: { timezone: true } })
+  const tz = business?.timezone || 'America/New_York'
+  return localTimeToUTCFromYMD(time24h, yr, mo, dy, tz)
+}
 
 export async function POST(req: NextRequest) {
   // ─── Auth: only authenticated dashboard users can run tests ─────────────
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Disable in production — test endpoints create/delete data
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_E2E_TESTS !== 'true') {
+    return NextResponse.json({ error: 'E2E tests disabled in production' }, { status: 403 })
   }
 
   const businessId = await getCurrentBusinessId()
@@ -84,17 +113,8 @@ export async function POST(req: NextRequest) {
 
       steps.push({ step: '1_find_slot', status: 'pass', message: `Slot found: ${dateStr} at ${slot2.time}` })
 
-      // ─── Step 2: Parse start time ───────────────────────────────────────
-      const [yr, mo, dy] = dateStr.split('-').map(Number)
-      const ampmMatch = slot2.time.match(/(\d+):(\d+)\s*(AM|PM)/i)
-      let hours = 0, minutes = 0
-      if (ampmMatch) {
-        hours = parseInt(ampmMatch[1])
-        minutes = parseInt(ampmMatch[2])
-        if (ampmMatch[3].toUpperCase() === 'PM' && hours < 12) hours += 12
-        if (ampmMatch[3].toUpperCase() === 'AM' && hours === 12) hours = 0
-      }
-      const startTime = new Date(yr, mo - 1, dy, hours, minutes, 0, 0)
+      // ─── Step 2: Build timezone-aware start time ────────────────────────
+      const startTime = await buildStartTime(dateStr, slot2.time, businessId)
 
       testCustomerEmail = `e2e-test-${Date.now()}@thebarberco.com`
 
@@ -189,17 +209,8 @@ export async function POST(req: NextRequest) {
     const dateStr = format(tomorrow, 'yyyy-MM-dd')
     steps.push({ step: '1_find_slot', status: 'pass', message: `Slot found: ${dateStr} at ${availableSlot.time}` })
 
-    // Parse start time
-    const [yr, mo, dy] = dateStr.split('-').map(Number)
-    const ampmMatch = availableSlot.time.match(/(\d+):(\d+)\s*(AM|PM)/i)
-    let hours = 0, minutes = 0
-    if (ampmMatch) {
-      hours = parseInt(ampmMatch[1])
-      minutes = parseInt(ampmMatch[2])
-      if (ampmMatch[3].toUpperCase() === 'PM' && hours < 12) hours += 12
-      if (ampmMatch[3].toUpperCase() === 'AM' && hours === 12) hours = 0
-    }
-    const startTime = new Date(yr, mo - 1, dy, hours, minutes, 0, 0)
+    // Build timezone-aware start time
+    const startTime = await buildStartTime(dateStr, availableSlot.time, businessId)
 
     testCustomerEmail = `e2e-test-${Date.now()}@thebarberco.com`
 

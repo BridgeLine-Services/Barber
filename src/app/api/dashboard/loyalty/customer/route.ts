@@ -1,14 +1,15 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getDemoSession } from '@/lib/demo-auth'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getCustomerLoyalty } from '@/lib/loyalty'
 
 // GET /api/dashboard/loyalty/customer?customerId=xxx
 // Returns loyalty info for a specific customer
 export async function GET(req: NextRequest) {
-  const session = await getDemoSession()
+  const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const businessId = (session.user as any)?.businessId
 

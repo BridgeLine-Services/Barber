@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getDemoSessionFromRequest } from '@/lib/demo-auth'
-import { isDemoMode } from '@/lib/app-config'
 
 // ============================================================================
 // Middleware
 // 1. Security headers on ALL responses
-// 2. Auth gate ONLY for /dashboard and /api/dashboard routes
-//    Demo mode: checks demo-session cookie instead of NextAuth JWT
+// 2. Auth for /dashboard and /api/dashboard is handled at the route/page level
+//    via getServerSession(authOptions) — NextAuth JWT validation.
 // ============================================================================
 
 const SECURITY_HEADERS: Record<string, string> = {
@@ -18,7 +16,7 @@ const SECURITY_HEADERS: Record<string, string> = {
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
   'Content-Security-Policy':
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-src 'self' https://www.google.com; frame-ancestors 'none';",
 }
 
 function addSecurityHeaders(response: NextResponse) {
@@ -28,36 +26,6 @@ function addSecurityHeaders(response: NextResponse) {
 }
 
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl
-
-  // Check if this is a protected route
-  const isDashboard = pathname.startsWith('/dashboard')
-  const isDashboardApi = pathname.startsWith('/api/dashboard')
-
-  if (isDashboard || isDashboardApi) {
-    // Demo mode checks the seeded cookie. Production remains fail-closed until
-    // the configured production auth adapter is enabled.
-    const session = isDemoMode() ? await getDemoSessionFromRequest(req) : null
-
-    if (!session) {
-      if (isDashboardApi) {
-        const response = NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
-        )
-        addSecurityHeaders(response)
-        return response
-      }
-
-      const loginUrl = new URL('/login', req.url)
-      loginUrl.searchParams.set('callbackUrl', pathname)
-      const response = NextResponse.redirect(loginUrl)
-      addSecurityHeaders(response)
-      return response
-    }
-  }
-
-  // All other routes: just add security headers
   const response = NextResponse.next()
   addSecurityHeaders(response)
   return response
@@ -65,6 +33,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|api/auth).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest).*)',
   ],
 }

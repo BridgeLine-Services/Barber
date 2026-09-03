@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Scissors, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react'
+import { signIn } from 'next-auth/react'
+import { Scissors, Lock, Mail, AlertCircle, ArrowRight, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,6 +11,8 @@ import { Label } from '@/components/ui/label'
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -28,27 +31,66 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/demo-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+      if (mode === 'register') {
+        // Register new owner account
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setError(data.error || 'Registration failed')
+          setLoading(false)
+          return
+        }
+        // Auto-login after registration
+        const result = await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+        })
+        if (result?.ok) {
+          router.push('/dashboard')
+          router.refresh()
+        } else {
+          // Registration worked but auto-login failed — switch to login mode
+          setMode('login')
+          setError('Account created! Please sign in with your credentials.')
+          setLoading(false)
+        }
+      } else {
+        // Login
+        const result = await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+        })
 
-      const data = await res.json()
-
-      if (!data.success) {
-        setError(data.error || 'Invalid email or password.')
-        setLoading(false)
-        return
+        if (result?.error) {
+          if (result.error === 'Configuration') {
+            setError('Server configuration error. The database may not be connected. Please contact the site administrator.')
+          } else {
+            setError('Invalid email or password. Please try again.')
+          }
+          setLoading(false)
+        } else if (result?.ok) {
+          router.push('/dashboard')
+          router.refresh()
+        } else {
+          setError('An unexpected error occurred. Please try again.')
+          setLoading(false)
+        }
       }
-
-      const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
-      router.push(callbackUrl)
-      router.refresh()
     } catch (err) {
       setError('Failed to connect to the server. Please try again.')
       setLoading(false)
     }
+  }
+
+  const switchMode = () => {
+    setMode(m => m === 'login' ? 'register' : 'login')
+    setError(null)
   }
 
   return (
@@ -65,7 +107,7 @@ export default function LoginPage() {
             Barber Dashboard
           </h1>
           <p className="text-sm text-zinc-400 mt-1">
-            Sign in to manage appointments, schedule &amp; customers
+            {mode === 'login' ? 'Sign in to manage your shop' : 'Create your owner account'}
           </p>
         </div>
 
@@ -79,7 +121,26 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
+            {mode === 'register' && (
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-zinc-300 text-xs font-medium uppercase tracking-wider">
+                  Your Name
+                </Label>
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="John Doe"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    className="pl-10 bg-zinc-950/60 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 focus:border-amber-500 focus:ring-amber-500/20 h-11"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-zinc-300 text-sm font-medium">
                 Email
@@ -89,8 +150,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  autoComplete="email"
-                  placeholder="you@barbershop.com"
+                  placeholder="owner@shop.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -101,7 +161,7 @@ export default function LoginPage() {
 
             {/* Password */}
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-zinc-300 text-sm font-medium">
+              <Label htmlFor="password" className="text-zinc-300 text-xs font-medium uppercase tracking-wider">
                 Password
               </Label>
               <div className="relative">
@@ -131,38 +191,32 @@ export default function LoginPage() {
                   Signing in...
                 </span>
               ) : (
-                <span className="flex items-center gap-2">
-                  Sign In
+                <>
+                  <span>{mode === 'login' ? 'Sign In' : 'Create Account'}</span>
                   <ArrowRight className="w-4 h-4" />
-                </span>
+                </>
               )}
             </Button>
           </form>
 
-          {/* Demo Credentials Hint */}
-          <div className="mt-6 pt-6 border-t border-zinc-800">
-            <p className="text-xs text-zinc-500 text-center mb-3">
-              Demo credentials — edit in <code className="text-zinc-400">src/lib/demo-data.ts</code>
-            </p>
-            <div className="space-y-1.5 text-xs text-zinc-400">
-              <div className="flex justify-between">
-                <span className="text-amber-400">Owner:</span>
-                <span>owner@barbershop.demo / OwnerDemo123!</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-400">Barber 1:</span>
-                <span>barber1@barbershop.demo / BarberOne123!</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-400">Barber 2:</span>
-                <span>barber2@barbershop.demo / BarberTwo123!</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-amber-400">Barber 3:</span>
-                <span>barber3@barbershop.demo / BarberThree123!</span>
-              </div>
-            </div>
+          {/* Toggle login/register */}
+          <div className="mt-6 pt-5 border-t border-zinc-800/60 text-center">
+            <button
+              onClick={switchMode}
+              className="text-xs text-zinc-400 hover:text-amber-400 transition-colors"
+            >
+              {mode === 'login'
+                ? "Don't have an account? Create one"
+                : 'Already have an account? Sign in'}
+            </button>
           </div>
+        </div>
+
+        {/* Footer info */}
+        <div className="text-center text-xs text-zinc-600 mt-8 space-y-2">
+          <a href="/" className="text-zinc-500 hover:text-amber-400 transition-colors">
+            ← Back to Website
+          </a>
         </div>
       </div>
     </div>
