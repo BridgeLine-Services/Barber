@@ -2,49 +2,155 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { z } from 'zod'
+import { requireOwner } from '@/lib/auth-helpers'
 import { completeOnboarding } from '@/lib/onboarding'
+import { slugify, validateSlug } from '@/lib/onboarding-constants'
+import { FONT_FAMILY_VALUES, isValidHexColor } from '@/lib/theme'
+import { z } from 'zod'
 
-const onboardingSchema = z.object({
-  businessName: z.string().min(2).max(100),
-  slug: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens only'),
-  email: z.string().email(),
-  phone: z.string().min(7).max(30),
-  address: z.string().min(5).max(200),
-  city: z.string().min(2).max(100),
-  state: z.string().min(2).max(50),
-  zipCode: z.string().min(3).max(20),
-  timezone: z.string().default('America/New_York'),
+// ─── Validation schemas ─────────────────────────────────────────────────────
+
+/** Logo value: https URL, absolute path (uploaded asset), or empty to clear. */
+const logoSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => v === '' || /^https?:\/\/.+/.test(v) || v.startsWith('/'), {
+    message: 'Logo must be an https URL or an uploaded asset path',
+  })
+  .nullable()
+  .optional()
+  .transform((v) => (v === '' ? null : v))
+
+const colorSchema = z
+  .string()
+  .trim()
+  .refine(isValidHexColor, { message: 'Color must be a valid hex value like #d4af37' })
+
+const basicsSchema = {
+  businessName: z.string().trim().min(2, 'Business name must be at least 2 characters').max(100).optional(),
+  slug: z.string().trim().min(2).max(80)
+    .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens only')
+    .optional(),
+  timezone: z.string().trim().min(3).max(64)
+    .regex(/^[A-Za-z_\/+-]+$/, 'Invalid timezone')
+    .optional(),
+  phone: z.string().trim().min(7, 'Phone number is too short').max(30).optional(),
+  email: z.string().trim().email('Invalid email address').max(255).optional(),
+}
+
+const brandingSchema = {
+  logo: logoSchema,
+  primaryColor: colorSchema.optional(),
+  accentColor: colorSchema.optional(),
+  secondaryColor: colorSchema.optional(),
+  themeMode: z.enum(['dark', 'light']).optional(),
+  fontFamily: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || (FONT_FAMILY_VALUES as readonly string[]).includes(v), {
+      message: 'Unsupported font family',
+    })
+    .nullable()
+    .optional()
+    .transform((v) => (v === '' ? null : v)),
+}
+
+const createSchema = z.object({
+  businessName: z.string().trim().min(2, 'Business name must be at least 2 characters').max(100),
+  slug: z.string().trim().min(2).max(80)
+    .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens only'),
+  timezone: z.string().trim().min(3).max(64).regex(/^[A-Za-z_\/+-]+$/, 'Invalid timezone'),
+  phone: z.string().trim().min(7, 'Phone number is too short').max(30),
+  email: z.string().trim().email('Invalid email address').max(255),
 })
+
+const patchSchema = z.object({
+  ...basicsSchema,
+  ...brandingSchema,
+  // Advance the wizard: 'branding' moves past basics, 'done' completes onboarding.
+  step: z.enum(['branding', 'done']).optional(),
+})
+
+/** Business fields the wizard works with. */
+const businessSubset = {
+  id: true,
+  name: true,
+  slug: true,
+  timezone: true,
+  phone: true,
+  email: true,
+  logo: true,
+  primaryColor: true,
+  accentColor: true,
+  secondaryColor: true,
+  themeMode: true,
+  fontFamily: true,
+  onboardingCompleted: true,
+  onboardingStep: true,
+} as const
+
+/**
+ * GET /api/dashboard/onboarding
+ * Returns the authenticated owner's onboarding state so the wizard can resume
+ * exactly where they left off.
+ *
+ * Query: ?checkSlug=<slug> — also checks slug availability live.
+ */
+export async function GET(req: NextRequest) {
+  const auth = await requireOwner()
+  if (!auth.success) return auth.response
+  const user = auth.user
+
+  try {
+    const business = user.businessId
+      ? await prisma.business.findUnique({ where: { id: user.businessId }, select: businessSubset })
+      : null
+
+    // Optional live slug availability check
+    let slugAvailable: boolean | undefined
+    const checkSlug = req.nextUrl.searchParams.get('checkSlug')
+    if (checkSlug !== null) {
+      const slugError = validateSlug(checkSlug)
+      if (slugError) {
+        slugAvailable = false
+      } else {
+        const conflict = await prisma.business.findUnique({ where: { slug: checkSlug } })
+        // Own slug is always "available" for the same business.
+        slugAvailable = !conflict || conflict.id === business?.id
+      }
+    }
+
+    return NextResponse.json({
+      hasBusiness: !!business,
+      business,
+      slugAvailable,
+    })
+  } catch (error: any) {
+    console.error('Onboarding GET error:', error)
+    return NextResponse.json({ error: 'Failed to load onboarding state' }, { status: 500 })
+  }
+}
 
 /**
  * POST /api/dashboard/onboarding
- * Creates a business for the authenticated owner and links it to their account.
- * Only works if the owner doesn't already have a business linked.
+ * Creates a business for the authenticated owner and links it to their
+ * account. Only works if the owner doesn't already have a business linked.
+ * Onboarding is NOT completed here — the wizard continues to branding.
  */
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireOwner()
+  if (!auth.success) return auth.response
+  const user = auth.user
 
-  const user = session.user as any
-
-  // Only owners can create a business
-  if (user.role !== 'OWNER') {
-    return NextResponse.json({ error: 'Only owners can set up a shop' }, { status: 403 })
-  }
-
-  // If already has a business, refuse
+  // If already has a business, refuse (updates go through PATCH)
   if (user.businessId) {
     return NextResponse.json({ error: 'Your shop is already set up' }, { status: 409 })
   }
 
   try {
     const body = await req.json()
-    const parsed = onboardingSchema.safeParse(body)
+    const parsed = createSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
         { error: 'Invalid input', details: parsed.error.flatten() },
@@ -54,26 +160,33 @@ export async function POST(req: NextRequest) {
 
     const d = parsed.data
 
+    // Normalize + validate the slug the same way the client does
+    const slug = slugify(d.slug)
+    const slugError = validateSlug(slug)
+    if (slugError) {
+      return NextResponse.json({ error: slugError }, { status: 400 })
+    }
+
     // Check slug uniqueness
-    const existingSlug = await prisma.business.findUnique({ where: { slug: d.slug } })
+    const existingSlug = await prisma.business.findUnique({ where: { slug } })
     if (existingSlug) {
       return NextResponse.json({ error: 'That URL slug is already taken' }, { status: 409 })
     }
 
-    // Create business + link to existing owner user
+    // Create business + link to existing owner user.
+    // Branding starts at template defaults (public site fallback styling);
+    // the owner customizes them in the branding step.
     const business = await prisma.business.create({
       data: {
         name: d.businessName,
-        slug: d.slug,
+        slug,
         phone: d.phone,
         email: d.email,
-        address: d.address,
-        city: d.city,
-        state: d.state,
-        zipCode: d.zipCode,
         timezone: d.timezone,
-        primaryColor: '#121212',
+        primaryColor: '#1a1a1a',
         accentColor: '#d4af37',
+        secondaryColor: '#2a2a2a',
+        themeMode: 'dark',
         hours: {
           monday: { open: '09:00', close: '18:00', isOff: false },
           tuesday: { open: '09:00', close: '18:00', isOff: false },
@@ -86,34 +199,122 @@ export async function POST(req: NextRequest) {
         aboutText: `Welcome to ${d.businessName}! Update this text in Settings to tell customers about your shop.`,
         bookingPolicy: 'Appointments can be booked online up to 30 days in advance. No deposit required. Payment is collected in person after your service.',
         cancellationPolicy: 'Cancellations or modifications must be made at least 2 hours in advance of your scheduled slot.',
+        // Onboarding continues at the branding step; NOT completed yet.
+        onboardingCompleted: false,
+        onboardingStep: 'branding',
         users: {
           connect: { id: user.id },
         },
       },
+      select: businessSubset,
     })
 
-    // Persist onboarding completion so the dashboard access gate opens.
-    await completeOnboarding(business.id)
-
-    return NextResponse.json({
-      success: true,
-      business: { id: business.id, name: business.name, slug: business.slug },
-      message: 'Shop created! Redirecting to dashboard...',
-    }, { status: 201 })
-
+    return NextResponse.json(
+      {
+        success: true,
+        business,
+        message: 'Business basics saved',
+      },
+      { status: 201 }
+    )
   } catch (error: any) {
     console.error('Onboarding error:', error)
-
     if (error.message?.includes('database') || error.message?.includes('connect') || error.code === 'P1001') {
       return NextResponse.json(
         { error: 'Database not connected. Set DATABASE_URL in your Vercel environment variables.' },
         { status: 503 }
       )
     }
+    return NextResponse.json({ error: 'Setup failed', detail: error.message }, { status: 500 })
+  }
+}
 
-    return NextResponse.json(
-      { error: 'Setup failed', detail: error.message },
-      { status: 500 }
-    )
+/**
+ * PATCH /api/dashboard/onboarding
+ * Updates the authenticated owner's OWN business (basics and/or branding)
+ * and advances the onboarding step.
+ *
+ * Tenant safety: the business is resolved from the DATABASE user record —
+ * never from the request body — so an owner can only ever modify the
+ * business linked to their own account.
+ */
+export async function PATCH(req: NextRequest) {
+  const auth = await requireOwner()
+  if (!auth.success) return auth.response
+
+  try {
+    // Resolve the user from the DB — the businessId there is authoritative
+    // (never trust the session claim alone for the update target).
+    const dbUser = await prisma.user.findUnique({
+      where: auth.user.id ? { id: auth.user.id } : { email: auth.user.email },
+      select: { id: true, businessId: true },
+    })
+    if (!dbUser?.businessId) {
+      return NextResponse.json({ error: 'No business to update' }, { status: 409 })
+    }
+
+    const body = await req.json()
+    const parsed = patchSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: parsed.error.flatten() },
+        { status: 400 }
+      )
+    }
+
+    const d = parsed.data
+
+    // Slug change → validate + uniqueness (excluding own business)
+    if (d.slug !== undefined) {
+      const slug = slugify(d.slug)
+      const slugError = validateSlug(slug)
+      if (slugError) {
+        return NextResponse.json({ error: slugError }, { status: 400 })
+      }
+      const conflict = await prisma.business.findFirst({
+        where: { slug, id: { not: dbUser.businessId } },
+      })
+      if (conflict) {
+        return NextResponse.json({ error: 'That URL slug is already taken' }, { status: 409 })
+      }
+      d.slug = slug
+    }
+
+    // Step transition: 'done' completes onboarding (branding is optional —
+    // skipping also completes).
+    const completing = d.step === 'done'
+
+    const business = await prisma.business.update({
+      where: { id: dbUser.businessId },
+      data: {
+        ...(d.businessName !== undefined && { name: d.businessName }),
+        ...(d.slug !== undefined && { slug: d.slug }),
+        ...(d.timezone !== undefined && { timezone: d.timezone }),
+        ...(d.phone !== undefined && { phone: d.phone }),
+        ...(d.email !== undefined && { email: d.email }),
+        ...(d.logo !== undefined && { logo: d.logo }),
+        ...(d.primaryColor !== undefined && { primaryColor: d.primaryColor }),
+        ...(d.accentColor !== undefined && { accentColor: d.accentColor }),
+        ...(d.secondaryColor !== undefined && { secondaryColor: d.secondaryColor }),
+        ...(d.themeMode !== undefined && { themeMode: d.themeMode }),
+        ...(d.fontFamily !== undefined && { fontFamily: d.fontFamily }),
+        ...(d.step === 'branding' && { onboardingStep: 'branding' }),
+        ...(completing && { onboardingStep: 'done' }),
+      },
+      select: businessSubset,
+    })
+
+    if (completing) {
+      await completeOnboarding(business.id)
+    }
+
+    return NextResponse.json({
+      success: true,
+      business,
+      message: completing ? 'Onboarding complete' : 'Saved',
+    })
+  } catch (error: any) {
+    console.error('Onboarding PATCH error:', error)
+    return NextResponse.json({ error: 'Update failed', detail: error.message }, { status: 500 })
   }
 }

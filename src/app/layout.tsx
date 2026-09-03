@@ -1,10 +1,17 @@
 import type { Metadata } from 'next'
-import { Inter, Poppins } from 'next/font/google'
+import { Inter, Poppins, Montserrat, Playfair_Display, Roboto, Oswald, Lato } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
 
+// Template font options — every family selectable in onboarding/branding is
+// loaded here so the owner's choice renders on the public site (see lib/theme.ts).
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const poppins = Poppins({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-poppins' })
+const montserrat = Montserrat({ subsets: ['latin'], variable: '--font-montserrat' })
+const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair' })
+const roboto = Roboto({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-roboto' })
+const oswald = Oswald({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-oswald' })
+const lato = Lato({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-lato' })
 
 export const metadata: Metadata = {
   metadataBase: new URL('http://localhost:3000'),
@@ -35,7 +42,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`${inter.variable} ${poppins.variable} font-sans`}>
+      <body className={`${inter.variable} ${poppins.variable} ${montserrat.variable} ${playfair.variable} ${roboto.variable} ${oswald.variable} ${lato.variable} font-sans`}>
         <Providers>{children}</Providers>
     </body>
 </html>
