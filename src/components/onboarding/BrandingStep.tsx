@@ -47,7 +47,7 @@ interface BrandingStepProps {
   submitting: boolean
   serverError: string | null
   /** Save the current branding edits (completes onboarding). */
-  onSave: (branding: BrandingForm, opts: { complete: boolean }) => void
+  onSave: (branding: BrandingForm) => void
   /** Complete onboarding WITHOUT applying unsaved edits (branding optional). */
   onSkip: () => void
   onBack: () => void
@@ -320,7 +320,7 @@ export function BrandingStep({
               </Button>
               <Button
                 type="button"
-                onClick={() => onSave(form, { complete: true })}
+                onClick={() => onSave(form)}
                 disabled={!isValid || submitting}
                 className="bg-amber-500 text-zinc-950 hover:bg-amber-400 disabled:opacity-50"
               >
@@ -330,7 +330,7 @@ export function BrandingStep({
                   </>
                 ) : (
                   <>
-                    Finish Setup <ArrowRight className="h-4 w-4 ml-1.5" />
+                    Save &amp; Continue <ArrowRight className="h-4 w-4 ml-1.5" />
                   </>
                 )}
               </Button>

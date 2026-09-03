@@ -11,17 +11,20 @@
 export const ONBOARDING_STEP_LABELS: Record<string, string> = {
   business: 'Business Basics',
   branding: 'Branding',
-  // Future steps (not yet implemented):
   services: 'Services',
-  schedule: 'Schedule',
+  team: 'Team',
+  booking: 'Booking Settings',
   done: 'Done',
 }
 
 /** Steps shown in the wizard progress indicator (implemented order). */
 export const WIZARD_STEPS = [
   { key: 'welcome', label: 'Welcome' },
-  { key: 'business', label: 'Business Basics' },
+  { key: 'business', label: 'Basics' },
   { key: 'branding', label: 'Branding' },
+  { key: 'services', label: 'Services' },
+  { key: 'team', label: 'Team' },
+  { key: 'booking', label: 'Booking' },
 ] as const
 
 export type WizardStepKey = (typeof WIZARD_STEPS)[number]['key']

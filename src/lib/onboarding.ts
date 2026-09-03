@@ -28,8 +28,28 @@ export type DashboardAccess = {
 }
 
 /** Onboarding wizard step keys (persisted in Business.onboardingStep). */
-export const ONBOARDING_STEPS = ['business', 'branding', 'services', 'schedule', 'done'] as const
+export const ONBOARDING_STEPS = ['business', 'branding', 'services', 'team', 'booking', 'done'] as const
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]
+
+/**
+ * Resolve the authenticated owner's businessId from the DATABASE user record.
+ *
+ * The session JWT can be stale — it is minted at login and does not refresh
+ * when a business is later created/linked — so every onboarding API resolves
+ * the business from the DB, never from the token claim.
+ *
+ * Returns null when the user cannot be found or has no business linked.
+ */
+export async function resolveOwnerBusinessId(
+  user: { id?: string | null; email?: string | null }
+): Promise<string | null> {
+  if (!user.id && !user.email) return null
+  const dbUser = await prisma.user.findUnique({
+    where: user.id ? { id: user.id } : { email: user.email! },
+    select: { businessId: true },
+  })
+  return dbUser?.businessId ?? null
+}
 
 /**
  * Whether the given business has completed onboarding.

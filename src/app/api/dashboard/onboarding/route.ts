@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth-helpers'
 import { slugify, validateSlug } from '@/lib/onboarding-constants'
 import { FONT_FAMILY_VALUES, isValidHexColor } from '@/lib/theme'
+import { bookingSettingsSchema } from '@/lib/validation'
 import { z } from 'zod'
 
 // ─── Validation schemas ─────────────────────────────────────────────────────
@@ -78,8 +79,13 @@ const createSchema = z.object({
 const patchSchema = z.object({
   ...basicsSchema,
   ...brandingSchema,
-  // Advance the wizard: 'branding' moves past basics, 'done' completes onboarding.
-  step: z.enum(['branding', 'done']).optional(),
+  // Booking Settings step — stored on the Business record.
+  // NOTE: paymentInPerson is intentionally NOT a field here. There is no
+  // online payment processing in this product; payment in person is the
+  // fixed, default behaviour (Business.paymentInPerson stays true).
+  ...bookingSettingsSchema.shape,
+  // Advance the wizard through the persisted step order.
+  step: z.enum(['branding', 'services', 'team', 'booking', 'done']).optional(),
 })
 
 /** Business fields the wizard works with. */
@@ -99,6 +105,16 @@ const businessSubset = {
   onboardingCompleted: true,
   onboardingStep: true,
   onboardingCompletedAt: true,
+  // Booking Settings step (all stored on the Business record)
+  walkInsWelcome: true,
+  paymentInPerson: true,
+  customerRescheduleEnabled: true,
+  customerRescheduleMinNoticeHours: true,
+  customerRescheduleWindowDays: true,
+  bookingPolicy: true,
+  cancellationPolicy: true,
+  latePolicy: true,
+  noShowPolicyText: true,
 } as const
 
 /**
@@ -139,10 +155,22 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Live completion-requirement counts (wizard displays these).
+    let activeServices = 0
+    let activeBarbers = 0
+    if (business) {
+      ;[activeServices, activeBarbers] = await Promise.all([
+        prisma.service.count({ where: { businessId: business.id, isActive: true } }),
+        prisma.barber.count({ where: { businessId: business.id, isActive: true } }),
+      ])
+    }
+
     return NextResponse.json({
       hasBusiness: !!business,
       business,
       slugAvailable,
+      activeServices,
+      activeBarbers,
     })
   } catch (error: any) {
     console.error('Onboarding GET error:', error)
@@ -303,14 +331,46 @@ export async function PATCH(req: NextRequest) {
       d.slug = slug
     }
 
-    // Step transition: 'done' completes onboarding (branding is optional —
-    // skipping also completes). Completion flags are set in the SAME update
-    // so the returned business object reflects the final state.
+    // Step transition: 'done' completes onboarding. Completion flags are
+    // set in the SAME update so the returned business object reflects the
+    // final state.
     const completing = d.step === 'done'
+
+    if (completing) {
+      // Onboarding cannot finish without a bookable shop:
+      //   - at least one ACTIVE service
+      //   - at least one ACTIVE barber
+      const [activeServices, activeBarbers] = await Promise.all([
+        prisma.service.count({ where: { businessId: dbUser.businessId, isActive: true } }),
+        prisma.barber.count({ where: { businessId: dbUser.businessId, isActive: true } }),
+      ])
+      const missing: string[] = []
+      if (activeServices === 0) missing.push('at least one active service')
+      if (activeBarbers === 0) missing.push('at least one active barber')
+      if (missing.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Before finishing setup, add ${missing.join(' and ')}.`,
+            code: 'ONBOARDING_REQUIREMENTS_MISSING',
+            activeServices,
+            activeBarbers,
+          },
+          { status: 400 }
+        )
+      }
+    }
 
     const business = await prisma.business.update({
       where: { id: dbUser.businessId },
       data: {
+        ...(d.walkInsWelcome !== undefined && { walkInsWelcome: d.walkInsWelcome }),
+        ...(d.customerRescheduleEnabled !== undefined && { customerRescheduleEnabled: d.customerRescheduleEnabled }),
+        ...(d.customerRescheduleMinNoticeHours !== undefined && { customerRescheduleMinNoticeHours: d.customerRescheduleMinNoticeHours }),
+        ...(d.customerRescheduleWindowDays !== undefined && { customerRescheduleWindowDays: d.customerRescheduleWindowDays }),
+        ...(d.bookingPolicy !== undefined && { bookingPolicy: d.bookingPolicy }),
+        ...(d.cancellationPolicy !== undefined && { cancellationPolicy: d.cancellationPolicy }),
+        ...(d.latePolicy !== undefined && { latePolicy: d.latePolicy }),
+        ...(d.noShowPolicyText !== undefined && { noShowPolicyText: d.noShowPolicyText }),
         ...(completing && {
           onboardingCompleted: true,
           onboardingCompletedAt: new Date(),
@@ -327,8 +387,10 @@ export async function PATCH(req: NextRequest) {
         ...(d.secondaryColor === null && { secondaryColor: null }),
         ...(d.themeMode !== undefined && { themeMode: d.themeMode }),
         ...(d.fontFamily !== undefined && { fontFamily: d.fontFamily }),
-        ...(d.step === 'branding' && { onboardingStep: 'branding' }),
-        ...(completing && { onboardingStep: 'done' }),
+        // Persist the wizard step whenever provided — the wizard advances
+        // through branding → services → team → booking → done, and the owner
+        // must resume exactly where they left off on return.
+        ...(d.step && { onboardingStep: d.step }),
       },
       select: businessSubset,
     })

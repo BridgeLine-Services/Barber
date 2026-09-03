@@ -2,14 +2,21 @@
 
 // Onboarding Wizard — multi-step setup for new barbershop owners.
 //
-// Steps: Welcome → Business Basics → Branding → done.
+// Steps: Welcome → Business Basics → Branding → Services → Team →
+//        Booking Settings → done.
 //
 // Persistence & resumability:
-//   • Business record + Business.onboardingStep live in the database, so the
-//     owner can leave and return — the wizard resumes exactly where they
+//   • The Business record + Business.onboardingStep live in the database, so
+//     the owner can leave and return — the wizard resumes exactly where they
 //     stopped (via GET /api/dashboard/onboarding).
+//   • Services and barbers are persisted the moment they're added, so a
+//     return visit resumes with all data intact.
 //   • Before the business is created (welcome/basics steps), the basics
 //     form is saved as a localStorage draft so nothing is lost on refresh.
+//
+// Completion requirements (enforced server-side on the final step):
+//   • at least one ACTIVE service
+//   • at least one ACTIVE barber
 //
 // All wizard data is saved to the authenticated owner's OWN business record —
 // the API resolves the business from the DB user, so another business can
@@ -20,7 +27,10 @@ import { useRouter } from 'next/navigation'
 import { WelcomeStep } from './WelcomeStep'
 import { BusinessBasicsStep, type BasicsForm } from './BusinessBasicsStep'
 import { BrandingStep, type BrandingForm } from './BrandingStep'
-import { WIZARD_STEPS, ONBOARDING_DRAFT_KEY, ONBOARDING_STEP_LABELS } from '@/lib/onboarding-constants'
+import { ServicesStep } from './ServicesStep'
+import { TeamStep } from './TeamStep'
+import { BookingSettingsStep, type BookingSettingsForm } from './BookingSettingsStep'
+import { WIZARD_STEPS, ONBOARDING_DRAFT_KEY } from '@/lib/onboarding-constants'
 import { Check, Loader2, AlertCircle, PartyPopper } from 'lucide-react'
 
 interface OnboardingBusiness {
@@ -38,9 +48,19 @@ interface OnboardingBusiness {
   fontFamily: string | null
   onboardingCompleted: boolean
   onboardingStep: string
+  // Booking Settings step (persisted on the Business record)
+  walkInsWelcome: boolean
+  paymentInPerson: boolean
+  customerRescheduleEnabled: boolean
+  customerRescheduleMinNoticeHours: number
+  customerRescheduleWindowDays: number | null
+  bookingPolicy: string | null
+  cancellationPolicy: string | null
+  latePolicy: string | null
+  noShowPolicyText: string | null
 }
 
-type Step = 'welcome' | 'business' | 'branding' | 'done'
+type Step = 'welcome' | 'business' | 'branding' | 'services' | 'team' | 'booking' | 'done'
 
 const initialBranding: BrandingForm = {
   logo: null,
@@ -69,6 +89,36 @@ function basicsFromBusiness(b: OnboardingBusiness): BasicsForm {
     timezone: b.timezone,
     phone: b.phone || '',
     email: b.email || '',
+  }
+}
+
+function bookingSettingsFromBusiness(b: OnboardingBusiness): BookingSettingsForm {
+  return {
+    walkInsWelcome: b.walkInsWelcome ?? true,
+    customerRescheduleEnabled: b.customerRescheduleEnabled ?? true,
+    customerRescheduleMinNoticeHours: String(b.customerRescheduleMinNoticeHours ?? 24),
+    customerRescheduleWindowDays:
+      b.customerRescheduleWindowDays == null ? '' : String(b.customerRescheduleWindowDays),
+    bookingPolicy: b.bookingPolicy || '',
+    cancellationPolicy: b.cancellationPolicy || '',
+    latePolicy: b.latePolicy || '',
+    noShowPolicyText: b.noShowPolicyText || '',
+  }
+}
+
+/** Map the persisted Business.onboardingStep to the wizard step to resume at. */
+function resumeStep(onboardingStep: string): Step {
+  switch (onboardingStep) {
+    case 'branding':
+      return 'branding'
+    case 'services':
+      return 'services'
+    case 'team':
+      return 'team'
+    case 'booking':
+      return 'booking'
+    default:
+      return 'business'
   }
 }
 
@@ -110,6 +160,7 @@ export function OnboardingWizard() {
   const [serverError, setServerError] = useState<string | null>(null)
   const [slugServerError, setSlugServerError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [savedForLater, setSavedForLater] = useState(false)
 
   // ─── Load onboarding state (resume) ──────────────────────────────────────
   useEffect(() => {
@@ -125,14 +176,11 @@ export function OnboardingWizard() {
         setBusiness(b)
 
         if (data.hasBusiness && b) {
-          // Resume mid-onboarding: pick up at the persisted step.
-          // 'branding' → branding step; anything else → basics in update mode.
           if (!b.onboardingCompleted) {
-            if (b.onboardingStep === 'branding') {
-              setStep('branding')
-            } else {
+            // Resume mid-onboarding: pick up at the persisted step.
+            setStep(resumeStep(b.onboardingStep))
+            if (resumeStep(b.onboardingStep) === 'business') {
               setBasicsInitial(basicsFromBusiness(b))
-              setStep('business')
             }
           } else {
             setStep('done')
@@ -163,6 +211,29 @@ export function OnboardingWizard() {
     [business]
   )
 
+  // Shared PATCH helper — returns the parsed JSON, or throws with the error.
+  const patchOnboarding = useCallback(
+    async (body: Record<string, unknown>): Promise<any> => {
+      const res = await fetch('/api/dashboard/onboarding', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        if (res.status === 400 && json.details) {
+          const first = Object.values(json.details.fieldErrors || {})[0]?.[0]
+          throw Object.assign(new Error(first || json.error || 'Please check your entries.'), {
+            json,
+          })
+        }
+        throw Object.assign(new Error(json.error || 'Failed to save.'), { json })
+      }
+      return json
+    },
+    []
+  )
+
   // ─── Step 2: save business basics ───────────────────────────────────────
   const handleBasicsSubmit = async (data: BasicsForm) => {
     setSubmitting(true)
@@ -171,17 +242,7 @@ export function OnboardingWizard() {
     try {
       if (business) {
         // Update the existing business record (own business only, enforced server-side)
-        const res = await fetch('/api/dashboard/onboarding', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...data, step: 'branding' }),
-        })
-        const json = await res.json()
-        if (!res.ok) {
-          if (res.status === 409 && json.error?.toLowerCase().includes('slug')) setSlugServerError(json.error)
-          else setServerError(json.error || 'Failed to save your business details.')
-          return
-        }
+        const json = await patchOnboarding({ ...data, step: 'branding' })
         setBusiness(json.business)
         saveDraft(null)
         setStep('branding')
@@ -205,60 +266,103 @@ export function OnboardingWizard() {
         saveDraft(null)
         setStep('branding')
       }
-    } catch {
-      setServerError('Network error — check your connection and try again.')
+    } catch (err: any) {
+      if (err.message?.toLowerCase().includes('slug')) setSlugServerError(err.message)
+      else setServerError(err.message || 'Network error — check your connection and try again.')
     } finally {
       setSubmitting(false)
     }
   }
 
-  // ─── Step 3: save branding / complete onboarding ────────────────────────
-  const handleBrandingSave = async (branding: BrandingForm, _opts: { complete: boolean }) => {
-    await patchAndComplete(branding)
-  }
-
-  const handleBrandingSkip = async () => {
-    // Branding is optional — complete with the currently saved values.
-    await patchAndComplete(null)
-  }
-
-  const patchAndComplete = async (branding: BrandingForm | null) => {
+  // ─── Step 3: save branding → continue to Services ───────────────────────
+  const handleBrandingSave = async (branding: BrandingForm) => {
     setSubmitting(true)
     setServerError(null)
     try {
-      const body: Record<string, unknown> = { step: 'done' }
-      if (branding) {
-        Object.assign(body, {
-          logo: branding.logo ?? '',
-          primaryColor: branding.primaryColor,
-          accentColor: branding.accentColor,
-          secondaryColor: branding.secondaryColor || '',
-          themeMode: branding.themeMode,
-          fontFamily: branding.fontFamily || '',
-        })
-      }
-      const res = await fetch('/api/dashboard/onboarding', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+      const json = await patchOnboarding({
+        logo: branding.logo ?? '',
+        primaryColor: branding.primaryColor,
+        accentColor: branding.accentColor,
+        secondaryColor: branding.secondaryColor || '',
+        themeMode: branding.themeMode,
+        fontFamily: branding.fontFamily || '',
+        step: 'services',
       })
-      const json = await res.json()
-      if (!res.ok) {
-        if (res.status === 400 && json.details) {
-          const first = Object.values(json.details.fieldErrors || {})[0]?.[0]
-          setServerError(first || json.error || 'Please check your branding values.')
-        } else {
-          setServerError(json.error || 'Failed to save your branding.')
-        }
-        return
-      }
       setBusiness(json.business)
-      setSuccess(true)
-      setStep('done')
-      // Give the owner a moment on the success screen, then into the dashboard.
-      setTimeout(() => router.push('/dashboard'), 1600)
-    } catch {
-      setServerError('Network error — check your connection and try again.')
+      setStep('services')
+    } catch (err: any) {
+      setServerError(err.message || 'Failed to save your branding.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleBrandingSkip = async () => {
+    // Branding is optional — keep the saved/template values and move on.
+    setSubmitting(true)
+    setServerError(null)
+    try {
+      const json = await patchOnboarding({ step: 'services' })
+      setBusiness(json.business)
+      setStep('services')
+    } catch (err: any) {
+      setServerError(err.message || 'Failed to continue.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // ─── Step 4 (Services) / Step 5 (Team): advance the persisted step ─────
+  const advanceStep = async (next: 'team' | 'booking') => {
+    setSubmitting(true)
+    setServerError(null)
+    try {
+      const json = await patchOnboarding({ step: next })
+      setBusiness(json.business)
+      setStep(next)
+      window.scrollTo({ top: 0 })
+    } catch (err: any) {
+      setServerError(err.message || 'Failed to continue.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // ─── Step 6: Booking Settings — save, optionally complete ──────────────
+  const handleBookingSettings = async (settings: BookingSettingsForm, complete: boolean) => {
+    setSubmitting(true)
+    setServerError(null)
+    setSavedForLater(false)
+    try {
+      const body: Record<string, unknown> = {
+        walkInsWelcome: settings.walkInsWelcome,
+        customerRescheduleEnabled: settings.customerRescheduleEnabled,
+        customerRescheduleMinNoticeHours: Number(settings.customerRescheduleMinNoticeHours),
+        customerRescheduleWindowDays:
+          settings.customerRescheduleWindowDays === ''
+            ? null
+            : Number(settings.customerRescheduleWindowDays),
+        bookingPolicy: settings.bookingPolicy,
+        cancellationPolicy: settings.cancellationPolicy,
+        latePolicy: settings.latePolicy,
+        noShowPolicyText: settings.noShowPolicyText,
+      }
+      if (complete) body.step = 'done'
+
+      const json = await patchOnboarding(body)
+      setBusiness(json.business)
+
+      if (complete) {
+        setSuccess(true)
+        setStep('done')
+        // Give the owner a moment on the success screen, then into the dashboard.
+        setTimeout(() => router.push('/dashboard'), 1600)
+      } else {
+        setSavedForLater(true) // saved — resume here any time
+      }
+    } catch (err: any) {
+      // Server-side completion requirements (≥1 active service & barber)
+      setServerError(err.message || 'Failed to save your booking settings.')
     } finally {
       setSubmitting(false)
     }
@@ -354,6 +458,54 @@ export function OnboardingWizard() {
             }}
           />
         )}
+
+        {step === 'services' && (
+          <ServicesStep
+            submitting={submitting}
+            serverError={serverError}
+            onContinue={() => advanceStep('team')}
+            onBack={() => {
+              setServerError(null)
+              setStep('branding')
+            }}
+          />
+        )}
+
+        {step === 'team' && (
+          <TeamStep
+            submitting={submitting}
+            serverError={serverError}
+            onContinue={() => advanceStep('booking')}
+            onBack={() => {
+              setServerError(null)
+              setStep('services')
+            }}
+          />
+        )}
+
+        {step === 'booking' && business && (
+          <>
+            <BookingSettingsStep
+              key={business.id + String(business.walkInsWelcome) + String(business.customerRescheduleEnabled)}
+              initial={bookingSettingsFromBusiness(business)}
+              businessName={business.name}
+              submitting={submitting}
+              serverError={serverError}
+              onFinish={(settings) => handleBookingSettings(settings, true)}
+              onSaveForLater={(settings) => handleBookingSettings(settings, false)}
+              onBack={() => {
+                setServerError(null)
+                setSavedForLater(false)
+                setStep('team')
+              }}
+            />
+            {savedForLater && (
+              <p className="mx-auto mt-3 max-w-2xl rounded-md border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-300">
+                Saved — you can leave and finish setup any time.
+              </p>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
@@ -362,13 +514,14 @@ export function OnboardingWizard() {
 // ─── Progress indicator ────────────────────────────────────────────────────
 
 function ProgressIndicator({ step }: { step: Step }) {
-  const currentIndex = WIZARD_STEPS.findIndex((s) => s.key === step)
+  const currentIndex =
+    step === 'done' ? WIZARD_STEPS.length : WIZARD_STEPS.findIndex((s) => s.key === step)
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="flex items-center justify-center gap-2 sm:gap-3">
+    <div className="mx-auto max-w-3xl">
+      <div className="flex items-center justify-center gap-1.5 sm:gap-2">
         {WIZARD_STEPS.map((s, i) => {
-          const done = currentIndex > i || step === 'done'
+          const done = currentIndex > i
           const current = currentIndex === i
           return (
             <div

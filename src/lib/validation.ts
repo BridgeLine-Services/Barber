@@ -305,3 +305,82 @@ export function isValidTransition(from: string, to: string): boolean {
 export function isTerminalStatus(status: string): boolean {
   return ['COMPLETED', 'CANCELLED', 'NO_SHOW'].includes(status)
 }
+
+// ─── Onboarding: Booking Settings ─────────────────────────────────────────
+// Stored on the authenticated Business record. Payment-in-person is NOT a
+// toggle here — there is no online payment processing; it is always the
+// behaviour and surfaced to the owner as a fixed note in the UI.
+
+/** Policy text: optional; '' clears to null (no hardcoded template text). */
+const policySchema = z
+  .string()
+  .max(5000)
+  .nullable()
+  .optional()
+  .transform((v) => (v === '' ? null : v))
+
+export const bookingSettingsSchema = z.object({
+  walkInsWelcome: z.boolean().optional(),
+  customerRescheduleEnabled: z.boolean().optional(),
+  customerRescheduleMinNoticeHours: z.number().int().min(0).max(720).optional(),
+  customerRescheduleWindowDays: z.number().int().min(1).max(3650).nullable().optional(),
+  bookingPolicy: policySchema,
+  cancellationPolicy: policySchema,
+  latePolicy: policySchema,
+  noShowPolicyText: policySchema,
+})
+
+// ─── Onboarding: Schedule (weekly hours) ──────────────────────────────────
+// Reused by the Team step and the dashboard schedule editor.
+
+export interface ScheduleBreak { start: string; end: string }
+export interface ScheduleEntry {
+  dayOfWeek: number // 0 = Sunday … 6 = Saturday
+  isOff: boolean
+  startTime: string // "HH:MM" 24h
+  endTime: string   // "HH:MM" 24h
+  breaks?: ScheduleBreak[]
+}
+
+/** "HH:MM" → minutes since midnight, for comparison. */
+function toMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+
+/**
+ * Validate a full week of schedule entries.
+ * Rules:
+ *   - Exactly 7 entries, one per day-of-week 0–6.
+ *   - When not a day off: startTime < endTime.
+ *   - Each break: start < end, within [startTime, endTime].
+ *   - Breaks do not overlap.
+ * Returns null when valid, or a human-readable error message.
+ */
+export function validateScheduleEntries(entries: ScheduleEntry[]): string | null {
+  if (entries.length !== 7) return 'A full week (7 days) of hours is required'
+  const seenDays = new Set<number>()
+  for (const e of entries) {
+    if (e.dayOfWeek < 0 || e.dayOfWeek > 6) return 'Invalid day of week'
+    if (seenDays.has(e.dayOfWeek)) return 'Duplicate day in schedule'
+    seenDays.add(e.dayOfWeek)
+    if (e.isOff) continue
+    const s = toMinutes(e.startTime)
+    const en = toMinutes(e.endTime)
+    if (s >= en) return `Working hours invalid: start must be before end`
+    for (const b of e.breaks ?? []) {
+      const bs = toMinutes(b.start)
+      const be = toMinutes(b.end)
+      if (bs >= be) return 'A break must start before it ends'
+      if (bs < s || be > en) return 'A break falls outside working hours'
+    }
+    // overlap check
+    const sorted = [...(e.breaks ?? [])].sort((a, b) => toMinutes(a.start) - toMinutes(b.start))
+    for (let i = 1; i < sorted.length; i++) {
+      if (toMinutes(sorted[i].start) < toMinutes(sorted[i - 1].end)) {
+        return 'Breaks overlap — adjust the times'
+      }
+    }
+  }
+  return null
+}
