@@ -106,16 +106,39 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🗝️ Default Login Credentials
+## 🗝️ Login Credentials & App Modes
 
-After seeding the database, you can log in to the dashboard at `/dashboard` with these credentials:
+The seed script behavior depends on `APP_MODE`:
 
-| Role | Email | Password | Access / Notes |
-| :--- | :--- | :--- | :--- |
-| **Owner** | `owner@fadefactory.com` | `password123` | Full shop management, services, team, schedule & CRM |
-| **Barber** | `marcus@fadefactory.com` | `password123` | Marcus Vance schedule & appointment agenda |
-| **Barber** | `derrick@fadefactory.com` | `password123` | Derrick Reed schedule & appointment agenda |
-| **Barber** | `jay@fadefactory.com` | `password123` | Jay Miller schedule & appointment agenda |
+### Production Mode (default — `APP_MODE` unset or `production`)
+
+```bash
+npm run db:seed
+# or with real shop details:
+SEED_BUSINESS_NAME="Mike's Cuts" SEED_OWNER_EMAIL="mike@mikescuts.com" npm run db:seed
+```
+
+- Creates only the real setup data: business, **owner account**, starter services & barbers.
+- The owner password is **auto-generated and printed once** — or set via `SEED_OWNER_PASSWORD`.
+- **Well-known weak passwords (e.g. `password123`) are rejected**, even when explicitly provided.
+- **No demo accounts, no sample customers/appointments/reviews.**
+- No barber login accounts are created — add real staff in Dashboard > Staff.
+- All seeded users get `mustChangePassword = true` and must change their password via `/change-password` before reaching the dashboard.
+
+### Demo Mode (`APP_MODE=demo`)
+
+```bash
+APP_MODE=demo npm run db:seed
+```
+
+- Adds the full demo dataset: sample customers, appointments, reviews, and barber login accounts — all clearly labeled as **DEMO DATA**.
+- Uses the known demo password `password123` (override with `SEED_OWNER_PASSWORD`).
+- Demo accounts are flagged `mustChangePassword = true` and must change their password on first login.
+- **Intended for local development, testing, and client demos only — never deploy with `APP_MODE=demo`.**
+
+### Forced password change
+
+Any user with `mustChangePassword = true` (set by the seed script) is server-side redirected to `/change-password` and cannot reach `/dashboard` until the password is changed.
 
 ---
 

@@ -52,6 +52,12 @@ model Business {
   paymentPolicy          String?  @db.Text
   privacyPolicy          String?  @db.Text
   termsPolicy            String?  @db.Text
+
+  // ─── Onboarding (persistent white-label setup status) ────────────────────
+  onboardingCompleted    Boolean   @default(false)
+  onboardingStep         String    @default("business") // current/last wizard step: business | branding | services | schedule | done
+  onboardingCompletedAt  DateTime?
+
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -115,6 +121,9 @@ model User {
   auditLogs            AuditLog[]
   passwordResetToken   String?
   passwordResetExpires DateTime?
+  // Forces a password change on next login (set by the seed script for
+  // generated/demo credentials; cleared by /change-password)
+  mustChangePassword   Boolean   @default(false)
 
   @@index([businessId])
 }

@@ -26,7 +26,15 @@ function addSecurityHeaders(response: NextResponse) {
 }
 
 export async function middleware(req: NextRequest) {
-  const response = NextResponse.next()
+  const { pathname } = req.nextUrl
+
+  // Stamp the request path so server components (e.g. the dashboard access
+  // gate in src/lib/onboarding.ts) know which route is being rendered and
+  // can exempt the gate's own redirect targets.
+  const requestHeaders = new Headers(req.headers)
+  requestHeaders.set('x-pathname', pathname)
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } })
   addSecurityHeaders(response)
   return response
 }

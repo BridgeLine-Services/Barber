@@ -5,25 +5,55 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 // ============================================================================
-// Template Seed Script
-// Creates a minimal starter dataset for a new barber shop.
-// All values are driven by environment variables with generic defaults.
+// Seed Script — mode-aware (APP_MODE controls demo vs production behavior)
+//
+// PRODUCTION MODE (default — APP_MODE unset or "production"):
+//   • Creates the minimum needed to run a real shop: business, owner user,
+//     starter services, starter barbers (no barber login accounts).
+//   • Owner password is AUTO-GENERATED (printed once) unless SEED_OWNER_PASSWORD
+//     is explicitly provided. Known weak passwords (password123, 123456, …)
+//     are rejected even when explicitly provided.
+//   • NO sample customers, appointments, or reviews (demo content skipped).
+//   • All created users get mustChangePassword = true.
+//
+// DEMO MODE (APP_MODE=demo):
+//   • Adds the full demo dataset: sample customers, appointments, reviews,
+//     and barber login accounts with the known demo password "password123".
+//   • Demo data is clearly labeled as such; demo accounts get
+//     mustChangePassword = true and must change their password to reach
+//     the dashboard.
+//   • Intended for local development, testing, and client demos only.
+//     NEVER use demo mode in a production deployment.
 //
 // Environment variables (optional — all have sensible defaults):
+//   APP_MODE             — "production" (default) or "demo"
 //   SEED_BUSINESS_NAME   — Shop display name (default: "Your Barber Shop")
 //   SEED_BUSINESS_EMAIL  — Contact email (default: "info@yourbarbershop.com")
 //   SEED_BUSINESS_PHONE  — Phone number (default: "(555) 555-0100")
 //   SEED_BUSINESS_CITY   — City (default: "Your City")
 //   SEED_BUSINESS_STATE  — State (default: "ST")
-//   SEED_BUSINESS_SLUG   — URL slug (default: "your-barber-shop")
-//   SEED_OWNER_EMAIL     — Owner login email (default: "owner@yourbarbershop.com")
-//   SEED_OWNER_PASSWORD  — Owner password (default: auto-generated, printed below)
+//   SEED_BUSINESS_SLUG   — URL slug (default: derived from business name)
+//   SEED_OWNER_EMAIL     — Owner login email (default: owner@<slug>.com)
+//   SEED_OWNER_PASSWORD  — Owner password (production: auto-generated if unset,
+//                          weak passwords rejected; demo: defaults to password123)
 //   SEED_TIMEZONE        — Business timezone (default: "America/New_York")
 //
 // Usage:
-//   npm run db:seed
-//   SEED_BUSINESS_NAME="Mike's Cuts" SEED_OWNER_EMAIL="mike@mikescuts.com" npm run db:seed
+//   npm run db:seed                                       # production-mode seed
+//   APP_MODE=demo npm run db:seed                         # demo-mode seed (demo data + known password)
+//   SEED_BUSINESS_NAME="Mike's Cuts" npm run db:seed       # real shop setup
 // ============================================================================
+
+// Well-known weak/demo passwords — never allowed in production mode.
+const KNOWN_WEAK_PASSWORDS = [
+  'password123', 'password', '123456', '12345678',
+  'admin123', 'letmein', 'qwerty123', 'changeme',
+]
+
+const DEMO_PASSWORD = 'password123'
+
+const appMode = (process.env.APP_MODE || 'production').trim().toLowerCase()
+const isDemoMode = appMode === 'demo'
 
 async function main() {
   const businessName = process.env.SEED_BUSINESS_NAME || 'Your Barber Shop'
@@ -34,9 +64,30 @@ async function main() {
   const businessSlug = process.env.SEED_BUSINESS_SLUG || businessName.toLowerCase().replace(/[^a-z0-9]/g, '-')
   const ownerEmail = process.env.SEED_OWNER_EMAIL || `owner@${(businessName || 'yourbarbershop').toLowerCase().replace(/[^a-z0-9]/g, '')}.com`
   const timezone = process.env.SEED_TIMEZONE || 'America/New_York'
-  const ownerPassword = process.env.SEED_OWNER_PASSWORD || randomBytes(12).toString('base64url').slice(0, 16)
 
-  console.log(`🌱 Starting database seed for ${businessName}...`)
+  // ─── Password resolution (mode-aware) ─────────────────────────────────────
+  let ownerPassword: string
+
+  if (isDemoMode) {
+    // DEMO MODE: known demo password is permitted, clearly labeled as demo.
+    ownerPassword = process.env.SEED_OWNER_PASSWORD || DEMO_PASSWORD
+    console.log('⚠️  DEMO MODE — seeding demo data with known demo credentials.')
+    console.log('⚠️  Demo mode is for local development/testing only. NEVER use in production.')
+  } else {
+    // PRODUCTION MODE: auto-generate unless explicitly provided.
+    ownerPassword = process.env.SEED_OWNER_PASSWORD || randomBytes(12).toString('base64url').slice(0, 16)
+
+    if (process.env.SEED_OWNER_PASSWORD) {
+      // Explicitly provided password must not be a known weak/demo credential.
+      if (KNOWN_WEAK_PASSWORDS.includes(ownerPassword.trim().toLowerCase())) {
+        console.error('❌ REFUSED: SEED_OWNER_PASSWORD is a well-known weak/demo password.')
+        console.error(`❌ Production seed must not create known credentials. Use a strong, unique password.`)
+        process.exit(1)
+      }
+    }
+  }
+
+  console.log(`🌱 Starting database seed for ${businessName} (${isDemoMode ? 'DEMO MODE' : 'PRODUCTION MODE'})...`)
 
   // Clean existing data in correct deletion order
   await prisma.review.deleteMany()
@@ -52,8 +103,10 @@ async function main() {
 
   console.log('🧹 Cleaned existing database records.')
 
-  // Hash password for all default users
+  // All seeded users must change their password before reaching the dashboard.
+  // The dashboard access gate (src/lib/onboarding.ts) enforces this server-side.
   const passwordHash = await bcrypt.hash(ownerPassword, 10)
+  const userFlags = { mustChangePassword: true }
 
   // 1. Create Business
   const business = await prisma.business.create({
@@ -70,6 +123,9 @@ async function main() {
       state: businessState,
       zipCode: '00000',
       timezone,
+      onboardingCompleted: true,
+      onboardingStep: 'done',
+      onboardingCompletedAt: new Date(),
       hours: {
         monday: { open: '09:00', close: '18:00', isOff: false },
         tuesday: { open: '09:00', close: '18:00', isOff: false },
@@ -106,6 +162,7 @@ async function main() {
       name: `${businessName} Owner`,
       role: UserRole.OWNER,
       businessId: business.id,
+      ...userFlags,
     },
   })
 
@@ -152,17 +209,22 @@ async function main() {
       },
     })
 
-    // Create corresponding Barber User (same generated password)
-    await prisma.user.create({
-      data: {
-        email: `barber${b.order}@${businessEmail.split('@')[1]}`,
-        passwordHash,
-        name: b.name,
-        role: UserRole.BARBER,
-        businessId: business.id,
-        barberId: barber.id,
-      },
-    })
+    // Barber login accounts are DEMO-ONLY.
+    // Production: staff logins are created via Dashboard > Staff with their
+    // own credentials — never auto-created with a shared/generated password.
+    if (isDemoMode) {
+      await prisma.user.create({
+        data: {
+          email: `barber${b.order}@${businessEmail.split('@')[1]}`,
+          passwordHash,
+          name: b.name,
+          role: UserRole.BARBER,
+          businessId: business.id,
+          barberId: barber.id,
+          ...userFlags,
+        },
+      })
+    }
 
     barbers.push(barber)
 
@@ -184,6 +246,11 @@ async function main() {
   }
 
   console.log(`✂️ Created ${barbers.length} Barbers & Schedules.`)
+  if (isDemoMode) {
+    console.log(`👤 Created ${barbers.length} DEMO barber login accounts (demo credentials).`)
+  } else {
+    console.log(`🔒 No barber login accounts created — add real staff in Dashboard > Staff.`)
+  }
 
   // 4. Create Services (generic — customize pricing/names in Dashboard)
   const servicesData = [
@@ -218,99 +285,116 @@ async function main() {
 
   console.log(`💈 Created ${services.length} Services and assigned to barbers.`)
 
-  // 5. Create a few sample customers (optional — remove in production)
-  const customersData = [
-    { firstName: 'John', lastName: 'Doe', email: 'john.doe@example.com', phone: '(555) 234-5678', notes: '', smsConsent: true },
-    { firstName: 'Jane', lastName: 'Smith', email: 'jane.smith@example.com', phone: '(555) 345-6789', notes: '', smsConsent: false },
-  ]
+  // ─── DEMO CONTENT (demo mode only) ────────────────────────────────────────
+  if (!isDemoMode) {
+    console.log('🔒 Sample customers/appointments/reviews SKIPPED (production mode — no demo data).')
+  } else {
+    console.log('🎭 Seeding DEMO content: sample customers, appointments, reviews...')
 
-  const customers = []
-  for (const c of customersData) {
-    const customer = await prisma.customer.create({
-      data: {
-        businessId: business.id,
-        firstName: c.firstName,
-        lastName: c.lastName,
-        email: c.email,
-        phone: c.phone,
-        notes: c.notes,
-        smsConsent: c.smsConsent,
-      },
-    })
-    customers.push(customer)
+    // 5. Demo sample customers (demo mode only)
+    const customersData = [
+      { firstName: 'John', lastName: 'Doe', email: 'john.doe@example.com', phone: '(555) 234-5678', notes: 'DEMO DATA — sample customer', smsConsent: true },
+      { firstName: 'Jane', lastName: 'Smith', email: 'jane.smith@example.com', phone: '(555) 345-6789', notes: 'DEMO DATA — sample customer', smsConsent: false },
+    ]
+
+    const customers = []
+    for (const c of customersData) {
+      const customer = await prisma.customer.create({
+        data: {
+          businessId: business.id,
+          firstName: c.firstName,
+          lastName: c.lastName,
+          email: c.email,
+          phone: c.phone,
+          notes: c.notes,
+          smsConsent: c.smsConsent,
+        },
+      })
+      customers.push(customer)
+    }
+
+    console.log(`👥 Created ${customers.length} DEMO sample customers (labeled as demo data).`)
+
+    // 6. Demo sample appointments (demo mode only)
+    const now = new Date()
+    const buildDate = (dayOffset: number, hour: number, minute: number = 0) => {
+      const d = new Date(now)
+      d.setDate(d.getDate() + dayOffset)
+      d.setHours(hour, minute, 0, 0)
+      return d
+    }
+
+    const appointmentData = [
+      { customerIdx: 0, barberIdx: 0, serviceIdx: 0, start: buildDate(1, 10, 0), status: AppointmentStatus.CONFIRMED },
+      { customerIdx: 1, barberIdx: 1, serviceIdx: 1, start: buildDate(1, 11, 0), status: AppointmentStatus.CONFIRMED },
+      { customerIdx: 0, barberIdx: 2, serviceIdx: 2, start: buildDate(2, 14, 0), status: AppointmentStatus.PENDING },
+    ]
+
+    for (const a of appointmentData) {
+      const service = services[a.serviceIdx]
+      const endTime = new Date(a.start.getTime() + service.duration * 60000)
+
+      await prisma.appointment.create({
+        data: {
+          businessId: business.id,
+          barberId: barbers[a.barberIdx].id,
+          customerId: customers[a.customerIdx].id,
+          serviceId: service.id,
+          startTime: a.start,
+          endTime,
+          status: a.status,
+          confirmationNumber: `BRB-${randomBytes(3).toString('hex').toUpperCase()}`,
+          customerAccessToken: randomBytes(32).toString('hex'),
+        },
+      })
+    }
+
+    console.log(`📅 Created ${appointmentData.length} DEMO sample appointments.`)
+
+    // 7. Demo sample reviews (demo mode only)
+    const reviewData = [
+      { authorName: 'Happy Client', rating: 5, comment: '[DEMO REVIEW] Great experience! Easy online booking and excellent service.', isFeatured: true },
+      { authorName: 'Satisfied Customer', rating: 5, comment: '[DEMO REVIEW] Best haircut I have had in years. Highly recommend!', isFeatured: true },
+      { authorName: 'Local Resident', rating: 5, comment: '[DEMO REVIEW] Clean shop, friendly staff, and quality work. Will be back.', isFeatured: false },
+    ]
+
+    for (const r of reviewData) {
+      await prisma.review.create({
+        data: {
+          businessId: business.id,
+          authorName: r.authorName,
+          rating: r.rating,
+          comment: r.comment,
+          isFeatured: r.isFeatured,
+          isGoogleReview: false,
+          createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
+        },
+      })
+    }
+
+    console.log(`⭐ Created ${reviewData.length} DEMO sample reviews (labeled as demo).`)
   }
 
-  console.log(`👥 Created ${customers.length} Sample Customers.`)
-
-  // 6. Create a few sample appointments (relative to today)
-  const now = new Date()
-  const buildDate = (dayOffset: number, hour: number, minute: number = 0) => {
-    const d = new Date(now)
-    d.setDate(d.getDate() + dayOffset)
-    d.setHours(hour, minute, 0, 0)
-    return d
-  }
-
-  const appointmentData = [
-    { customerIdx: 0, barberIdx: 0, serviceIdx: 0, start: buildDate(1, 10, 0), status: AppointmentStatus.CONFIRMED },
-    { customerIdx: 1, barberIdx: 1, serviceIdx: 1, start: buildDate(1, 11, 0), status: AppointmentStatus.CONFIRMED },
-    { customerIdx: 0, barberIdx: 2, serviceIdx: 2, start: buildDate(2, 14, 0), status: AppointmentStatus.PENDING },
-  ]
-
-  for (const a of appointmentData) {
-    const service = services[a.serviceIdx]
-    const endTime = new Date(a.start.getTime() + service.duration * 60000)
-
-    await prisma.appointment.create({
-      data: {
-        businessId: business.id,
-        barberId: barbers[a.barberIdx].id,
-        customerId: customers[a.customerIdx].id,
-        serviceId: service.id,
-        startTime: a.start,
-        endTime,
-        status: a.status,
-        confirmationNumber: `BRB-${randomBytes(3).toString('hex').toUpperCase()}`,
-        customerAccessToken: randomBytes(32).toString('hex'),
-      },
-    })
-  }
-
-  console.log(`📅 Created ${appointmentData.length} Sample Appointments.`)
-
-  // 7. Create sample reviews (generic — replace with real Google reviews)
-  const reviewData = [
-    { authorName: 'Happy Client', rating: 5, comment: 'Great experience! Easy online booking and excellent service.', isFeatured: true },
-    { authorName: 'Satisfied Customer', rating: 5, comment: 'Best haircut I have had in years. Highly recommend!', isFeatured: true },
-    { authorName: 'Local Resident', rating: 5, comment: 'Clean shop, friendly staff, and quality work. Will be back.', isFeatured: false },
-  ]
-
-  for (const r of reviewData) {
-    await prisma.review.create({
-      data: {
-        businessId: business.id,
-        authorName: r.authorName,
-        rating: r.rating,
-        comment: r.comment,
-        isFeatured: r.isFeatured,
-        isGoogleReview: false,
-        createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
-      },
-    })
-  }
-
-  console.log(`⭐ Created ${reviewData.length} Sample Reviews.`)
-
+  // ─── Summary ───────────────────────────────────────────────────────────────
   console.log('\n' + '='.repeat(60))
-  console.log('✅ Seed complete!')
+  console.log(`✅ Seed complete! (${isDemoMode ? 'DEMO MODE' : 'PRODUCTION MODE'})`)
   console.log('='.repeat(60))
   console.log(`   Business: ${businessName}`)
   console.log(`   Owner:    ${ownerEmail}`)
   console.log(`   Password:  ${ownerPassword}`)
-  console.log(`   Barbers:   barber1@${businessEmail.split('@')[1]} / barber2@${businessEmail.split('@')[1]} / barber3@${businessEmail.split('@')[1]}`)
-  console.log(`   (Barber passwords are the same as the owner password)`)
+  if (isDemoMode) {
+    console.log(`   Barbers:   barber1@${businessEmail.split('@')[1]} / barber2@${businessEmail.split('@')[1]} / barber3@${businessEmail.split('@')[1]}`)
+    console.log(`   (DEMO barber accounts share the demo password above — labeled demo)`)
+  }
   console.log('')
-  console.log('⚠️  Change the owner password immediately after first login!')
+  console.log('🔐 All seeded users have mustChangePassword = true.')
+  console.log('🔐 They will be redirected to /change-password on first login.')
+  if (isDemoMode) {
+    console.log('⚠️  DEMO credentials must NEVER be used in production deployments.')
+  } else {
+    console.log('⚠️  Store the generated password securely — it is shown only once.')
+    console.log('⚠️  The password will be requested for change on first login.')
+  }
   console.log('='.repeat(60))
 }
 

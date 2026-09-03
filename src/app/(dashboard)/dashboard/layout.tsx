@@ -1,7 +1,9 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { prisma } from '@/lib/prisma'
+import { checkDashboardAccess } from '@/lib/onboarding'
 import { Sidebar } from '@/components/dashboard/Sidebar'
 import { MobileBottomNav } from '@/components/dashboard/MobileBottomNav'
 
@@ -14,11 +16,15 @@ export default async function DashboardLayout({
 }) {
   const session = await getServerSession(authOptions)
 
-  if (!session?.user) {
-    redirect('/login')
+  // Server-side access gate (cannot be bypassed by client navigation).
+  // Priority: login → forced password change → onboarding → dashboard.
+  const pathname = (await headers()).get('x-pathname') || '/dashboard'
+  const access = await checkDashboardAccess(session, pathname)
+  if (!access.allowed && access.redirectTo) {
+    redirect(access.redirectTo)
   }
 
-  const user = session.user as any
+  const user = session!.user as any
   const businessId = user.businessId
   const userRole = user.role || 'BARBER'
 
@@ -36,11 +42,6 @@ export default async function DashboardLayout({
 
   const businessName = business?.name || user.businessName || 'Barber Shop'
   const userName = user.name || user.email || 'User'
-
-  // If owner has no business, redirect to onboarding
-  if (userRole === 'OWNER' && !businessId) {
-    redirect('/dashboard/onboarding')
-  }
 
   return (
     <div className="min-h-screen bg-zinc-900 text-zinc-100 flex flex-col lg:flex-row">

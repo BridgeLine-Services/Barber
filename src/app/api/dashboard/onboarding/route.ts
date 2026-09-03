@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { z } from 'zod'
+import { completeOnboarding } from '@/lib/onboarding'
 
 const onboardingSchema = z.object({
   businessName: z.string().min(2).max(100),
@@ -90,6 +91,9 @@ export async function POST(req: NextRequest) {
         },
       },
     })
+
+    // Persist onboarding completion so the dashboard access gate opens.
+    await completeOnboarding(business.id)
 
     return NextResponse.json({
       success: true,
