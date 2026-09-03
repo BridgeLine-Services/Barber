@@ -81,13 +81,32 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function HomePage() {
   const business = await resolveBusiness().catch(() => null)
 
-  const [barbers, services, reviews] = business
-    ? await Promise.all([
-        prisma.barber.findMany({ where: { businessId: business.id, isActive: true }, orderBy: { order: 'asc' } }),
-        prisma.service.findMany({ where: { businessId: business.id, isActive: true }, orderBy: { order: 'asc' } }),
-        prisma.review.findMany({ where: { businessId: business.id, isFeatured: true }, orderBy: { createdAt: 'desc' }, take: 6 }),
-      ])
-    : [[], [], []]
+  if (!business) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-4">Shop Coming Soon</h1>
+          <p className="text-muted-foreground">This barbershop hasn't been set up yet.</p>
+        </div>
+      </div>
+    )
+  }
+
+  const [barbers, services, reviews] = await Promise.all([
+    prisma.barber.findMany({
+      where: { businessId: business.id, isActive: true },
+      orderBy: { order: 'asc' },
+    }),
+    prisma.service.findMany({
+      where: { businessId: business.id, isActive: true },
+      orderBy: { order: 'asc' },
+    }),
+    prisma.review.findMany({
+      where: { businessId: business.id, isFeatured: true },
+      orderBy: { createdAt: 'desc' },
+      take: 6,
+    }),
+  ])
 
   const shopName = business?.name || 'Barber Shop'
   const shopPhone = business?.phone || ''
