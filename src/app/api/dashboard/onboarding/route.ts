@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireOwner } from '@/lib/auth-helpers'
-import { completeOnboarding } from '@/lib/onboarding'
 import { slugify, validateSlug } from '@/lib/onboarding-constants'
 import { FONT_FAMILY_VALUES, isValidHexColor } from '@/lib/theme'
 import { z } from 'zod'
@@ -27,6 +26,17 @@ const colorSchema = z
   .trim()
   .refine(isValidHexColor, { message: 'Color must be a valid hex value like #d4af37' })
 
+/** Optional/clearable color: '' or null clears the value (theme falls back). */
+const optionalColorSchema = z
+  .string()
+  .trim()
+  .refine((v) => v === '' || isValidHexColor(v), {
+    message: 'Color must be a valid hex value like #d4af37',
+  })
+  .nullable()
+  .optional()
+  .transform((v) => (v === '' || v === null || v === undefined ? null : v))
+
 const basicsSchema = {
   businessName: z.string().trim().min(2, 'Business name must be at least 2 characters').max(100).optional(),
   slug: z.string().trim().min(2).max(80)
@@ -43,7 +53,7 @@ const brandingSchema = {
   logo: logoSchema,
   primaryColor: colorSchema.optional(),
   accentColor: colorSchema.optional(),
-  secondaryColor: colorSchema.optional(),
+  secondaryColor: optionalColorSchema,
   themeMode: z.enum(['dark', 'light']).optional(),
   fontFamily: z
     .string()
@@ -88,6 +98,7 @@ const businessSubset = {
   fontFamily: true,
   onboardingCompleted: true,
   onboardingStep: true,
+  onboardingCompletedAt: true,
 } as const
 
 /**
@@ -103,8 +114,15 @@ export async function GET(req: NextRequest) {
   const user = auth.user
 
   try {
-    const business = user.businessId
-      ? await prisma.business.findUnique({ where: { id: user.businessId }, select: businessSubset })
+    // Resolve from the DATABASE user record — the session token can be stale
+    // (e.g. minted before this owner's business was created), so the claim
+    // alone must not decide whether the business exists.
+    const dbUser = await prisma.user.findUnique({
+      where: user.id ? { id: user.id } : { email: user.email },
+      select: { businessId: true },
+    })
+    const business = dbUser?.businessId
+      ? await prisma.business.findUnique({ where: { id: dbUser.businessId }, select: businessSubset })
       : null
 
     // Optional live slug availability check
@@ -143,12 +161,17 @@ export async function POST(req: NextRequest) {
   if (!auth.success) return auth.response
   const user = auth.user
 
-  // If already has a business, refuse (updates go through PATCH)
-  if (user.businessId) {
-    return NextResponse.json({ error: 'Your shop is already set up' }, { status: 409 })
-  }
-
   try {
+    // Check the DATABASE user record — the session claim can be stale
+    // (minted before a business existed), which would allow duplicate creates.
+    const dbUser = await prisma.user.findUnique({
+      where: user.id ? { id: user.id } : { email: user.email },
+      select: { businessId: true },
+    })
+    if (dbUser?.businessId) {
+      return NextResponse.json({ error: 'Your shop is already set up' }, { status: 409 })
+    }
+
     const body = await req.json()
     const parsed = createSchema.safeParse(body)
     if (!parsed.success) {
@@ -281,12 +304,17 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Step transition: 'done' completes onboarding (branding is optional —
-    // skipping also completes).
+    // skipping also completes). Completion flags are set in the SAME update
+    // so the returned business object reflects the final state.
     const completing = d.step === 'done'
 
     const business = await prisma.business.update({
       where: { id: dbUser.businessId },
       data: {
+        ...(completing && {
+          onboardingCompleted: true,
+          onboardingCompletedAt: new Date(),
+        }),
         ...(d.businessName !== undefined && { name: d.businessName }),
         ...(d.slug !== undefined && { slug: d.slug }),
         ...(d.timezone !== undefined && { timezone: d.timezone }),
@@ -295,7 +323,8 @@ export async function PATCH(req: NextRequest) {
         ...(d.logo !== undefined && { logo: d.logo }),
         ...(d.primaryColor !== undefined && { primaryColor: d.primaryColor }),
         ...(d.accentColor !== undefined && { accentColor: d.accentColor }),
-        ...(d.secondaryColor !== undefined && { secondaryColor: d.secondaryColor }),
+        ...(d.secondaryColor !== undefined && d.secondaryColor !== null && { secondaryColor: d.secondaryColor }),
+        ...(d.secondaryColor === null && { secondaryColor: null }),
         ...(d.themeMode !== undefined && { themeMode: d.themeMode }),
         ...(d.fontFamily !== undefined && { fontFamily: d.fontFamily }),
         ...(d.step === 'branding' && { onboardingStep: 'branding' }),
@@ -303,10 +332,6 @@ export async function PATCH(req: NextRequest) {
       },
       select: businessSubset,
     })
-
-    if (completing) {
-      await completeOnboarding(business.id)
-    }
 
     return NextResponse.json({
       success: true,

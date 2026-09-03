@@ -44,48 +44,6 @@ export async function hasCompletedOnboarding(businessId: string | null | undefin
   return business?.onboardingCompleted ?? false
 }
 
-/**
- * Load the persistent onboarding status for a business.
- */
-export async function getOnboardingStatus(businessId: string | null | undefined): Promise<{
-  businessId: string | null
-  onboardingCompleted: boolean
-  onboardingStep: OnboardingStep
-  onboardingCompletedAt: Date | null
-} | null> {
-  if (!businessId) return null
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    select: {
-      onboardingCompleted: true,
-      onboardingStep: true,
-      onboardingCompletedAt: true,
-    },
-  })
-  if (!business) return null
-  return {
-    businessId,
-    onboardingCompleted: business.onboardingCompleted,
-    onboardingStep: (business.onboardingStep as OnboardingStep) || 'business',
-    onboardingCompletedAt: business.onboardingCompletedAt,
-  }
-}
-
-/**
- * Mark a business's onboarding as complete.
- * Called by the onboarding completion endpoint.
- */
-export async function completeOnboarding(businessId: string): Promise<void> {
-  await prisma.business.update({
-    where: { id: businessId },
-    data: {
-      onboardingCompleted: true,
-      onboardingStep: 'done',
-      onboardingCompletedAt: new Date(),
-    },
-  })
-}
-
 /** Paths whose entire purpose is satisfying the gate — never redirect away FROM them. */
 function isGateExemptPath(pathname: string): boolean {
   return (
