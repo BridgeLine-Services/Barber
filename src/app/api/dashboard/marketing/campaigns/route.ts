@@ -1,14 +1,13 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import { prisma } from '@/lib/prisma'
 import { createCampaign, resolveCampaignAudience } from '@/lib/marketing'
 
 // GET /api/dashboard/marketing/campaigns — list all campaigns
 export async function GET() {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const businessId = (session.user as any)?.businessId
 
@@ -22,7 +21,7 @@ export async function GET() {
 
 // POST /api/dashboard/marketing/campaigns — create a new campaign, or preview audience size
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const businessId = (session.user as any)?.businessId
   const userId = (session.user as any)?.id

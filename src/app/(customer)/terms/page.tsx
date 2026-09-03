@@ -1,17 +1,13 @@
 export const dynamic = 'force-dynamic'
-import { generatePageMetadata } from '@/lib/generate-page-metadata'
 
-import type { Metadata } from 'next'
+import { Metadata } from 'next'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { resolveBusiness } from '@/lib/tenant'
 
-export async function generateMetadata(): Promise<Metadata> {
-  return generatePageMetadata({
-    titleSuffix: "Terms of Service",
-    description: "Terms of service and user agreements for using our website and booking appointments.",
-    path: "/terms",
-  })
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description: 'Terms of service and user agreements for using our website and booking appointments.',
 }
 
 export default async function TermsOfServicePage() {

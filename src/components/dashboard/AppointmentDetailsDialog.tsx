@@ -167,7 +167,7 @@ export function AppointmentDetailsDialog({
             <div className="flex flex-wrap gap-4 text-xs text-zinc-300">
               {appointment.customer?.phone && (
                 <a
-                  href={`tel:${appointment.customer.phone?.replace(/\D/g, "")}`}
+                  href={`tel:${appointment.customer.phone}`}
                   className="flex items-center gap-1 hover:text-amber-400 transition-colors"
                 >
                   <Phone className="w-3.5 h-3.5 text-zinc-500" />

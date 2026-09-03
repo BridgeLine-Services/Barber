@@ -23,6 +23,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!barber) return { title: 'Barber Not Found' }
 
+  // Keep metadata resilient when a seeded/demo barber has no related business
   // record, while the page itself still validates the full public tenant below.
   const businessName = barber.business?.name ?? 'Our Barbershop'
   const title = `${barber.name} | ${businessName}`
@@ -145,7 +146,7 @@ export default async function BarberProfilePage({ params }: PageProps) {
               </a>
             )}
             {barber.phone && (
-              <a href={`tel:${barber.phone.replace(/\D/g, "")}`} className="text-muted-foreground hover:text-foreground">
+              <a href={`tel:${barber.phone}`} className="text-muted-foreground hover:text-foreground">
                 <Phone className="h-5 w-5" />
               </a>
             )}

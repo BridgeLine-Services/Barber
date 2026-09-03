@@ -74,7 +74,7 @@ export function CustomersListView({ initialCustomers }: CustomersListViewProps) 
                         </Link>
                       </td>
                       <td className="p-3.5 text-zinc-300 font-mono">
-                        <a href={`tel:${c.phone?.replace(/\D/g, "")}`} className="hover:text-amber-400 flex items-center gap-1">
+                        <a href={`tel:${c.phone}`} className="hover:text-amber-400 flex items-center gap-1">
                           <Phone className="w-3 h-3 text-zinc-500" />
                           {c.phone}
                         </a>

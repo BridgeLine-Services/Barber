@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import { generatePageMetadata } from '@/lib/generate-page-metadata'
 import Link from 'next/link'
 import { Calendar, Images } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,12 +8,9 @@ import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-export async function generateMetadata(): Promise<Metadata> {
-  return generatePageMetadata({
-    titleSuffix: "Gallery",
-    description: "Browse the latest work and atmosphere from our shop.",
-    path: "/gallery",
-  })
+export const metadata: Metadata = {
+  title: 'Gallery',
+  description: 'Browse the latest work and atmosphere from our shop.',
 }
 
 export default async function GalleryPage() {

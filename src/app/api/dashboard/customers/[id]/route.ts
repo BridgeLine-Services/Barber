@@ -1,13 +1,12 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import { prisma } from '@/lib/prisma'
 import { logAudit } from '@/lib/auth-helpers'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const businessId = (session.user as any)?.businessId
   const { id } = await params
@@ -27,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const businessId = (session.user as any)?.businessId
   const { id } = await params

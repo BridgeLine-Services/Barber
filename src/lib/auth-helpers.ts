@@ -1,10 +1,10 @@
 // ============================================================================
 // Auth Helpers — Authorization layer for API routes.
-// Uses NextAuth session (production).
+// Demo mode: uses the demo session instead of NextAuth.
 // ============================================================================
 
-import { getServerSession } from 'next-auth'
-import { authOptions } from './auth'
+import { getDemoSession } from './demo-auth'
+import { isProductionMode } from './app-config'
 import { NextResponse } from 'next/server'
 import { prisma } from './prisma'
 import { logEvent } from './logger'
@@ -18,7 +18,7 @@ export interface AuthResult {
     name: string
     role: 'OWNER' | 'BARBER'
     businessId: string | null
-    barberId?: string | null
+      barberId?: string | null
   }
   response?: never
 }
@@ -32,7 +32,9 @@ export interface AuthError {
  * Require any authenticated user (OWNER or BARBER).
  */
 export async function requireAuth(): Promise<AuthResult | AuthError> {
-  const session = await getServerSession(authOptions)
+  // Production authentication is intentionally fail-closed until the client
+  // configures a real NextAuth provider/session adapter.
+  const session = isProductionMode() ? null : await getDemoSession()
   if (!session?.user) {
     return {
       success: false,
@@ -88,7 +90,7 @@ export async function requireStaff(
 }
 
 /**
- * Verify business access — user must belong to the same business.
+ * Verify business access (demo mode: always true since single-tenant).
  */
 export async function verifyBusinessAccess(
   userBusinessId: string | null,
@@ -99,7 +101,7 @@ export async function verifyBusinessAccess(
 }
 
 /**
- * Log an audit event.
+ * Log an audit event (demo mode: no-op).
  */
 export async function logAudit(params: {
   userId?: string
@@ -112,7 +114,7 @@ export async function logAudit(params: {
   ipAddress?: string
   userAgent?: string
 }): Promise<void> {
-  if (params.businessId && params.userId) {
+  if (isProductionMode() && params.businessId && params.userId) {
     try {
       await prisma.auditLog.create({
         data: {
@@ -131,7 +133,9 @@ export async function logAudit(params: {
       logEvent('audit_log_failed', { action: params.action, entityType: params.entityType })
       throw error
     }
+    return
   }
+  logEvent('demo_audit', { action: params.action, entityType: params.entityType, entityId: params.entityId })
 }
 
 /**
@@ -139,5 +143,7 @@ export async function logAudit(params: {
  */
 export async function getBusinessIdForUser(user: { businessId?: string | null; role: string }): Promise<string> {
   if (user.businessId) return user.businessId
-  throw new Error('Authenticated user is not assigned to a business')
+  if (isProductionMode()) throw new Error('Authenticated user is not assigned to a business')
+  const { DEMO_BUSINESS_ID } = await import('./demo-data')
+  return DEMO_BUSINESS_ID
 }

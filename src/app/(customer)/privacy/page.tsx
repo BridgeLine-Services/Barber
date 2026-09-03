@@ -1,17 +1,13 @@
 export const dynamic = 'force-dynamic'
-import { generatePageMetadata } from '@/lib/generate-page-metadata'
 
-import type { Metadata } from 'next'
+import { Metadata } from 'next'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { resolveBusiness } from '@/lib/tenant'
 
-export async function generateMetadata(): Promise<Metadata> {
-  return generatePageMetadata({
-    titleSuffix: "Privacy Policy",
-    description: "Our privacy policy details how we collect, use, and protect your personal information.",
-    path: "/privacy",
-  })
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description: 'Our privacy policy details how we collect, use, and protect your personal information.',
 }
 
 export default async function PrivacyPolicyPage() {

@@ -1,11 +1,10 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { TodayAppointmentsView } from '@/components/dashboard/TodayAppointmentsView'
 
 export default async function DashboardHomePage() {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
 
   if (!session?.user) {
     redirect('/login')
@@ -15,11 +14,6 @@ export default async function DashboardHomePage() {
   const businessId = user.businessId
   const userRole = user.role
   const barberId = user.barberId
-
-  // If owner has no business yet, redirect to onboarding
-  if (userRole === 'OWNER' && !businessId) {
-    redirect('/dashboard/onboarding')
-  }
 
   // Start and end of today
   const now = new Date()

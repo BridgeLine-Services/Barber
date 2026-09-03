@@ -1,81 +1,33 @@
 // ============================================================================
-// AUTH — NextAuth v4 with Credentials provider (production).
-// Uses Prisma to validate email/password against the User table.
-// Requires NEXTAUTH_SECRET + NEXTAUTH_URL + DATABASE_URL env vars.
+// AUTH — Demo mode authentication.
+// This file now exports the same interface that the rest of the app expects
+// from next-auth, but uses the demo cookie-based system instead.
+// When you switch to production, restore the original NextAuth implementation
+// and set NEXTAUTH_SECRET + DATABASE_URL.
 // ============================================================================
 
-import type { NextAuthOptions } from 'next-auth'
-import CredentialsProvider from 'next-auth/providers/credentials'
-import bcrypt from 'bcryptjs'
-import { prisma } from './prisma'
+import { getDemoSession, type DemoSession } from './demo-auth'
 
-export const authOptions: NextAuthOptions = {
-  providers: [
-    CredentialsProvider({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
+// Re-export for compatibility with code that imports from auth.ts
+export { getDemoSession as getServerSession }
 
-        try {
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
-            include: { business: { select: { name: true } } },
-          })
+// authOptions is referenced by various files — provide a no-op placeholder
+export const authOptions = {}
 
-          if (!user) return null
-
-          const passwordValid = await bcrypt.compare(credentials.password, user.passwordHash)
-          if (!passwordValid) return null
-
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            // businessId may be null for owners who haven't completed onboarding yet
-            businessId: user.businessId || '',
-            businessName: user.business?.name || 'Barber Shop',
-            barberId: user.barberId,
-          }
-        } catch (error) {
-          console.error('Auth error - database may not be configured:', error)
-          throw new Error('Database connection failed. The database may not be configured.')
-        }
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = (user as any).role
-        token.businessId = (user as any).businessId
-        token.businessName = (user as any).businessName
-        token.barberId = (user as any).barberId
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        ;(session.user as any).role = token.role
-        ;(session.user as any).businessId = token.businessId
-        ;(session.user as any).businessName = token.businessName
-        ;(session.user as any).barberId = token.barberId
-      }
-      return session
-    },
-  },
-  session: {
-    strategy: 'jwt',
-  },
-  pages: {
-    signIn: '/login',
-  },
-  secret: process.env.NEXTAUTH_SECRET || 'dev-only-fallback-secret-do-not-use-in-production',
+// NextAuth handlers — stubbed out for demo mode
+export const handlers = {
+  GET: () => new Response('Demo mode — auth handled by /api/auth/demo-login', { status: 200 }),
+  POST: () => new Response('Demo mode — auth handled by /api/auth/demo-login', { status: 200 }),
 }
 
-// Re-export getServerSession for convenience
-export { getServerSession } from 'next-auth'
+export const auth = async () => {
+  return await getDemoSession()
+}
+
+export const signIn = async () => {
+  throw new Error('Demo mode — use /api/auth/demo-login instead')
+}
+
+export const signOut = async () => {
+  throw new Error('Demo mode — use /api/auth/demo-logout instead')
+}

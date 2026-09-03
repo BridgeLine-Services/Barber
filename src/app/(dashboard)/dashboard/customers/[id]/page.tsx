@@ -1,5 +1,4 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
@@ -31,7 +30,7 @@ interface CustomerDetailPageProps {
 }
 
 export default async function CustomerDetailPage({ params }: CustomerDetailPageProps) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session?.user) {
     redirect('/login')
   }
@@ -140,7 +139,7 @@ export default async function CustomerDetailPage({ params }: CustomerDetailPageP
               <Phone className="w-3.5 h-3.5" /> Phone Number
             </span>
             <p className="text-sm font-mono text-zinc-200">
-              <a href={`tel:${customer.phone?.replace(/\D/g, "")}`} className="hover:text-amber-400 transition-colors">
+              <a href={`tel:${customer.phone}`} className="hover:text-amber-400 transition-colors">
                 {customer.phone}
               </a>
             </p>

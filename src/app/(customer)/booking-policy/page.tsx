@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
-import { generatePageMetadata } from '@/lib/generate-page-metadata'
 
-import type { Metadata } from 'next'
+import { Metadata } from 'next'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { Card } from '@/components/ui/card'
@@ -10,12 +9,9 @@ import { resolveBusiness } from '@/lib/tenant'
 import { Button } from '@/components/ui/button'
 import { Calendar, Clock, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react'
 
-export async function generateMetadata(): Promise<Metadata> {
-  return generatePageMetadata({
-    titleSuffix: "Booking Policy",
-    description: "Learn about our booking, rescheduling, cancellation, and late arrival policies.",
-    path: "/booking-policy",
-  })
+export const metadata: Metadata = {
+  title: 'Booking Policy',
+  description: 'Learn about our booking, rescheduling, cancellation, and late arrival policies.',
 }
 
 export const revalidate = 60

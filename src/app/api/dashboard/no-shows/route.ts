@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import { prisma } from '@/lib/prisma'
 import { getReliabilitySummary } from '@/lib/reliability'
 
 // GET /api/dashboard/no-shows — list no-show appointments and policy
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -96,7 +95,7 @@ export async function GET(request: Request) {
 
 // PATCH /api/dashboard/no-shows — update no-show policy
 export async function PATCH(request: Request) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

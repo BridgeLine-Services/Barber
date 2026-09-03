@@ -1,8 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getDemoSession } from '@/lib/demo-auth'
 import { MediaType } from '@prisma/client'
 
 /**
@@ -18,7 +17,7 @@ import { MediaType } from '@prisma/client'
  *                  GALLERY, SERVICE_PHOTO, OG_IMAGE, FAVICON
  */
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const role = (session.user as any)?.role

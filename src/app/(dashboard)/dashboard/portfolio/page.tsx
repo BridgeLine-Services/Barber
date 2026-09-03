@@ -1,12 +1,11 @@
 import { redirect } from 'next/navigation'
 import MediaPage from '../media/page'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getDemoSession } from '@/lib/demo-auth'
 
 export const dynamic = 'force-dynamic'
 
 export default async function PortfolioPage() {
-  const session = await getServerSession(authOptions)
+  const session = await getDemoSession()
   if (!session || (session.user as { role?: string }).role !== 'BARBER') {
     redirect('/dashboard')
   }

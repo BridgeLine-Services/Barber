@@ -1,34 +1,33 @@
 export const dynamic = 'force-dynamic'
 
-import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getDemoSessionFromRequest } from '@/lib/demo-auth'
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
-  const isOwner = (session?.user as any)?.role === 'OWNER'
+export async function GET(req: NextRequest) {
+  const session = await getDemoSessionFromRequest(req)
+  const isAdmin = session?.user?.role === 'OWNER'
+
+  if (!isAdmin) {
+    try {
+      await prisma.business.count()
+      return NextResponse.json({ status: 'healthy' }, { status: 200 })
+    } catch {
+      return NextResponse.json({ status: 'degraded' }, { status: 503 })
+    }
+  }
 
   const checks: Record<string, { status: string; message?: string }> = {}
-  checks.auth = { status: 'ok', message: session ? 'Authenticated' : 'Anonymous' }
+  checks.mode = { status: 'ok', message: 'Demo/template mode — no database required' }
 
   try {
     const businessCount = await prisma.business.count()
-    checks.database = {
+    checks.demoData = {
       status: 'ok',
-      message: `${businessCount} business(es) registered.`,
+      message: `Demo mode active. ${businessCount} business(es) loaded.`,
     }
   } catch (error: any) {
-    checks.database = { status: 'error', message: error.message }
-  }
-
-  if (isOwner) {
-    try {
-      const userCount = await prisma.user.count()
-      checks.users = { status: 'ok', message: `${userCount} users` }
-    } catch (error: any) {
-      checks.users = { status: 'error', message: error.message }
-    }
+    checks.demoData = { status: 'error', message: error.message }
   }
 
   const allOk = Object.values(checks).every((c) => c.status === 'ok')

@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
-import { generatePageMetadata } from '@/lib/generate-page-metadata'
 
-import type { Metadata } from 'next'
+import { Metadata } from 'next'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { resolveBusiness } from '@/lib/tenant'
@@ -12,12 +11,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ShieldCheck, Heart, Award } from 'lucide-react'
 
-export async function generateMetadata(): Promise<Metadata> {
-  return generatePageMetadata({
-    titleSuffix: "About Us",
-    description: "Learn about our history, master barbers, values, and dedication to classic barbering excellence.",
-    path: "/about",
-  })
+export const metadata: Metadata = {
+  title: 'About Us',
+  description: 'Learn about our history, master barbers, values, and dedication to classic barbering excellence.',
 }
 
 export const revalidate = 60
