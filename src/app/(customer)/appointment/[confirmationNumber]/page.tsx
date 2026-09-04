@@ -201,6 +201,18 @@ export default async function ConfirmationPage({
               <p className="font-semibold">{formatTime(appointment.startTime)}</p>
             </div>
 
+            {/* Location */}
+            {appointment.business?.address && (
+              <div className="flex items-start justify-between border-b border-zinc-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-400">Location</span>
+                </div>
+                <p className="max-w-[min(65%,18rem)] text-right font-semibold text-sm">
+                  {appointment.business.address}
+                </p>
+              </div>
+            )}
+
             {/* Status */}
             <div className="flex items-start justify-between">
               <span className="text-sm text-gray-400">Status</span>
