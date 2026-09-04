@@ -9,16 +9,43 @@ export async function getAuthenticatedBusinessId(): Promise<string | null> {
   return (session?.user as any)?.businessId ?? null
 }
 
-/** Resolve the public tenant from the request host. */
+/**
+ * Resolve the public business for this deployment.
+ *
+ * A cloned client deployment can set SINGLE_BUSINESS_ID and avoid requiring
+ * hostnames to match the database slug. Host resolution remains first so the
+ * template preserves its multi-business-safe behavior when that is needed.
+ */
 export async function resolvePublicBusiness() {
   const h = await headers()
   const host = h.get('x-forwarded-host') ?? h.get('host')
   const hostname = host?.split(':')[0]?.toLowerCase()
-  if (!hostname) return null
 
-  // Custom domains can be added to Business later without changing callers.
-  // Slug-based routing is the portable template default.
-  return prisma.business.findUnique({ where: { slug: hostname } }).catch(() => null)
+  if (hostname) {
+    const byHost = await prisma.business.findUnique({ where: { slug: hostname } }).catch(() => null)
+    if (byHost) return byHost
+  }
+
+  const configuredBusinessId = process.env.SINGLE_BUSINESS_ID?.trim()
+  if (!configuredBusinessId) return null
+
+  return prisma.business.findUnique({ where: { id: configuredBusinessId } }).catch(() => null)
+}
+
+/** Resolve the configured business for a cloned single-business deployment. */
+export async function resolveConfiguredBusiness() {
+  const businessId = process.env.SINGLE_BUSINESS_ID?.trim()
+  if (!businessId) return null
+  return prisma.business.findUnique({ where: { id: businessId } }).catch(() => null)
+}
+
+/** Return the configured business ID, or explain the missing setup clearly. */
+export async function resolveConfiguredBusinessId(): Promise<string> {
+  const business = await resolveConfiguredBusiness()
+  if (!business) {
+    throw new Error('SINGLE_BUSINESS_ID is not configured or does not match a business')
+  }
+  return business.id
 }
 
 /** Resolve the authenticated dashboard tenant. */
