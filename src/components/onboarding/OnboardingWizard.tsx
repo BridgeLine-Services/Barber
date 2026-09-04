@@ -30,6 +30,7 @@ import { BrandingStep, type BrandingForm } from './BrandingStep'
 import { ServicesStep } from './ServicesStep'
 import { TeamStep } from './TeamStep'
 import { BookingSettingsStep, type BookingSettingsForm } from './BookingSettingsStep'
+import { ReviewStep } from './ReviewStep'
 import { WIZARD_STEPS, ONBOARDING_DRAFT_KEY } from '@/lib/onboarding-constants'
 import { Check, Loader2, AlertCircle, PartyPopper } from 'lucide-react'
 
@@ -60,7 +61,7 @@ interface OnboardingBusiness {
   noShowPolicyText: string | null
 }
 
-type Step = 'welcome' | 'business' | 'branding' | 'services' | 'team' | 'booking' | 'done'
+type Step = 'welcome' | 'business' | 'branding' | 'services' | 'team' | 'booking' | 'review' | 'done'
 
 const initialBranding: BrandingForm = {
   logo: null,
@@ -117,6 +118,8 @@ function resumeStep(onboardingStep: string): Step {
       return 'team'
     case 'booking':
       return 'booking'
+    case 'review':
+      return 'review'
     default:
       return 'business'
   }
@@ -328,8 +331,10 @@ export function OnboardingWizard() {
     }
   }
 
-  // ─── Step 6: Booking Settings — save, optionally complete ──────────────
-  const handleBookingSettings = async (settings: BookingSettingsForm, complete: boolean) => {
+  // ─── Step 6: Booking Settings — save, then review ───────────────────────
+  // 'Finish setup' saves and moves to the Review step; completion itself
+  // happens only from Review → Complete Setup (server-enforced).
+  const handleBookingSettings = async (settings: BookingSettingsForm, advance: boolean) => {
     setSubmitting(true)
     setServerError(null)
     setSavedForLater(false)
@@ -347,22 +352,39 @@ export function OnboardingWizard() {
         latePolicy: settings.latePolicy,
         noShowPolicyText: settings.noShowPolicyText,
       }
-      if (complete) body.step = 'done'
+      if (advance) body.step = 'review'
 
       const json = await patchOnboarding(body)
       setBusiness(json.business)
 
-      if (complete) {
-        setSuccess(true)
-        setStep('done')
-        // Give the owner a moment on the success screen, then into the dashboard.
-        setTimeout(() => router.push('/dashboard'), 1600)
+      if (advance) {
+        setStep('review')
+        window.scrollTo({ top: 0 })
       } else {
         setSavedForLater(true) // saved — resume here any time
       }
     } catch (err: any) {
-      // Server-side completion requirements (≥1 active service & barber)
       setServerError(err.message || 'Failed to save your booking settings.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // ─── Review → Complete Setup (server-enforced) ──────────────────────────
+  const handleCompleteSetup = async () => {
+    setSubmitting(true)
+    setServerError(null)
+    try {
+      const json = await patchOnboarding({ step: 'done' })
+      setBusiness(json.business)
+      setSuccess(true)
+      setStep('done')
+      // Brief success moment, then into the dashboard.
+      setTimeout(() => router.push('/dashboard'), 1400)
+    } catch (err: any) {
+      // The server refused completion — show which requirements are missing
+      // (the Review step re-fetches the authoritative list on next render).
+      setServerError(err.message || 'Some requirements are still missing.')
     } finally {
       setSubmitting(false)
     }
@@ -479,6 +501,23 @@ export function OnboardingWizard() {
             onBack={() => {
               setServerError(null)
               setStep('services')
+            }}
+          />
+        )}
+
+        {step === 'review' && (
+          <ReviewStep
+            completing={submitting}
+            serverError={serverError}
+            onEditStep={(target) => {
+              setServerError(null)
+              setStep(target)
+              window.scrollTo({ top: 0 })
+            }}
+            onComplete={handleCompleteSetup}
+            onBack={() => {
+              setServerError(null)
+              setStep('booking')
             }}
           />
         )}

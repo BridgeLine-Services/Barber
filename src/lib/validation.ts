@@ -384,3 +384,34 @@ export function validateScheduleEntries(entries: ScheduleEntry[]): string | null
   }
   return null
 }
+
+// ============================================================================
+// PASSWORD POLICY — shared by owner registration, token-based reset, and the
+// authenticated change-password flow. One policy everywhere.
+// ============================================================================
+
+export const passwordPolicySchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(128, 'Password must be at most 128 characters')
+  .regex(/[a-zA-Z]/, 'Password must contain at least one letter')
+  .regex(/[0-9]/, 'Password must contain at least one number')
+
+export const passwordWithConfirmSchema = z
+  .object({
+    password: passwordPolicySchema,
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+
+// ============================================================================
+// OWNER EMAIL — normalized (trim + lowercase) before any lookup or insert so
+// case variants cannot create duplicate accounts.
+// ============================================================================
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}

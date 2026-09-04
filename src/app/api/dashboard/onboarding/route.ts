@@ -6,6 +6,7 @@ import { requireOwner } from '@/lib/auth-helpers'
 import { slugify, validateSlug } from '@/lib/onboarding-constants'
 import { FONT_FAMILY_VALUES, isValidHexColor } from '@/lib/theme'
 import { bookingSettingsSchema } from '@/lib/validation'
+import { checkOnboardingRequirements } from '@/lib/onboarding'
 import { z } from 'zod'
 
 // ─── Validation schemas ─────────────────────────────────────────────────────
@@ -85,7 +86,7 @@ const patchSchema = z.object({
   // fixed, default behaviour (Business.paymentInPerson stays true).
   ...bookingSettingsSchema.shape,
   // Advance the wizard through the persisted step order.
-  step: z.enum(['branding', 'services', 'team', 'booking', 'done']).optional(),
+  step: z.enum(['branding', 'services', 'team', 'booking', 'review', 'done']).optional(),
 })
 
 /** Business fields the wizard works with. */
@@ -337,23 +338,16 @@ export async function PATCH(req: NextRequest) {
     const completing = d.step === 'done'
 
     if (completing) {
-      // Onboarding cannot finish without a bookable shop:
-      //   - at least one ACTIVE service
-      //   - at least one ACTIVE barber
-      const [activeServices, activeBarbers] = await Promise.all([
-        prisma.service.count({ where: { businessId: dbUser.businessId, isActive: true } }),
-        prisma.barber.count({ where: { businessId: dbUser.businessId, isActive: true } }),
-      ])
-      const missing: string[] = []
-      if (activeServices === 0) missing.push('at least one active service')
-      if (activeBarbers === 0) missing.push('at least one active barber')
-      if (missing.length > 0) {
+      // Onboarding cannot finish without a bookable shop. The authoritative
+      // requirement list lives in checkOnboardingRequirements() — shared with
+      // the Review step so the UI and this gate can never disagree.
+      const requirements = await checkOnboardingRequirements(dbUser.businessId!)
+      if (!requirements.ok) {
         return NextResponse.json(
           {
-            error: `Before finishing setup, add ${missing.join(' and ')}.`,
+            error: 'Before finishing setup, complete the missing requirements listed on the review page.',
             code: 'ONBOARDING_REQUIREMENTS_MISSING',
-            activeServices,
-            activeBarbers,
+            missing: requirements.missing,
           },
           { status: 400 }
         )

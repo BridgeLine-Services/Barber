@@ -140,6 +140,41 @@ APP_MODE=demo npm run db:seed
 
 Any user with `mustChangePassword = true` (set by the seed script) is server-side redirected to `/change-password` and cannot reach `/dashboard` until the password is changed.
 
+### Owner registration (`OWNER_REGISTRATION_MODE`)
+
+Controls whether new owner accounts can be created on this deployment. The API enforces it server-side; the login page UI adapts automatically.
+
+| Value | Behavior |
+| --- | --- |
+| `onboarding` (default) | Public owner sign-up enabled. After registering, the owner is signed in and sent straight into the 5-step onboarding wizard. |
+| `invite_only` | No public sign-up. The register form is hidden and a notice explains that accounts are created by invitation (add users manually or via the seed script / admin tooling). |
+| `disabled` | Registration hidden entirely — only existing users can log in. |
+
+- Emails are normalized (trim + lowercase) so case variants cannot create duplicate accounts.
+- Passwords use the shared policy: min 8 chars, at least one letter and one number.
+- Registration is rate-limited, and error messages never expose internal system details.
+- Unknown values **fail safe to `disabled`** — a typo never leaves sign-up accidentally open.
+
+### First owner setup & onboarding
+
+1. Set `OWNER_REGISTRATION_MODE=onboarding` (default) and create your owner account at `/login` → *Create one*, **or** seed an owner with `npm run db:seed` (see above).
+2. After sign-in, the owner is routed into the onboarding wizard: **Business Basics → Branding → Services → Team (barbers + weekly schedules) → Booking Settings → Review**.
+3. Progress is persisted in the database — the owner can leave and resume exactly where they stopped.
+4. The **Review & Complete** step lists every server-side requirement and links back to the step that fixes it. Setup can only be completed when the business has: a name, a valid slug, a timezone, **≥ 1 active service**, **≥ 1 active barber**, and a weekly schedule for every active barber.
+5. Clicking **Complete Setup** sets `onboardingCompleted = true` + `onboardingCompletedAt` and redirects to `/dashboard`.
+6. Nothing is locked afterwards — services, barbers, branding, and settings stay editable from the dashboard.
+
+### Password reset
+
+Self-service password recovery is built in (`/forgot-password` → `/reset-password?token=…`):
+
+- Always responds with the same generic message whether or not the account exists (no email enumeration).
+- Reset tokens are random 256-bit values, **stored only as SHA-256 hashes**, expire after **1 hour**, and are **single-use** (invalidated the moment the password changes).
+- A successful reset updates the password hash, clears the token fields, sets `passwordChangedAt`, clears `mustChangePassword`, and records an audit entry.
+- **If SMTP is configured** (`SMTP_HOST`, `SMTP_USER`, `SMTP_FROM`), the reset email is sent.
+- **If SMTP is not configured**: in development/demo the reset link is returned directly in the response (safe to test without a mail server); in **production the server refuses to pretend an email was sent** and answers honestly — tokens are never exposed in production.
+- Both endpoints are rate-limited.
+
 ---
 
 ## 🗄️ Database Schema Overview

@@ -12,6 +12,9 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [resetUrl, setResetUrl] = useState('')
+  // SMTP not configured in production — the server refuses to pretend an
+  // email was sent; surface that honestly instead of a fake success screen.
+  const [unavailable, setUnavailable] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
 
@@ -29,6 +32,11 @@ export default function ForgotPasswordPage() {
 
       const data = await res.json()
 
+      if (data.code === 'RESET_EMAIL_UNAVAILABLE') {
+        setUnavailable(true)
+        return
+      }
+
       if (data.resetUrl) {
         // Development only — show the link directly
         setResetUrl(data.resetUrl)
@@ -40,6 +48,28 @@ export default function ForgotPasswordPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (unavailable) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center px-4">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 mx-auto">
+            <Mail className="h-8 w-8" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Password Reset Unavailable</h1>
+            <p className="text-gray-400 text-sm mt-2">
+              Password reset email delivery is not configured on this server. Please contact your
+              administrator for help with your account.
+            </p>
+          </div>
+          <Link href="/login" className="inline-flex items-center text-sm text-gray-400 hover:text-amber-400 transition-colors">
+            <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to sign in
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   if (success) {

@@ -8,6 +8,7 @@ import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
+import { appConfig } from './app-config'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -56,6 +57,20 @@ export const authOptions: NextAuthOptions = {
         token.businessName = (user as any).businessName
         token.barberId = (user as any).barberId
       }
+      // Self-heal stale claims: an owner who signed in BEFORE creating their
+      // business carries businessId=null in the JWT. Once the business exists,
+      // resolve it from the DB so tenant-scoped routes (which read the claim)
+      // work immediately after onboarding — no re-login required.
+      if (!token.businessId && token.sub) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { businessId: true, business: { select: { name: true } } },
+        })
+        if (dbUser?.businessId) {
+          token.businessId = dbUser.businessId
+          token.businessName = dbUser.business?.name
+        }
+      }
       return token
     },
     async session({ session, token }) {
@@ -77,7 +92,18 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET || 'dev-only-fallback-secret-do-not-use-in-production',
+  // Session secret. In production the app REFUSES to boot with a fallback —
+  // a guessable secret would let anyone forge session JWTs.
+  secret: (() => {
+    if (process.env.NEXTAUTH_SECRET) return process.env.NEXTAUTH_SECRET
+    if (appConfig.isProduction) {
+      throw new Error(
+        'NEXTAUTH_SECRET is required in production. Generate one with `openssl rand -base64 32` and set it in your environment.'
+      )
+    }
+    // Local development only — never used when APP_MODE=production
+    return 'dev-only-secret-not-for-production'
+  })(),
 }
 
 // Re-export getServerSession for convenience

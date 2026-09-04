@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import nodemailer from 'nodemailer'
 import { isTwilioConfigured, sendSms } from '@/lib/twilio'
+import { getSmtpFromAddress } from '@/lib/app-config'
 
 function getTransporter() {
   return nodemailer.createTransport({
@@ -40,7 +41,7 @@ export async function processDueNotifications(limit = 50) {
         if (!result.success) throw new Error(result.error || 'SMS delivery failed')
         await prisma.notificationLog.update({ where: { id: row.id }, data: { status: 'SENT', sentAt: new Date(), providerMessageId: result.messageId || null } })
       } else {
-        await getTransporter().sendMail({ from: process.env.SMTP_FROM || 'noreply@barbershop.com', to: notification.recipient, subject: 'Message from your barber', text: notification.content || '' })
+        await getTransporter().sendMail({ from: getSmtpFromAddress(), to: notification.recipient, subject: 'Message from your barber', text: notification.content || '' })
         await prisma.notificationLog.update({ where: { id: row.id }, data: { status: 'SENT', sentAt: new Date() } })
       }
       sent++

@@ -130,11 +130,7 @@ export default async function HomePage() {
         day: day.charAt(0).toUpperCase() + day.slice(1),
         hours: val?.isOff ? 'Closed' : `${val?.open || '09:00'} - ${val?.close || '18:00'}`,
       }))
-    : [
-        { day: 'Monday - Friday', hours: '9:00 AM - 7:00 PM' },
-        { day: 'Saturday', hours: '9:00 AM - 6:00 PM' },
-        { day: 'Sunday', hours: '10:00 AM - 4:00 PM' },
-      ]
+    : [] // no database hours → show the by-appointment note, never invented hours
 
   return (
     <div className="space-y-16 lg:space-y-24 pb-12">
@@ -400,14 +396,21 @@ export default async function HomePage() {
                 Hours of Operation
               </h3>
               <div className="space-y-2">
-                {hoursList.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span className="text-zinc-400">{item.day}</span>
-                    <span className={`font-medium ${item.hours === 'Closed' ? 'text-red-400' : 'text-zinc-200'}`}>
-                      {item.hours}
-                    </span>
-                  </div>
-                ))}
+                {hoursList.length > 0 ? (
+                  hoursList.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="text-zinc-400">{item.day}</span>
+                      <span className={`font-medium ${item.hours === 'Closed' ? 'text-red-400' : 'text-zinc-200'}`}>
+                        {item.hours}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  // Shop owner hasn't configured hours — never invent them
+                  <p className="text-sm text-zinc-400">
+                    By appointment — see available times when booking.
+                  </p>
+                )}
               </div>
             </div>
 

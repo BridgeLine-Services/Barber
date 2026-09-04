@@ -14,6 +14,7 @@ export const ONBOARDING_STEP_LABELS: Record<string, string> = {
   services: 'Services',
   team: 'Team',
   booking: 'Booking Settings',
+  review: 'Review',
   done: 'Done',
 }
 
@@ -25,6 +26,7 @@ export const WIZARD_STEPS = [
   { key: 'services', label: 'Services' },
   { key: 'team', label: 'Team' },
   { key: 'booking', label: 'Booking' },
+  { key: 'review', label: 'Review' },
 ] as const
 
 export type WizardStepKey = (typeof WIZARD_STEPS)[number]['key']

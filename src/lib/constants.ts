@@ -46,14 +46,6 @@ export const DAYS_OF_WEEK = [
   'Saturday',
 ]
 
-export const DEFAULT_SERVICES = [
-  { name: 'Haircut', duration: 30, price: 35 },
-  { name: 'Haircut + Beard', duration: 45, price: 50 },
-  { name: 'Beard Trim', duration: 20, price: 25 },
-  { name: 'Kids Haircut', duration: 30, price: 30 },
-  { name: 'Premium Cut', duration: 60, price: 65 },
-]
-
 export const PAYMENT_DISCLAIMER =
   'Prices are subject to change. Payment is collected in person at the time of your appointment.'
 

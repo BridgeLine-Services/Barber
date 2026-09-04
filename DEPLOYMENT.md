@@ -32,9 +32,21 @@ In the Vercel dashboard, go to **Settings → Environment Variables** and add:
 | `SMTP_USER` | `your-email@gmail.com` | SMTP username |
 | `SMTP_PASS` | `your-app-password` | SMTP password (App Password for Gmail) |
 | `SMTP_FROM` | `noreply@yourbarbershop.com` | From email address |
-| `NEXT_PUBLIC_APP_NAME` | `BarberOS` | Public app name |
+| `NEXT_PUBLIC_APP_NAME` | `Your Barbershop` | Public app name (set per customer deployment) |
+| `APP_MODE` | *(unset)* or `production` | `demo` enables the demo dataset — **never use `demo` on a customer deployment** |
+| `OWNER_REGISTRATION_MODE` | `onboarding` | `onboarding` = public owner sign-up (default) · `invite_only` = sign-up closed, invitation notice shown · `disabled` = registration hidden, existing users only. Unknown values fail safe to `disabled`. |
 
 > ⚠️ **Important:** Set `NEXTAUTH_URL` to your final production URL once you have a custom domain. Otherwise use the Vercel-generated URL.
+>
+> ⚠️ **`NEXTAUTH_SECRET` is mandatory in production** — the app refuses to boot with a fallback secret. Also note the app **never falls back to demo data**: every shop's name, branding, services, barbers, hours, and policies come from the database.
+
+### After deployment: first owner setup
+
+1. Apply migrations: `npx prisma migrate deploy` (run locally against your production `DATABASE_URL`, or from the Vercel CLI).
+2. With `OWNER_REGISTRATION_MODE=onboarding`, the first owner creates their account at `/login` (no seed required) and is routed into the onboarding wizard: Business Basics → Branding → Services → Team → Booking Settings → Review.
+3. Setup can only be completed when the shop has a name, slug, timezone, at least one active service, one active barber, and weekly schedules — enforced server-side on the Review step.
+4. After completing setup, the owner lands in `/dashboard`; services, barbers, branding, and settings remain fully editable.
+5. Password recovery is self-service at `/forgot-password` (tokens expire in 1 hour, single-use, stored hashed). It requires the `SMTP_*` variables above — in production the server never pretends an email was sent when SMTP is missing.
 
 ## Step 3: Deploy
 
@@ -69,7 +81,7 @@ npm run db:seed                # Seed demo data
 ## Step 5: Set Up a Custom Domain (Optional)
 
 1. In Vercel: **Settings → Domains**
-2. Add your domain (e.g., `book.fadefactory.com`)
+2. Add your domain (e.g., `book.yourbarbershop.com`)
 3. Update your DNS records as instructed
 4. Update the `NEXTAUTH_URL` environment variable to match
 

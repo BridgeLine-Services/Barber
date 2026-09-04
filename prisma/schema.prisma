@@ -124,6 +124,8 @@ model User {
   // Forces a password change on next login (set by the seed script for
   // generated/demo credentials; cleared by /change-password)
   mustChangePassword   Boolean   @default(false)
+  // Last time the password was set/changed (set on register/reset/change)
+  passwordChangedAt    DateTime?
 
   @@index([businessId])
 }

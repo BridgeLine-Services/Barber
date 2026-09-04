@@ -5,11 +5,15 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { registrationConfig } from '@/lib/app-config'
+import { passwordPolicySchema, normalizeEmail } from '@/lib/validation'
 
 const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  name: z.string().min(2).max(100),
+  // Trim before validating — typed whitespace shouldn't fail signup
+  email: z.string().trim().email().transform(normalizeEmail),
+  // Shared password policy (same as reset/change flows)
+  password: passwordPolicySchema,
+  name: z.string().trim().min(2, 'Name must be at least 2 characters').max(100),
 })
 
 /**
@@ -19,6 +23,22 @@ const registerSchema = z.object({
  * /dashboard/onboarding to create their shop.
  */
 export async function POST(req: NextRequest) {
+  // Deployment-level registration switch (OWNER_REGISTRATION_MODE).
+  // The check lives server-side so the API is safe regardless of what the
+  // UI shows; the UI only mirrors this setting.
+  if (registrationConfig.isDisabled) {
+    return NextResponse.json(
+      { error: 'Registration is currently unavailable. Please contact your administrator.', code: 'REGISTRATION_DISABLED' },
+      { status: 403 }
+    )
+  }
+  if (registrationConfig.isInviteOnly) {
+    return NextResponse.json(
+      { error: 'Accounts can only be created through an invitation. Please contact your administrator.', code: 'REGISTRATION_INVITE_ONLY' },
+      { status: 403 }
+    )
+  }
+
   // Rate limit
   const rateLimitResult = checkRateLimit(req, 'register', { windowMs: 60_000, maxRequests: 3 })
   if (rateLimitResult) {
@@ -38,6 +58,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Email is normalized (trim + lowercase) by the schema — so case
+    // variants can never create duplicate accounts.
     const { email, password, name } = parsed.data
 
     // Check if email already exists
@@ -85,8 +107,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Generic message — never expose internal error details to the client.
     return NextResponse.json(
-      { error: 'Registration failed', detail: error.message },
+      { error: 'Registration failed. Please try again.' },
       { status: 500 }
     )
   }

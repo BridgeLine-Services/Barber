@@ -248,7 +248,7 @@ export function BookingSettingsStep({
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    <Check className="mr-1.5 h-4 w-4" /> Finish setup
+                    <Check className="mr-1.5 h-4 w-4" /> Continue to Review
                   </>
                 )}
               </Button>

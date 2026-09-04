@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { formatFullDate, formatTime } from '@/lib/utils'
 import nodemailer from 'nodemailer'
 import { sendSms, isTwilioConfigured, buildReminderMessage, buildConfirmationMessage } from '@/lib/twilio'
+import { getSmtpFromAddress } from '@/lib/app-config'
 
 // ============================================================================
 // Notification System
@@ -194,7 +195,7 @@ export async function sendBookingConfirmation(appointment: AppointmentWithRelati
   try {
     const transport = getTransporter()
     await transport.sendMail({
-      from: process.env.SMTP_FROM || 'noreply@barbershop.com',
+      from: getSmtpFromAddress(),
       to: appointment.customer.email,
       subject: `Appointment Confirmed — ${appointment.business.name}`,
       html: customerHtml,
@@ -225,7 +226,7 @@ export async function sendBookingConfirmation(appointment: AppointmentWithRelati
     try {
       const transport = getTransporter()
       await transport.sendMail({
-        from: process.env.SMTP_FROM || 'noreply@barbershop.com',
+        from: getSmtpFromAddress(),
         to: appointment.business.email,
         subject: `New Appointment: ${appointment.customer.firstName} ${appointment.customer.lastName}`,
         html: barberHtml,
@@ -300,7 +301,7 @@ export async function sendAppointmentReminder(appointment: AppointmentWithRelati
   try {
     const transport = getTransporter()
     await transport.sendMail({
-      from: process.env.SMTP_FROM || 'noreply@barbershop.com',
+      from: getSmtpFromAddress(),
       to: appointment.customer.email,
       subject: `Appointment Reminder — ${appointment.business.name}`,
       html,
@@ -418,7 +419,7 @@ export async function sendWaitlistSlotNotification(params: {
   try {
     const transport = getTransporter()
     await transport.sendMail({
-      from: process.env.SMTP_FROM || 'noreply@barbershop.com',
+      from: getSmtpFromAddress(),
       to: params.customer.email,
       subject: `Slot Available — ${params.business.name}`,
       html,

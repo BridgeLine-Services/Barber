@@ -2,8 +2,8 @@ import { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Book Appointment',
-    short_name: 'Book Now',
+    name: process.env.NEXT_PUBLIC_APP_NAME || 'Book Appointment',
+    short_name: (process.env.NEXT_PUBLIC_APP_NAME || 'Book Appointment').split(' ')[0],
     description: 'Book your next appointment online. Quick, easy, no app download required.',
     start_url: '/',
     display: 'standalone',

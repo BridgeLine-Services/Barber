@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import { contactFormSchema } from '@/lib/validation'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { getSmtpFromAddress } from '@/lib/app-config'
 
 export async function POST(req: NextRequest) {
   // Rate limit contact form — 3 per minute per IP
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
         })
 
         await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'noreply@barbershop.com',
+          from: getSmtpFromAddress(),
           to: process.env.CONTACT_EMAIL || process.env.SMTP_USER,
           subject: `New Contact Form Submission from ${name}`,
           text: `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,

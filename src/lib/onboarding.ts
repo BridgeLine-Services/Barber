@@ -28,7 +28,7 @@ export type DashboardAccess = {
 }
 
 /** Onboarding wizard step keys (persisted in Business.onboardingStep). */
-export const ONBOARDING_STEPS = ['business', 'branding', 'services', 'team', 'booking', 'done'] as const
+export const ONBOARDING_STEPS = ['business', 'branding', 'services', 'team', 'booking', 'review', 'done'] as const
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]
 
 /**
@@ -133,4 +133,113 @@ export async function checkDashboardAccess(
 
   // Priority 4 — access allowed
   return { allowed: true }
+}
+
+// ============================================================================
+// ONBOARDING REQUIREMENTS — the single server-side definition of what makes
+// a shop "bookable". Checked before onboarding can be marked complete and
+// surfaced in the Review step so the owner sees exactly what is missing and
+// which wizard step fixes it.
+// ============================================================================
+
+import { validateSlug } from '@/lib/onboarding-constants'
+
+export interface OnboardingRequirement {
+  /** Stable code, safe to match on. */
+  code:
+    | 'business_name'
+    | 'business_slug'
+    | 'timezone'
+    | 'active_service'
+    | 'active_barber'
+    | 'barber_schedule'
+  /** Human label shown to the owner. */
+  label: string
+  /** Wizard step that satisfies this requirement. */
+  step: 'business' | 'services' | 'team'
+}
+
+/** A requirement that is not yet satisfied. */
+export interface MissingRequirement extends OnboardingRequirement {
+  /** Short, actionable hint. */
+  hint: string
+}
+
+export const ONBOARDING_REQUIREMENTS: OnboardingRequirement[] = [
+  { code: 'business_name', label: 'Business name', step: 'business' },
+  { code: 'business_slug', label: 'Web address (slug)', step: 'business' },
+  { code: 'timezone', label: 'Timezone', step: 'business' },
+  { code: 'active_service', label: 'At least one active service', step: 'services' },
+  { code: 'active_barber', label: 'At least one active barber', step: 'team' },
+  { code: 'barber_schedule', label: 'Weekly schedule for every active barber', step: 'team' },
+]
+
+const REQUIREMENT_HINTS: Record<OnboardingRequirement['code'], string> = {
+  business_name: 'Add your shop name in Business Basics.',
+  business_slug: 'Set your web address in Business Basics.',
+  timezone: 'Choose your timezone in Business Basics.',
+  active_service: 'Add at least one service customers can book.',
+  active_barber: 'Add at least one barber who takes appointments.',
+  barber_schedule: 'Set working hours for every active barber in the Team step.',
+}
+
+export interface OnboardingRequirementsResult {
+  ok: boolean
+  /** Requirements not yet satisfied (empty when ok). */
+  missing: MissingRequirement[]
+}
+
+/**
+ * Evaluate ALL server-side completion requirements for a business:
+ *   - business name, valid slug, and timezone exist
+ *   - at least one ACTIVE service
+ *   - at least one ACTIVE barber
+ *   - every active barber has schedule information (bookable hours)
+ *
+ * This is the authoritative check — the PATCH completion gate and the
+ * Review step both use it, so they can never disagree.
+ */
+export async function checkOnboardingRequirements(
+  businessId: string
+): Promise<OnboardingRequirementsResult> {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { name: true, slug: true, timezone: true },
+  })
+
+  const missing: MissingRequirement[] = []
+
+  const push = (code: OnboardingRequirement['code']) => {
+    const req = ONBOARDING_REQUIREMENTS.find((r) => r.code === code)!
+    missing.push({ ...req, hint: REQUIREMENT_HINTS[code] })
+  }
+
+  if (business) {
+    if (!business.name || !business.name.trim()) push('business_name')
+    if (!business.slug || validateSlug(business.slug) !== null) push('business_slug')
+    if (!business.timezone) push('timezone')
+  } else {
+    // No business record at all — every requirement is missing.
+    push('business_name')
+    push('business_slug')
+    push('timezone')
+  }
+
+  const [activeServices, activeBarbers] = await Promise.all([
+    prisma.service.count({ where: { businessId, isActive: true } }),
+    prisma.barber.findMany({
+      where: { businessId, isActive: true },
+      select: { id: true, schedules: { select: { id: true } } },
+    }),
+  ])
+
+  if (activeServices === 0) push('active_service')
+  if (activeBarbers.length === 0) push('active_barber')
+  // Required schedule information: every active barber must have at least
+  // one schedule entry (working hours) so the booking engine can produce slots.
+  if (activeBarbers.length > 0 && activeBarbers.some((b) => b.schedules.length === 0)) {
+    push('barber_schedule')
+  }
+
+  return { ok: missing.length === 0, missing }
 }
