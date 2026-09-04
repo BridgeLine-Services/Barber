@@ -6,6 +6,8 @@ import {
   localTimeToUTCFromYMD,
   dayOfWeekFromYMD,
   formatInTimezone,
+  dateOnlyUTCFromYMD,
+  toLocalDate,
 } from '@/lib/timezone'
 
 // ============================================================================
@@ -110,7 +112,7 @@ export async function getAvailableSlots(params: {
     }),
     // Check for date-specific availability override for this barber
     prisma.availabilityOverride.findUnique({
-      where: { barberId_date: { barberId, date: new Date(year, month - 1, day) } },
+      where: { barberId_date: { barberId, date: dateOnlyUTCFromYMD(year, month, day) } },
     }),
   ])
 
@@ -384,15 +386,18 @@ export async function validateSlot(params: {
 
   // 5. Check barber schedule — availability override takes priority
   const timezone = await getBusinessTimezone(businessId)
-  const dayOfWeek = startTime.getDay()
+  const localStart = toLocalDate(startTime, timezone)
+  const year = localStart.year
+  const month = localStart.month
+  const day = localStart.day
+  const dayOfWeek = localStart.weekday % 7
   const schedule = await prisma.schedule.findUnique({
     where: { barberId_dayOfWeek: { barberId, dayOfWeek } },
   })
 
-  // Check for date-specific availability override
-  const overrideDate = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate())
+  // Check for date-specific availability override using the business calendar day.
   const override = await prisma.availabilityOverride.findUnique({
-    where: { barberId_date: { barberId, date: overrideDate } },
+    where: { barberId_date: { barberId, date: dateOnlyUTCFromYMD(year, month, day) } },
   })
 
   if (override) {
@@ -479,14 +484,17 @@ export async function createAppointmentSafely(params: {
 
       // 4. Check barber schedule — availability override takes priority
       const tz = await getBusinessTimezone(businessId)
-      const dayOfWeek = startTime.getDay()
+      const localStart = toLocalDate(startTime, tz)
+      const year = localStart.year
+      const month = localStart.month
+      const day = localStart.day
+      const dayOfWeek = localStart.weekday % 7
       const schedule = await tx.schedule.findUnique({
         where: { barberId_dayOfWeek: { barberId, dayOfWeek } },
       })
 
-      const overrideDate = new Date(startTime.getFullYear(), startTime.getMonth(), startTime.getDate())
       const override = await tx.availabilityOverride.findUnique({
-        where: { barberId_date: { barberId, date: overrideDate } },
+        where: { barberId_date: { barberId, date: dateOnlyUTCFromYMD(year, month, day) } },
       })
 
       if (override) {
