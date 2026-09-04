@@ -141,6 +141,15 @@ export function dayOfWeekFromYMD(timezone: string, year: number, month: number, 
 }
 
 /**
+ * Return a calendar date suitable for Prisma's @db.Date fields.
+ * Date-only values are normalized to UTC midnight so the server timezone
+ * cannot shift the stored calendar day.
+ */
+export function dateOnlyUTCFromYMD(year: number, month: number, day: number): Date {
+  return DateTime.utc(year, month, day).startOf('day').toJSDate()
+}
+
+/**
  * Get a human-readable timezone offset label
  * e.g. "PST (UTC-8)" or "PDT (UTC-7)"
  */
