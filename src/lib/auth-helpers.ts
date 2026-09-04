@@ -112,7 +112,10 @@ export async function logAudit(params: {
   ipAddress?: string
   userAgent?: string
 }): Promise<void> {
-  if (params.businessId && params.userId) {
+  // businessId is nullable in the schema: a user without a business yet
+  // (e.g. a forced password change during first-owner setup) must still
+  // get security events recorded.
+  if (params.userId || params.businessId) {
     try {
       await prisma.auditLog.create({
         data: {

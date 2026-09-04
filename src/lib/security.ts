@@ -110,7 +110,7 @@ export function checkPasswordStrength(password: string): { score: number; label:
   const suggestions: string[] = []
   
   if (password.length >= 8) score++
-  else suggestions.push('Use at least 8 characters')
+  else suggestions.push('Use at least 10 characters')
   
   if (password.length >= 12) score++
   

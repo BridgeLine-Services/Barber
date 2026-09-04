@@ -36,8 +36,12 @@ export default function ChangePasswordPage() {
       setError('New passwords do not match')
       return
     }
-    if (form.newPassword.length < 8) {
-      setError('New password must be at least 8 characters')
+    if (form.newPassword.length < 10) {
+      setError('New password must be at least 10 characters')
+      return
+    }
+    if (!/[A-Z]/.test(form.newPassword) || !/[a-z]/.test(form.newPassword) || !/[0-9]/.test(form.newPassword)) {
+      setError('New password needs an uppercase letter, a lowercase letter, and a number')
       return
     }
 
@@ -49,13 +53,16 @@ export default function ChangePasswordPage() {
         body: JSON.stringify({
           currentPassword: form.currentPassword,
           newPassword: form.newPassword,
+          confirmPassword: form.confirmPassword,
         }),
       })
       const data = await res.json()
 
       if (res.ok && data.success) {
         toast({ title: 'Password updated', description: 'Your dashboard is now unlocked.' })
-        router.push('/dashboard')
+        // Server decides the destination: onboarding wizard if setup is
+        // unfinished, otherwise the dashboard.
+        router.push(data.redirectTo || '/dashboard')
         router.refresh()
       } else {
         setError(data.error || 'Failed to change password')
@@ -112,7 +119,7 @@ export default function ChangePasswordPage() {
                   minLength={8}
                   required
                 />
-                <p className="text-[11px] text-zinc-500">Minimum 8 characters.</p>
+                <p className="text-[11px] text-zinc-500">Minimum 10 characters with an uppercase letter, a lowercase letter, and a number.</p>
               </div>
 
               <div className="space-y-2">

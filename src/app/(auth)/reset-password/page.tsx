@@ -29,7 +29,7 @@ export default function ResetPasswordPage() {
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters')
+      setError('Password must be at least 10 characters')
       setLoading(false)
       return
     }

@@ -9,13 +9,20 @@ import { getClientIP } from '@/lib/rate-limit'
 import { AuditAction } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
+import { passwordPolicySchema } from '@/lib/validation'
 
-const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(100, 'Password is too long'),
-})
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    // Shared policy: min 10 chars, uppercase, lowercase, number
+    newPassword: passwordPolicySchema,
+    // Confirm is validated server-side too — never trust the client alone
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
 
 /**
  * POST /api/auth/change-password
@@ -65,13 +72,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Update password and clear the forced-change flag
+    // Update password, clear the forced-change flag, stamp the change,
+    // and clear any temporary-password expiry.
     const passwordHash = await bcrypt.hash(newPassword, 10)
     await prisma.user.update({
       where: { id: user.id },
       data: {
         passwordHash,
         mustChangePassword: false,
+        passwordChangedAt: new Date(),
+        temporaryPasswordExpiresAt: null,
       },
     })
 
@@ -86,7 +96,22 @@ export async function POST(req: NextRequest) {
       ipAddress: getClientIP(req),
     }).catch(() => {}) // audit failures must not block the password change
 
-    return NextResponse.json({ success: true })
+    // Redirect target depends on onboarding status: an owner who hasn't
+    // finished setup goes back to the wizard; everyone else to the dashboard.
+    let redirectTo = '/dashboard'
+    if (user.role === 'OWNER') {
+      if (!user.businessId) {
+        redirectTo = '/dashboard/onboarding'
+      } else {
+        const business = await prisma.business.findUnique({
+          where: { id: user.businessId },
+          select: { onboardingCompleted: true },
+        })
+        if (!business?.onboardingCompleted) redirectTo = '/dashboard/onboarding'
+      }
+    }
+
+    return NextResponse.json({ success: true, redirectTo })
   } catch (error: any) {
     console.error('Change password error:', error)
     return NextResponse.json({ error: 'Failed to change password' }, { status: 500 })

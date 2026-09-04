@@ -9,6 +9,17 @@ jqpy() { python3 -c "import sys,json;d=json.load(sys.stdin);print(eval(sys.argv[
 check() { if [ "$2" = "$3" ]; then echo "✓ $1"; PASS=$((PASS+1)); else echo "✗ $1 (want '$2' got '$3')"; FAIL=$((FAIL+1)); fi; }
 req() { curl -s -X ${1} -H 'Content-Type: application/json' -b "$JAR" -c "$JAR" "${@:4}" "$BASE$2" -d "$3"; }
 
+echo "═══ 0. Cleanup: remove users/businesses from previous runs ═══"
+npx tsx -e "
+import { prisma } from './src/lib/prisma'
+async function main() {
+  await prisma.business.deleteMany({ where: { slug: 'review-test-shop' } })
+  await prisma.user.deleteMany({ where: { email: { in: ['e2e-owner@test.dev', 'e2e2@test.dev'] } } })
+  console.log('clean')
+}
+main().finally(() => prisma['\$disconnect']())" >/dev/null 2>&1
+sleep 1
+
 echo "═══ 1. OWNER_REGISTRATION_MODE enforcement (API) ═══"
 # Server runs with OWNER_REGISTRATION_MODE unset → default 'onboarding' (open)
 R=$(req POST /api/auth/register '{"name":"E2E Owner","email":"E2E-Owner@Test.dev","password":"Passw0rd123"}' -o /dev/null -w "%{http_code}")

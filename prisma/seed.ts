@@ -106,7 +106,13 @@ async function main() {
   // All seeded users must change their password before reaching the dashboard.
   // The dashboard access gate (src/lib/onboarding.ts) enforces this server-side.
   const passwordHash = await bcrypt.hash(ownerPassword, 10)
-  const userFlags = { mustChangePassword: true }
+  // Seeded credentials are temporary: they must be changed (mustChangePassword)
+  // and expire after TEMP_PASSWORD_TTL_DAYS days.
+  const TEMP_PASSWORD_TTL_DAYS = 7
+  const userFlags = {
+    mustChangePassword: true,
+    temporaryPasswordExpiresAt: new Date(Date.now() + TEMP_PASSWORD_TTL_DAYS * 24 * 60 * 60 * 1000),
+  }
 
   // 1. Create Business
   const business = await prisma.business.create({

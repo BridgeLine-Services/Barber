@@ -126,6 +126,8 @@ model User {
   mustChangePassword   Boolean   @default(false)
   // Last time the password was set/changed (set on register/reset/change)
   passwordChangedAt    DateTime?
+  // Expiry for seed/admin-assigned temporary passwords (cleared on change)
+  temporaryPasswordExpiresAt DateTime?
 
   @@index([businessId])
 }
