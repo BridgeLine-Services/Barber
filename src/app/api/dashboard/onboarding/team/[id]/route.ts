@@ -16,6 +16,7 @@ import {
 const barberSubset = {
   id: true,
   name: true,
+  slug: true,
   specialty: true,
   bio: true,
   photo: true,

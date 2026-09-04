@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, ArrowRight, Loader2, Pencil, Plus, Trash2, UserRound, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Copy, Loader2, Pencil, Plus, Trash2, UserRound, X } from 'lucide-react'
 
 export interface ScheduleDay {
   dayOfWeek: number // 0 = Sunday … 6 = Saturday
@@ -183,6 +183,19 @@ export function TeamStep({ submitting, serverError, onContinue, onBack }: TeamSt
       ...f,
       schedule: f.schedule.map((d) =>
         d.dayOfWeek === dayOfWeek ? { ...d, breaks: d.breaks.filter((_, i) => i !== index) } : d
+      ),
+    }))
+  }
+
+  /** Apply one day's hours (and breaks) to every day of the week.
+   *  Day-off checkboxes are left untouched — only times change. */
+  function copyDayToAll(source: ScheduleDay) {
+    setForm((f) => ({
+      ...f,
+      schedule: f.schedule.map((d) =>
+        d.dayOfWeek === source.dayOfWeek
+          ? d
+          : { ...d, startTime: source.startTime, endTime: source.endTime, breaks: source.breaks.map((b) => ({ ...b })) }
       ),
     }))
   }
@@ -459,6 +472,16 @@ export function TeamStep({ submitting, serverError, onContinue, onBack }: TeamSt
                           onClick={() => (day.breaks.length === 0 ? addBreak(day.dayOfWeek) : updateDay(day.dayOfWeek, { breaks: [] }))}
                         >
                           {day.breaks.length === 0 ? '+ Break' : 'Remove breaks'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-zinc-500 hover:text-zinc-300"
+                          title="Copy these hours to every day"
+                          onClick={() => copyDayToAll(day)}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     )}
