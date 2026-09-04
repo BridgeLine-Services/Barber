@@ -14,6 +14,18 @@ import { getSmtpFromAddress } from '@/lib/app-config'
 
 let transporter: nodemailer.Transporter | null = null
 
+export function isEmailConfigured(): boolean {
+  if (process.env.EMAIL_ENABLED?.toLowerCase() === 'false') return false
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.SMTP_FROM)
+}
+
+export function notificationStatus() {
+  return {
+    email: isEmailConfigured(),
+    sms: process.env.SMS_ENABLED?.toLowerCase() === 'false' ? false : isTwilioConfigured(),
+  }
+}
+
 function getTransporter(): nodemailer.Transporter {
   if (transporter) return transporter
 
@@ -124,6 +136,8 @@ export async function scheduleAppointmentReminders(appointment: AppointmentWithR
   reminder2HoursEnabled?: boolean
   sameDayReminderEnabled?: boolean
 } = {}) {
+  if (!isEmailConfigured()) return { scheduled: 0, skipped: true, reason: 'Email notifications are not configured' }
+
   const reminders = [
     settings.reminder24HoursEnabled !== false ? { type: 'BOOKING_REMINDER' as const, hours: 24 } : null,
     settings.reminder2HoursEnabled !== false ? { type: 'BOOKING_REMINDER' as const, hours: 2 } : null,
@@ -191,38 +205,40 @@ export async function sendBookingConfirmation(appointment: AppointmentWithRelati
     </div>
   `
 
-  // Send customer confirmation email
-  try {
-    const transport = getTransporter()
-    await transport.sendMail({
-      from: getSmtpFromAddress(),
-      to: appointment.customer.email,
-      subject: `Appointment Confirmed — ${appointment.business.name}`,
-      html: customerHtml,
-    })
-    await logNotification({
-      businessId: appointment.business.id,
-      appointmentId: appointment.id,
-      recipient: appointment.customer.email,
-      channel: 'EMAIL',
-      type: 'BOOKING_CONFIRMATION',
-      status: 'SENT',
-    })
-  } catch (error) {
-    console.error('Email notification error:', error)
-    await logNotification({
-      businessId: appointment.business.id,
-      appointmentId: appointment.id,
-      recipient: appointment.customer.email,
-      channel: 'EMAIL',
-      type: 'BOOKING_CONFIRMATION',
-      status: 'FAILED',
-      errorMessage: String(error),
-    })
+  // Email is optional and must never affect booking success.
+  if (isEmailConfigured()) {
+    try {
+      const transport = getTransporter()
+      await transport.sendMail({
+        from: getSmtpFromAddress(),
+        to: appointment.customer.email,
+        subject: `Appointment Confirmed — ${appointment.business.name}`,
+        html: customerHtml,
+      })
+      await logNotification({
+        businessId: appointment.business.id,
+        appointmentId: appointment.id,
+        recipient: appointment.customer.email,
+        channel: 'EMAIL',
+        type: 'BOOKING_CONFIRMATION',
+        status: 'SENT',
+      })
+    } catch (error) {
+      console.error('Email notification error:', error)
+      await logNotification({
+        businessId: appointment.business.id,
+        appointmentId: appointment.id,
+        recipient: appointment.customer.email,
+        channel: 'EMAIL',
+        type: 'BOOKING_CONFIRMATION',
+        status: 'FAILED',
+        errorMessage: String(error),
+      })
+    }
   }
 
   // Send barber/shop notification email
-  if (appointment.business.email) {
+  if (isEmailConfigured() && appointment.business.email) {
     try {
       const transport = getTransporter()
       await transport.sendMail({

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import nodemailer from 'nodemailer'
 import { isTwilioConfigured, sendSms } from '@/lib/twilio'
 import { getSmtpFromAddress } from '@/lib/app-config'
+import { isEmailConfigured } from '@/lib/notifications'
 
 function getTransporter() {
   return nodemailer.createTransport({
@@ -36,7 +37,10 @@ export async function processDueNotifications(limit = 50) {
     if (!notification) continue
     try {
       if (notification.channel === 'SMS') {
-        if (!isTwilioConfigured()) throw new Error('SMS provider is not configured')
+        if (!isTwilioConfigured()) {
+          await prisma.notificationLog.update({ where: { id: row.id }, data: { status: 'FAILED', errorMessage: 'SMS notifications are not configured', failureReason: 'SMS notifications are not configured' } })
+          continue
+        }
         const result = await sendSms(notification.recipient, notification.content || '')
         if (!result.success) throw new Error(result.error || 'SMS delivery failed')
         await prisma.notificationLog.update({ where: { id: row.id }, data: { status: 'SENT', sentAt: new Date(), providerMessageId: result.messageId || null } })
