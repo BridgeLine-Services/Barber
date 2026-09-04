@@ -78,15 +78,19 @@ cp .env.example .env
 Fill in your database URL and NextAuth secret in `.env`:
 ```env
 # DATABASE_URL must be configured in your environment; do not commit a connection string.
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-generated-secret-key"
 
+# Email is optional; the booking system works without these variables.
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="587"
 SMTP_USER="your-email@gmail.com"
 SMTP_PASS="your-app-password"
 SMTP_FROM="noreply@yourbarbershop.com"
 ```
+
+`NEXT_PUBLIC_APP_URL` is the single public URL used for metadata, canonical links, Open Graph, sitemap, and robots. It may remain unset during local development (the app falls back to `http://localhost:3000`), but set it to the client's HTTPS domain before deployment.
 
 ### 4. Push Prisma database schema
 ```bash
