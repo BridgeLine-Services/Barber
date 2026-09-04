@@ -92,6 +92,8 @@ SMTP_FROM="noreply@yourbarbershop.com"
 
 `NEXT_PUBLIC_APP_URL` is the single public URL used for metadata, canonical links, Open Graph, sitemap, and robots. It may remain unset during local development (the app falls back to `http://localhost:3000`), but set it to the client's HTTPS domain before deployment.
 
+For a cloned single-business deployment, set `SINGLE_BUSINESS_ID` to the configured `Business.id`. Public routes try hostname/slug resolution first, then use this explicit business selector, so a custom domain does not need to match the shop slug. Leave it unset when using hostname/slug resolution only.
+
 ### 4. Push Prisma database schema
 ```bash
 npx prisma db push
