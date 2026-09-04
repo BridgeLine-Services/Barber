@@ -225,7 +225,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json(updated)
   } catch (error: any) {
-    if (error?.message === 'SLOT_TAKEN' || error?.code === 'P2034') {
+    if (error?.message === 'SLOT_TAKEN' || error?.code === 'P2034' || error?.code === '23P01') {
       return NextResponse.json({ error: 'That appointment was just booked by someone else. Please choose another time.' }, { status: 409 })
     }
     console.error('[appointment-mutation] failed', error)

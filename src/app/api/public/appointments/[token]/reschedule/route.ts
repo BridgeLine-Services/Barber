@@ -26,10 +26,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const slot = await validateSlot({ businessId: appointment.businessId, barberId: appointment.barberId, serviceId: appointment.serviceId, startTime, excludeAppointmentId: appointment.id })
   if (!slot.valid) return NextResponse.json({ error: slot.error === 'SLOT_TAKEN' ? 'That time is no longer available.' : 'That time is outside the barber\'s availability.' }, { status: 409 })
 
-  const updated = await prisma.$transaction(async tx => {
-    const result = await tx.appointment.update({ where: { id: appointment.id }, data: { startTime, endTime: slot.endTime, status: 'CONFIRMED' } })
-    await tx.rescheduleHistory.create({ data: { businessId: appointment.businessId, appointmentId: appointment.id, previousStartTime: appointment.startTime, previousEndTime: appointment.endTime, newStartTime: startTime, newEndTime: slot.endTime!, actor: 'CUSTOMER' } })
-    return result
-  })
-  return NextResponse.json({ success: true, startTime: updated.startTime, endTime: updated.endTime })
+  try {
+    const updated = await prisma.$transaction(async tx => {
+      const result = await tx.appointment.update({ where: { id: appointment.id }, data: { startTime, endTime: slot.endTime, status: 'CONFIRMED' } })
+      await tx.rescheduleHistory.create({ data: { businessId: appointment.businessId, appointmentId: appointment.id, previousStartTime: appointment.startTime, previousEndTime: appointment.endTime, newStartTime: startTime, newEndTime: slot.endTime!, actor: 'CUSTOMER' } })
+      return result
+    }, { isolationLevel: 'Serializable' })
+    return NextResponse.json({ success: true, startTime: updated.startTime, endTime: updated.endTime })
+  } catch (error: any) {
+    if (error?.code === 'P2034' || error?.code === '23P01') {
+      return NextResponse.json({ error: 'That time is no longer available. Please choose another time.' }, { status: 409 })
+    }
+    console.error('[reschedule] failed', error)
+    return NextResponse.json({ error: 'Something went wrong while rescheduling. Please try again.' }, { status: 500 })
+  }
 }

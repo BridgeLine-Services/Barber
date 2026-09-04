@@ -589,7 +589,7 @@ export async function createAppointmentSafely(params: {
     return { success: true, appointment: result, customerAccessToken: result.customerAccessToken }
   } catch (error: any) {
     const message = error.message || 'Unknown error'
-    if (message === 'SLOT_TAKEN' || error?.code === 'P2034') {
+    if (message === 'SLOT_TAKEN' || error?.code === 'P2034' || error?.code === '23P01') {
       return { success: false, error: 'That appointment was just booked by someone else. Please choose another time.' }
     }
     if (message === 'BARBER_OFF') {
