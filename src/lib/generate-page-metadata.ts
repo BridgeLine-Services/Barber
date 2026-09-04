@@ -7,6 +7,7 @@
 import type { Metadata } from 'next'
 import { resolveBusiness } from '@/lib/tenant'
 import { prisma } from '@/lib/prisma'
+import { getAppUrlString } from '@/lib/app-url'
 
 interface PageMetaOptions {
   /** Page-specific title suffix, e.g. "Services & Pricing" */
@@ -43,11 +44,9 @@ export async function generatePageMetadata({
     where: { businessId: business.id },
   }).catch(() => null)
 
-  // Build canonical URL if we have a domain or canonical override
-  let canonical: string | undefined
-  if (seo?.canonicalUrl) {
-    canonical = path ? `${seo.canonicalUrl}${path}` : seo.canonicalUrl
-  }
+  // Prefer a configured business canonical URL, then fall back to the deployment URL.
+  const canonicalBase = seo?.canonicalUrl || getAppUrlString()
+  const canonical = new URL(path || '/', `${canonicalBase}/`).toString()
 
   // Use the site-level description as a fallback, then the page-level one
   const metaDescription =

@@ -1,10 +1,8 @@
 import { MetadataRoute } from 'next'
+import { getAppUrlString } from '@/lib/app-url'
 
 export default function robots(): MetadataRoute.Robots {
-  const configuredUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL
-  const baseUrl = configuredUrl && (configuredUrl.startsWith('http://') || configuredUrl.startsWith('https://'))
-    ? configuredUrl
-    : configuredUrl ? `https://${configuredUrl}` : undefined
+  const baseUrl = getAppUrlString()
 
   return {
     rules: [

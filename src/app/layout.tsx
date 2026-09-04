@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Poppins, Montserrat, Playfair_Display, Roboto, Oswald, Lato } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
+import { getAppUrl, getAppUrlString } from '@/lib/app-url'
 
 // Template font options — every family selectable in onboarding/branding is
 // loaded here so the owner's choice renders on the public site (see lib/theme.ts).
@@ -14,16 +15,20 @@ const oswald = Oswald({ subsets: ['latin'], weight: ['400', '500', '700'], varia
 const lato = Lato({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-lato' })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('http://localhost:3000'),
+  metadataBase: getAppUrl(),
   title: {
     default: 'Barber Shop | Book Your Appointment',
     template: '%s',
   },
   description: 'Book your next haircut or beard trim. Pay in person — no app download required.',
   keywords: ['barber shop', 'haircut', 'beard trim', 'fades', 'barber near me', 'book appointment'],
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
     type: 'website',
     locale: 'en_US',
+    url: getAppUrlString(),
     title: 'Barber Shop | Book Your Appointment',
     description: 'Book your next haircut or beard trim. Pay in person — no app download required.',
   },
