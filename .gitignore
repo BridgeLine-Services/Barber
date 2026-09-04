@@ -52,3 +52,5 @@ conversations/
 __pycache__/
 .cache/
 blobs/
+# local test artifacts
+jar
