@@ -47,7 +47,7 @@ export const DAYS_OF_WEEK = [
 ]
 
 export const PAYMENT_DISCLAIMER =
-  'Prices are subject to change. Payment is collected in person at the time of your appointment.'
+  'No payment is collected through this website. Payment is due directly to the barbershop at the time of your appointment unless otherwise stated.'
 
 export const BOOKING_FLOW_STEPS = [
   { id: 1, label: 'Service' },
