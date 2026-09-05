@@ -33,7 +33,13 @@ export default async function TermsOfServicePage() {
           <div className="whitespace-pre-wrap">{customPolicy}</div>
         </Card>
       ) : (
-      <Card className="bg-zinc-900 border-zinc-800 p-8 text-zinc-300 space-y-6 text-sm leading-relaxed">
+      <>
+      <Card className="bg-zinc-900 border-zinc-800 p-8 text-zinc-300 space-y-4 text-sm leading-relaxed">
+        <h2 className="text-lg font-bold text-white font-poppins">Policy not available</h2>
+        <p>This business has not published terms of service yet. Please contact the shop directly if you have questions before booking.</p>
+        <p className="text-zinc-500">Business owners should review and customize this policy for their location and services before publishing it.</p>
+      </Card>
+      <Card className="hidden bg-zinc-900 border-zinc-800 p-8 text-zinc-300 space-y-6 text-sm leading-relaxed">
         <section className="space-y-2">
           <h2 className="text-lg font-bold text-white font-poppins">1. Acceptance of Terms</h2>
           <p>
@@ -103,6 +109,7 @@ export default async function TermsOfServicePage() {
           </p>
         </section>
       </Card>
+      </>
       )}
     </div>
   )
