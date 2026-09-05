@@ -29,6 +29,12 @@ export default async function PrivacyPolicyPage() {
         <Card className="bg-zinc-900 border-zinc-800 p-8 text-zinc-300 space-y-6 text-sm leading-relaxed">
           <div className="whitespace-pre-wrap">{customPolicy}</div>
         </Card>
+        <Card className="bg-zinc-900 border-zinc-800 p-6 text-zinc-300 space-y-3 text-sm leading-relaxed">
+          <h2 className="text-lg font-bold text-white font-poppins">Necessary cookies</h2>
+          <p>
+            This website may use strictly necessary cookies to keep staff sessions secure and support booking or portal functionality. These cookies are not used for advertising or analytics and cannot be disabled through this website without affecting core features.
+          </p>
+        </Card>
       </div>
     )
   }
@@ -49,6 +55,12 @@ export default async function PrivacyPolicyPage() {
         </p>
         <p className="text-zinc-500">
           Business owners should review and customize this policy for their location and services before publishing it.
+        </p>
+      </Card>
+      <Card className="bg-zinc-900 border-zinc-800 p-6 text-zinc-300 space-y-3 text-sm leading-relaxed">
+        <h2 className="text-lg font-bold text-white font-poppins">Necessary cookies</h2>
+        <p>
+          This website may use strictly necessary cookies to keep staff sessions secure and support booking or portal functionality. These cookies are not used for advertising or analytics.
         </p>
       </Card>
 
