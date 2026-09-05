@@ -304,11 +304,15 @@ To prevent race conditions when two clients attempt to select the same slot simu
    Push your repository to GitHub and import it into Vercel.
 
 3. **Configure Environment Variables**:
-   In your Vercel Project Settings, add:
+   Required for a client deployment:
    - `DATABASE_URL`
    - `NEXTAUTH_URL` (your production URL, e.g. `https://yourbarbershop.com`)
    - `NEXTAUTH_SECRET`
-   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+   - `NEXT_PUBLIC_APP_URL` (the canonical HTTPS URL)
+
+   Optional notifications (booking never depends on these):
+   - `EMAIL_ENABLED=false` and `SMS_ENABLED=false` by default
+   - Configure complete `SMTP_*` or `TWILIO_*` credentials only when the client enables that channel
 
 4. **Run Database Migrations during build**:
    Set your Vercel Build Command to:
@@ -366,16 +370,39 @@ Set `APP_MODE=production` for a client deployment. Production must use a real `D
 
 Client configuration belongs in the `Business` record and related settings models: name, description, contact details, timezone, branding, hours, policies, reminders, rebooking, customer verification, and waitlist behavior. Do not put client secrets or business-specific values in source code.
 
-### Production checklist
+### Setting Up a New Barber Client
 
-1. Provision PostgreSQL and apply reviewed Prisma migrations (`npx prisma migrate deploy`).
-2. Configure environment variables in the deployment provider, never in Git.
-3. Create the client owner and business through the onboarding/admin path; verify the owner and barber memberships.
-4. Configure SMTP and optional SMS credentials only when the client enables those channels.
-5. Verify tenant isolation, booking conflict handling, customer token access, cancellation/rescheduling, and backup restoration before publishing the client domain.
-6. Enable automated encrypted database backups with point-in-time recovery where supported; test a restore regularly in a separate database.
+Use this workflow for every clone so client data and configuration never carry over between deployments:
 
-Detailed client-specific values should be supplied during onboarding rather than baked into this template.
+1. Clone this repository into a new client project.
+2. Create a new PostgreSQL database for the client; never reuse another client's database.
+3. Configure required environment variables (`DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and `NEXT_PUBLIC_APP_URL`).
+4. Apply reviewed Prisma migrations with `npx prisma migrate deploy`.
+5. Configure the business name, contact information, location, timezone, and payment-in-person setting through onboarding.
+6. Configure branding, including logo, colors, fonts, and controlled theme settings.
+7. Configure services, prices, durations, and barber assignments.
+8. Configure barbers, schedules, breaks, blocked time, and availability.
+9. Configure booking, cancellation, late, no-show, privacy, terms, and payment policies.
+10. Review notification settings; leave email and SMS disabled unless the client deliberately supplies provider credentials.
+11. Configure the client domain, canonical URL, and SEO information.
+12. Deploy and complete the launch checklist below.
+
+### New Client Launch Checklist
+
+- [ ] A fresh database is connected and migrations are applied.
+- [ ] `APP_MODE=production` is set; demo mode is not deployed.
+- [ ] A unique high-entropy `NEXTAUTH_SECRET` is configured.
+- [ ] Business timezone, location, contact information, and pay-in-person wording are verified.
+- [ ] Services, prices, durations, barbers, schedules, and blocked dates are verified.
+- [ ] Legal policies are reviewed and customized by the business owner.
+- [ ] `NEXT_PUBLIC_APP_URL` and `NEXTAUTH_URL` match the client domain.
+- [ ] Email and SMS are either intentionally disabled or fully configured and tested.
+- [ ] Test bookings cover availability, duplicate submission, conflict handling, cancellation, and rescheduling.
+- [ ] No demo customers, appointments, credentials, or environment files are present.
+- [ ] Backups and restore procedures are configured by the database provider.
+- [ ] `/api/health` returns a healthy response after deployment.
+
+Detailed client-specific values should be supplied during onboarding rather than baked into this template. The core booking system requires no email, SMS, payment provider, worker, cron job, or paid API.
 
 ---
 
