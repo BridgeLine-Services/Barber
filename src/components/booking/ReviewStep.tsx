@@ -34,6 +34,9 @@ interface ReviewStepProps {
     notes?: string
     smsConsent?: boolean
   }
+  policies: { booking?: string | null; cancellation?: string | null; late?: string | null; noShow?: string | null }
+  policyAccepted: boolean
+  onPolicyAcceptedChange: (accepted: boolean) => void
   onConfirm: () => void
   isSubmitting: boolean
   error: string | null
@@ -46,6 +49,9 @@ export function ReviewStep({
   date,
   time,
   customerInfo,
+  policies,
+  policyAccepted,
+  onPolicyAcceptedChange,
   onConfirm,
   isSubmitting,
   error,
@@ -181,6 +187,21 @@ export function ReviewStep({
           </p>
           <p className="text-[11px] text-zinc-400 leading-relaxed">{PAYMENT_DISCLAIMER}</p>
         </div>
+
+        {Object.values(policies).some(Boolean) && (
+          <label className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-950/60 p-4 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={policyAccepted}
+              onChange={(event) => onPolicyAcceptedChange(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-amber-500"
+            />
+            <span>
+              I have read and agree to the configured booking, cancellation, late, and no-show policies.
+              <span className="mt-1 block text-zinc-500">Please review the business policies before confirming.</span>
+            </span>
+          </label>
+        )}
 
         {/* Confirm Action */}
         <div className="pt-2">

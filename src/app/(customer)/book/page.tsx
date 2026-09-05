@@ -61,6 +61,9 @@ function BookingFlow() {
   const [loadError, setLoadError] = useState(false)
   // Track the resolved barber name for the review step when 'any' or 'first-available' resolves to a specific barber
   const [resolvedBarberName, setResolvedBarberName] = useState<string>('')
+  const [policies, setPolicies] = useState<{ booking?: string | null; cancellation?: string | null; late?: string | null; noShow?: string | null }>({})
+  const [policyVersion, setPolicyVersion] = useState<string | null>(null)
+  const [policyAccepted, setPolicyAccepted] = useState(false)
 
   // ─── State persistence (localStorage) ─────────────────────────────
   // Saves booking progress so a page refresh doesn't lose selections.
@@ -113,10 +116,13 @@ function BookingFlow() {
     Promise.all([
       fetch('/api/services').then(r => r.json()),
       fetch('/api/barbers').then(r => r.json()),
-    ]).then(([s, b]) => {
-      // APIs return { services: [...] } and { barbers: [...] }
+      fetch('/api/public/policies').then(r => r.json()).catch(() => ({ policies: {}, version: null })),
+    ]).then(([s, b, policyData]) => {
+      // APIs return { services: [...] }, { barbers: [...] }, and optional policies.
       setServices(s.services || [])
       setBarbers(b.barbers || [])
+      setPolicies(policyData.policies || {})
+      setPolicyVersion(policyData.version || null)
       setLoading(false)
     }).catch(() => {
       setLoadError(true)
@@ -190,6 +196,13 @@ function BookingFlow() {
         apiBarberId = 'any'
       }
 
+      const policiesRequired = Object.values(policies).some(Boolean)
+      if (policiesRequired && !policyAccepted) {
+        setBookingError('Please acknowledge the booking policies before confirming your appointment.')
+        setIsSubmitting(false)
+        return
+      }
+
       const res = await fetch('/api/public/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -207,6 +220,8 @@ function BookingFlow() {
             smsConsent: customerInfo.smsConsent,
             answers: customerInfo.answers,
           },
+          policiesAcceptedAt: policyAccepted ? new Date().toISOString() : undefined,
+          policyVersion: policyAccepted ? policyVersion : undefined,
         }),
       })
 
@@ -326,6 +341,9 @@ function BookingFlow() {
                   date={selectedDate}
                   time={selectedTime}
                   customerInfo={customerInfo}
+                  policies={policies}
+                  policyAccepted={policyAccepted}
+                  onPolicyAcceptedChange={setPolicyAccepted}
                   onConfirm={handleConfirm}
                   isSubmitting={isSubmitting}
                   error={bookingError}
