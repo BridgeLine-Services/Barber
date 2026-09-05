@@ -21,6 +21,8 @@ export const createBookingSchema = z.object({
     smsConsent: z.boolean().optional(),
     answers: z.record(z.string(), z.union([z.string(), z.boolean(), z.array(z.string())])).optional(),
   }),
+  policiesAcceptedAt: z.string().datetime().optional(),
+  policyVersion: z.string().max(100).optional(),
 })
 
 export const cancelByTokenSchema = z.object({

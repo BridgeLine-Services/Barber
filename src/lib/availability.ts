@@ -455,6 +455,8 @@ export async function createAppointmentSafely(params: {
     notes?: string | null
     smsConsent?: boolean
     answers?: Record<string, string | boolean | string[]>
+    policiesAcceptedAt?: Date | null
+    policyVersion?: string | null
   }
 }): Promise<{ success: boolean; appointment?: any; error?: string; customerAccessToken?: string }> {
   const { businessId, barberId, serviceId, startTime, idempotencyKey, customerData } = params
@@ -565,6 +567,8 @@ export async function createAppointmentSafely(params: {
           endTime,
           status: 'CONFIRMED',
           customerNotes: customerData.notes ?? null,
+          policiesAcceptedAt: customerData.policiesAcceptedAt ?? null,
+          policyVersion: customerData.policyVersion ?? null,
         },
         include: {
           service: true,

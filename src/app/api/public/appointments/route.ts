@@ -90,6 +90,26 @@ export async function POST(req: NextRequest) {
     const { barberId: reqBarberId, serviceId, date, time, customer } = parseResult.data
 
     const businessId = await resolveBusinessId()
+    const businessPolicies = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: {
+        updatedAt: true,
+        bookingPolicy: true,
+        cancellationPolicy: true,
+        latePolicy: true,
+        noShowPolicyText: true,
+      },
+    })
+    const policiesRequired = Boolean(
+      businessPolicies?.bookingPolicy || businessPolicies?.cancellationPolicy ||
+      businessPolicies?.latePolicy || businessPolicies?.noShowPolicyText
+    )
+    if (policiesRequired && !parseResult.data.policiesAcceptedAt) {
+      return NextResponse.json(
+        { success: false, error: 'Please acknowledge the booking policies before confirming your appointment.' },
+        { status: 400 }
+      )
+    }
     const startTime = await parseStartTime(date, time, businessId)
 
     // Cannot book in the past
@@ -159,7 +179,11 @@ export async function POST(req: NextRequest) {
       serviceId,
       startTime,
       idempotencyKey,
-      customerData: customer,
+      customerData: {
+        ...customer,
+        policiesAcceptedAt: parseResult.data.policiesAcceptedAt ? new Date(parseResult.data.policiesAcceptedAt) : null,
+        policyVersion: policiesRequired ? (businessPolicies?.updatedAt.toISOString() ?? null) : null,
+      },
     })
 
     if (!result.success || !result.appointment) {
