@@ -400,6 +400,8 @@ model Appointment {
   noShowReason        String?
   noShowAt            DateTime?
   noShowMarkedBy      String?
+  policiesAcceptedAt  DateTime?
+  policyVersion       String?
   createdBy           String? // "ONLINE" | "MANUAL" | userId
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
